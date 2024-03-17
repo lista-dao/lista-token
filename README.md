@@ -1,6 +1,7 @@
-# Helio ETH-contracts (forked from Prisma finance - commit hash #6952ff8d3fc0511fff6015701e9f513510be8cce)
+# Lista DAO Token
 
-A decentralized, non-custodial stablecoin backed by Ethereum liquid staking tokens.
+Given as an incentive for users of the protocol. Can be locked in `TokenLocker`
+to receive lock weight, which gives governance power within the Lista DAO.
 
 ## How to run unit tests
 
@@ -26,14 +27,16 @@ cp .env.example .env
 
 2. Fill in the environment variables in the `.env` file:
 ```env
-DEPLOYER_KEY="your private key"
-ALCHEMY_API_KEY="your alchemy api key"
-ETHERSCAN_API_KEY=""
+ETHERSCAN_API_KEY=
+BSCSCAN_API_KEY=
+DEPLOYER_PRIVATE_KEY=
+BSC_TESTNET_RPC=
+BSC_RPC=
+SEPOLIA_RPC=
+ETHEREUM_RPC=
 ```
 
-`DEPLOYER_KEY` is the private key of the account that will deploy the contracts. It should have enough ETH to pay for the gas fees.
-
-To get `ALCHEMY_API_KEY`, you need to create an account on [Alchemy](https://www.alchemy.com/). Then, create a new Ethereum app and copy the API key.
+`DEPLOYER_PRIVATE_KEY` is the private key of the account that will deploy the contracts. It should have enough BNB/ETH to pay for the gas fees.
 
 ### Run tests
 
@@ -58,7 +61,8 @@ yarn coverage
 
 Open coverage report in browser: `coverage/index.html`
 
-## How to deploy on Sepolia
+## How to deploy on bsc
 
-1. Add `SEPOLIA_DEPLOYER_KEY` to `.env` file and make sure other environment variables are valid
-2. Run `npx hardhat run scripts/deploy.ts --network sepolia`, which will deploy and verify Lista contracts on Sepolia
+1. Run `npx hardhat deploy:ListaToken --network bsc <ownerAddress>`, which will deploy Lista contracts on bsc
+   the owner address is the address that will receive the total supply of tokens
+2. Run `npx hardhat verify --network bsc <contractAddress> <ownerAddress>`, which will deploy Lista contracts on bsc
