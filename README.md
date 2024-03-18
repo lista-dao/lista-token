@@ -63,6 +63,6 @@ Open coverage report in browser: `coverage/index.html`
 
 ## How to deploy on bsc
 
-1. Run `npx hardhat deploy:ListaToken --network bsc <ownerAddress>`, which will deploy Lista contracts on bsc
+1. Run `npx hardhat deploy:ListaToken --network bsc <ownerAddress>`, which will deploy Lista contracts on bsc,
    the owner address is the address that will receive the total supply of tokens
-2. Run `npx hardhat verify --network bsc <contractAddress> <ownerAddress>`, which will deploy Lista contracts on bsc
+2. Run `npx hardhat verify --network bsc <contractAddress> <ownerAddress>`, which will verify Lista contracts on bsc
