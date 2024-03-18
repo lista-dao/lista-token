@@ -102,7 +102,7 @@ describe("ListaToken", function () {
     // the owner has 1B
     expect(await listaToken.balanceOf(owner.address)).to.equals(totalSupply);
 
-    // name is "Lista Token"
+    // name is "Lista DAO"
     expect(name).to.equals("Lista DAO");
 
     // symbol is "LISTA"
