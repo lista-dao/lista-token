@@ -275,6 +275,10 @@ describe("ListaToken", function () {
         spender: await spender1.getAddress(),
         value: ethers.utils.parseEther("10"),
       };
+      const beforeApproved = await listaToken.allowance(
+        approve.owner,
+        approve.spender
+      );
       // get latest block timestamp
       const block = await ethers.provider.getBlock("latest");
       const deadline = block.timestamp + 60;
@@ -305,6 +309,22 @@ describe("ListaToken", function () {
       )
         .to.be.emit(listaToken, "Approval")
         .withArgs(approve.owner, approve.spender, approve.value);
+      // check the allowance
+      expect(
+        await listaToken.allowance(approve.owner, approve.spender)
+      ).to.equals(approve.value.add(beforeApproved));
+      // the nonce can only use once
+      await expect(
+        listaToken.permit(
+          approve.owner,
+          approve.spender,
+          approve.value,
+          deadline,
+          v,
+          r,
+          s
+        )
+      ).to.be.revertedWith("ERC20Permit: invalid signature");
     });
   });
 });
