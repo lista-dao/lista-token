@@ -307,12 +307,9 @@ describe("ListaToken", function () {
         .withArgs(approve.owner, approve.spender, approve.value);
     });
 
-    it("Only owner can update doamin seperator", async () => {
-      await expect(
-        listaToken.connect(spender1).updateDomainSeparator()
-      ).to.be.revertedWith("Ownable: caller is not the owner");
-
+    it("Anyone can update doamin seperator", async () => {
       await listaToken.connect(deployer).updateDomainSeparator();
+      await listaToken.connect(spender1).updateDomainSeparator();
     });
   });
 });
