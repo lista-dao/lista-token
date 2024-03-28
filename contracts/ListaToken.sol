@@ -28,7 +28,7 @@ contract ListaToken is ERC20, IERC2612 {
         );
 
     // domain separator for EIP 712
-    bytes32 private immutable DOMAIN_SEPARATOR;
+    bytes32 private DOMAIN_SEPARATOR;
 
     // @dev Mapping from (owner) => (next valid nonce) for EIP-712 signatures.
     mapping(address => uint256) private _nonces;
@@ -92,5 +92,22 @@ contract ListaToken is ERC20, IERC2612 {
      */
     function nonces(address owner) external view override returns (uint256) {
         return _nonces[owner];
+    }
+
+    /**
+     * @dev Updates the domain separator with the latest chain id.
+     */
+    function updateDomainSeparator() external {
+        bytes32 hashedName = keccak256(bytes(_NAME));
+        bytes32 hashedVersion = keccak256(bytes(EIP712_VERSION));
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                EIP712_DOMAIN,
+                hashedName,
+                hashedVersion,
+                block.chainid,
+                address(this)
+            )
+        );
     }
 }

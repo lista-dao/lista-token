@@ -326,5 +326,10 @@ describe("ListaToken", function () {
         )
       ).to.be.revertedWith("ERC20Permit: invalid signature");
     });
+
+    it("Anyone can update doamin seperator", async () => {
+      await listaToken.connect(deployer).updateDomainSeparator();
+      await listaToken.connect(spender1).updateDomainSeparator();
+    });
   });
 });
