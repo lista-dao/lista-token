@@ -306,5 +306,13 @@ describe("ListaToken", function () {
         .to.be.emit(listaToken, "Approval")
         .withArgs(approve.owner, approve.spender, approve.value);
     });
+
+    it("Only owner can update doamin seperator", async () => {
+      await expect(
+        listaToken.connect(spender1).updateDomainSeparator()
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await listaToken.connect(deployer).updateDomainSeparator();
+    });
   });
 });

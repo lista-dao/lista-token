@@ -3,13 +3,14 @@ pragma solidity ^0.8.10;
 
 import "./interfaces/IERC2612.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
     @title Lista DAO Token
     @notice Given as an incentive for users of the protocol. Can be locked in `TokenLocker`
             to receive lock weight, which gives governance power within the Lista DAO.
  */
-contract ListaToken is ERC20, IERC2612 {
+contract ListaToken is ERC20, IERC2612, Ownable {
     // --- ERC20 Data ---
     string internal constant _NAME = "Lista DAO";
     string internal constant _SYMBOL = "LISTA";
@@ -28,7 +29,7 @@ contract ListaToken is ERC20, IERC2612 {
         );
 
     // domain separator for EIP 712
-    bytes32 private immutable DOMAIN_SEPARATOR;
+    bytes32 private DOMAIN_SEPARATOR;
 
     // @dev Mapping from (owner) => (next valid nonce) for EIP-712 signatures.
     mapping(address => uint256) private _nonces;
@@ -92,5 +93,22 @@ contract ListaToken is ERC20, IERC2612 {
      */
     function nonces(address owner) external view override returns (uint256) {
         return _nonces[owner];
+    }
+
+    /**
+     * @dev Updates the domain separator with the latest chain id. Should only be called by the owner.
+     */
+    function updateDomainSeparator() external onlyOwner {
+        bytes32 hashedName = keccak256(bytes(_NAME));
+        bytes32 hashedVersion = keccak256(bytes(EIP712_VERSION));
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                EIP712_DOMAIN,
+                hashedName,
+                hashedVersion,
+                block.chainid,
+                address(this)
+            )
+        );
     }
 }
