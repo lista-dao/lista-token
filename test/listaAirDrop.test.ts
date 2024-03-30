@@ -1,6 +1,7 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { MerkleTree } from "merkletreejs";
+import { mine } from "@nomicfoundation/hardhat-network-helpers";
 
 function toWei(eth: string) {
   return ethers.utils.parseEther(eth).toString();
@@ -21,35 +22,43 @@ describe("ListaAirdrop", function () {
   let user1: SignerWithAddress;
   let user2: SignerWithAddress;
   let user3: SignerWithAddress;
+  let user4: SignerWithAddress;
   let treasury: SignerWithAddress;
   let tree: MerkleTree;
   let root: string;
   let proof1: any[];
   let proof2: any[];
   let proof3: any[];
+  let proof4: any[];
   before(async function () {
-    [owner, user1, user2, user3, treasury] = await ethers.getSigners();
+    [owner, user1, user2, user3, user4, treasury] = await ethers.getSigners();
 
     const leaves = [
       leafHash(user1.address, toWei("1")), // user1 node
       leafHash(user2.address, toWei("1")), // user2 node
       leafHash(user3.address, toWei("1")), // user3 node
+      leafHash(user4.address, toWei("101")), // user4 node
     ];
 
-    tree = new MerkleTree(leaves, ethers.utils.keccak256);
+    tree = new MerkleTree(leaves, ethers.utils.keccak256, {
+      sortPairs: true,
+    });
 
-    //    console.log(tree.toString());
+    console.log(tree.toString());
 
     root = tree.getRoot().toString("hex");
     const leaf1 = leafHash(user1.address, toWei("1")); // user1
     const leaf2 = leafHash(user2.address, toWei("1")); // user2
     const leaf3 = leafHash(user3.address, toWei("1")); // user3
+    const leaf4 = leafHash(user4.address, toWei("101")); // user4
     proof1 = tree.getProof(leaf1);
     proof2 = tree.getProof(leaf2);
     proof3 = tree.getProof(leaf3);
+    proof4 = tree.getProof(leaf4);
     expect(tree.verify(proof1, leaf1, root)).to.be.true;
     expect(tree.verify(proof2, leaf2, root)).to.be.true;
     expect(tree.verify(proof3, leaf3, root)).to.be.true;
+    expect(tree.verify(proof4, leaf4, root)).to.be.true;
 
     // contract deploy treasury
     listaToken = await ethers.deployContract("ListaToken", [treasury.address]);
@@ -60,7 +69,8 @@ describe("ListaAirdrop", function () {
     await merkleVerifier.deployed();
 
     const reclaimDelay = 0;
-    const startBlock = (await ethers.provider.getBlockNumber()) + 1;
+    const startBlock = (await ethers.provider.getBlockNumber()) + 20;
+    const endBlock = startBlock + 200;
     const ListaAirdrop = await ethers.getContractFactory("ListaAirdrop", {
       libraries: {
         MerkleVerifier: merkleVerifier.address,
@@ -70,7 +80,8 @@ describe("ListaAirdrop", function () {
       listaToken.address,
       "0x" + root, // bytes32
       reclaimDelay,
-      startBlock
+      startBlock,
+      endBlock
     );
     await listaAirdrop.deployed();
 
@@ -80,6 +91,18 @@ describe("ListaAirdrop", function () {
   });
 
   it("should work", async function () {
+    // shoule revert if not started
+    await expect(
+      listaAirdrop.claim(
+        user1.address,
+        toWei("1"),
+        proof1.map((p) => "0x" + p.data.toString("hex"))
+      )
+    ).to.be.revertedWith("Airdrop not started or has ended");
+
+    // advance to start block
+    await mine(20);
+
     // shoule revert if incorrect proof provided
     await expect(
       listaAirdrop.claim(
@@ -123,7 +146,7 @@ describe("ListaAirdrop", function () {
       .withArgs(user3.address, toWei("1"));
   });
 
-  it("shoule revert if the user has already claimed", async function () {
+  it("shoule revert if the user has already claimed or has ended", async function () {
     await expect(
       listaAirdrop.claim(
         user1.address,
@@ -131,6 +154,18 @@ describe("ListaAirdrop", function () {
         proof1.map((p) => "0x" + p.data.toString("hex"))
       )
     ).to.be.revertedWith("Airdrop already claimed");
+
+    // advance to end block
+    await mine(30000);
+
+    // user4 can't claim
+    await expect(
+      listaAirdrop.claim(
+        user4.address,
+        toWei("101"),
+        proof4.map((p) => "0x" + p.data.toString("hex"))
+      )
+    ).to.be.revertedWith("Airdrop not started or has ended");
   });
 
   it("owner should be able to reclaim", async function () {
@@ -149,9 +184,24 @@ describe("ListaAirdrop", function () {
   });
 
   it("owner should be able to set start block", async function () {
+    const startBlock = await listaAirdrop.startBlock();
+    await expect(listaAirdrop.setStartBlock(startBlock)).to.be.revertedWith(
+      "Start block already set"
+    );
     const newStartBlock = (await ethers.provider.getBlockNumber()) + 1;
     await listaAirdrop.setStartBlock(newStartBlock);
 
     expect(await listaAirdrop.startBlock()).to.equals(newStartBlock);
+  });
+
+  it("owner should be able to set end block", async function () {
+    const endBlock = await listaAirdrop.endBlock();
+    await expect(listaAirdrop.setEndBlock(endBlock)).to.be.revertedWith(
+      "End block already set"
+    );
+    const newEndBlock = (await ethers.provider.getBlockNumber()) + 200;
+    await listaAirdrop.setEndBlock(newEndBlock);
+
+    expect(await listaAirdrop.endBlock()).to.equals(newEndBlock);
   });
 });

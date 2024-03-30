@@ -26,18 +26,31 @@ async function main() {
     console.log(user);
     leaves.push(leafHash(user["address"], toWei(user["amount"])));
   }
-  const tree = new MerkleTree(leaves, ethers.utils.keccak256);
+  const tree = new MerkleTree(leaves, ethers.utils.keccak256, {
+    sortPairs: true,
+  });
   console.log("Print tree: ", tree.toString());
 
   const root = tree.getRoot().toString("hex");
   const leaf = leafHash(users[1].address, toWei("10001")); // user2's leaf
   const proof = tree.getProof(leaf); // user2's proof
+  const leaf5 = leafHash(users[4].address, toWei("1.1111111111111111")); // user5's leaf
+  const proof5 = tree.getProof(leaf5); // user2's proof
 
   console.log(
     "Print proof of user2: ",
     proof.map((p) => "0x" + p.data.toString("hex"))
   );
   console.log("User2 should be able to claim:", tree.verify(proof, leaf, root)); // true
+
+  console.log(
+    "Print proof of user5: ",
+    proof5.map((p) => "0x" + p.data.toString("hex"))
+  );
+  console.log(
+    "User5 should be able to claim:",
+    tree.verify(proof5, leaf5, root)
+  ); // true
 }
 
 main()

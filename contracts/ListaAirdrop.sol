@@ -12,17 +12,19 @@ contract ListaAirdrop is Ownable {
     address public token;
     bytes32 public merkleRoot;
     uint256 public startBlock;
+    uint256 public endBlock;
     mapping(bytes32 => bool) public claimed;
 
     event Claimed(address account, uint256 amount);
 
-    constructor(address _token, bytes32 _merkleRoot, uint256 reclaimDelay, uint256 _startBlock) {
+    constructor(address _token, bytes32 _merkleRoot, uint256 reclaimDelay, uint256 _startBlock, uint256 _endBlock) {
         require(_startBlock >= block.number, "Invalid start block");
-
+        require(_endBlock > _startBlock, "Invalid end block");
         token = _token;
         merkleRoot = _merkleRoot;
         reclaimPeriod = block.timestamp + reclaimDelay;
         startBlock = _startBlock;
+        endBlock = _endBlock;
     }
 
     function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
@@ -34,12 +36,17 @@ contract ListaAirdrop is Ownable {
         startBlock = _startBlock;
     }
 
+    function setEndBlock(uint256 _endBlock) external onlyOwner {
+        require(_endBlock != endBlock, "End block already set");
+        endBlock = _endBlock;
+    }
+
     function claim(
         address account,
         uint256 amount,
         bytes32[] memory proof
     ) external {
-        require(block.number >= startBlock, "Airdrop not started");
+        require(block.number >= startBlock && block.number <= endBlock, "Airdrop not started or has ended");
         bytes32 leaf = keccak256(abi.encodePacked(account, amount));
         require(!claimed[leaf], "Airdrop already claimed");
         MerkleVerifier._verifyProof(leaf, merkleRoot, proof);

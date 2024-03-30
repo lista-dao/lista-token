@@ -22,6 +22,7 @@
   "devDependencies": {
     "@ethereum-waffle/mock-contract": "^4.0.4",
     "@layerzerolabs/lz-evm-oapp-v2": "^2.0.14",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.10",
     "@nomiclabs/hardhat-ethers": "^2.0.6",
     "@nomiclabs/hardhat-etherscan": "^3.0.4",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
