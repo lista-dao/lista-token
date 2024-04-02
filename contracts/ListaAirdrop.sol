@@ -20,6 +20,7 @@ contract ListaAirdrop is Ownable {
     constructor(address _token, bytes32 _merkleRoot, uint256 reclaimDelay, uint256 _startBlock, uint256 _endBlock) {
         require(_startBlock >= block.number, "Invalid start block");
         require(_endBlock > _startBlock, "Invalid end block");
+        require(_token != address(0), "Invalid token address");
         token = _token;
         merkleRoot = _merkleRoot;
         reclaimPeriod = block.timestamp + reclaimDelay;
@@ -38,6 +39,7 @@ contract ListaAirdrop is Ownable {
 
     function setEndBlock(uint256 _endBlock) external onlyOwner {
         require(_endBlock != endBlock, "End block already set");
+        require(_endBlock > startBlock, "Invalid end block");
         endBlock = _endBlock;
     }
 
@@ -58,7 +60,7 @@ contract ListaAirdrop is Ownable {
     }
 
     function reclaim(uint256 amount) external onlyOwner {
-        require(block.timestamp > reclaimPeriod, "Tokens cannot be reclaimed");
+        require(block.timestamp > reclaimPeriod && block.number > endBlock, "Tokens cannot be reclaimed");
         require(IERC20(token).transfer(msg.sender, amount), "Transfer failed");
     }
 }
