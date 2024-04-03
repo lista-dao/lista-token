@@ -79,7 +79,7 @@ contract ListaToken is ERC20, IERC2612 {
             )
         );
         address recoveredAddress = ecrecover(digest, v, r, s);
-        require(recoveredAddress == owner && recoveredAddress != address(0), "ERC20Permit: invalid signature");
+        require(recoveredAddress == owner, "ERC20Permit: invalid signature");
         _approve(owner, spender, amount);
     }
 
