@@ -89,6 +89,9 @@ describe("ListaAirdrop", function () {
     await listaToken
       .connect(treasury)
       .transfer(listaAirdrop.address, toWei("10"));
+
+    await listaAirdrop.setStartBlock(startBlock + 1);
+    expect(await listaAirdrop.startBlock()).to.equals(startBlock + 1);
   });
 
   it("should work", async function () {
@@ -187,15 +190,15 @@ describe("ListaAirdrop", function () {
     );
   });
 
-  it("owner should be able to set start block", async function () {
+  it("owner should be not able to set start block after ended", async function () {
     const startBlock = await listaAirdrop.startBlock();
     await expect(listaAirdrop.setStartBlock(startBlock)).to.be.revertedWith(
       "Start block already set"
     );
     const newStartBlock = (await ethers.provider.getBlockNumber()) + 1;
-    await listaAirdrop.setStartBlock(newStartBlock);
-
-    expect(await listaAirdrop.startBlock()).to.equals(newStartBlock);
+    await expect(listaAirdrop.setStartBlock(newStartBlock)).to.be.revertedWith(
+      "Invalid start block"
+    );
   });
 
   it("owner should be able to set end block", async function () {

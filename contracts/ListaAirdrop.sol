@@ -48,7 +48,7 @@ contract ListaAirdrop is Ownable {
      */
     function setStartBlock(uint256 _startBlock) external onlyOwner {
         require(_startBlock != startBlock, "Start block already set");
-        require(_startBlock < endBlock, "Invalid start block");
+        require(endBlock > _startBlock, "Invalid start block");
 
         startBlock = _startBlock;
     }
