@@ -29,6 +29,7 @@ contract ListaAirdrop is Ownable {
     }
 
     function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
+        require(block.number < startBlock, "Cannot change merkle root after airdrop has started");
         merkleRoot = _merkleRoot;
     }
 

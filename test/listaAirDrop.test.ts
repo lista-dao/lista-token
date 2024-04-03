@@ -76,9 +76,10 @@ describe("ListaAirdrop", function () {
         MerkleVerifier: merkleVerifier.address,
       },
     });
+    const fakeRoot = ethers.utils.formatBytes32String("");
     listaAirdrop = await ListaAirdrop.deploy(
       listaToken.address,
-      "0x" + root, // bytes32
+      fakeRoot, // bytes32
       reclaimDelay,
       startBlock,
       endBlock
@@ -91,6 +92,9 @@ describe("ListaAirdrop", function () {
   });
 
   it("should work", async function () {
+    await listaAirdrop.setMerkleRoot("0x" + root);
+    expect(await listaAirdrop.merkleRoot()).to.equals("0x" + root);
+
     // shoule revert if not started
     await expect(
       listaAirdrop.claim(
@@ -176,11 +180,11 @@ describe("ListaAirdrop", function () {
     );
   });
 
-  it("owner should be able to set merkle root", async function () {
+  it("owner should not be able to set merkle root once claim started", async function () {
     const newRoot = ethers.utils.formatBytes32String("");
-    await listaAirdrop.setMerkleRoot(newRoot);
-
-    expect(await listaAirdrop.merkleRoot()).to.equals(newRoot);
+    await expect(listaAirdrop.setMerkleRoot(newRoot)).to.be.revertedWith(
+      "Cannot change merkle root after airdrop has started"
+    );
   });
 
   it("owner should be able to set start block", async function () {
