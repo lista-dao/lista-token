@@ -1,0 +1,23 @@
+[
+  {
+    "eid": 40102,
+    "oft": "",
+    "network": "bscTestnet",
+    "lz": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+    "contract": "ListaOFTAdapter"
+  },
+  {
+    "eid": 40161,
+    "oft": "",
+    "network": "sepolia",
+    "lz": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+    "contract": "ListaOFT"
+  },
+  {
+    "eid": 40202,
+    "oft": "",
+    "network": "opBnbTestnet",
+    "lz": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+    "contract": "ListaOFT"
+  }
+]

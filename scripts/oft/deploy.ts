@@ -1,14 +1,20 @@
 import hre, { ethers } from "hardhat";
+import chains from "./oftChains.json";
 
-// Ethereum and BSC use the same LayerZero ENDPOINT
-const LZ_ENDPOINT = /^sepolia|bscTestnet$/.test(hre.network.name)
-  ? "0x6EDCE65403992e310A62460808c4b910D972f10f"
-  : "0x1a44076050125825900e736c501f859c50fE728c";
+function getConfig() {
+  const network = hre.network.name;
+  const config = chains.filter((c) => c.network === network)[0];
+  if (!config) throw new Error("Chain not found");
+  return config;
+}
 
 async function main() {
   const owner = (await hre.ethers.getSigners())[0].address;
   let listaTokenAddress, OFTAdapterAddress, listaOFTAddress;
+  const chainConfig = getConfig();
+  const LZ_ENDPOINT = chainConfig.lz;
   console.log("Network: ", hre.network.name);
+  console.log("Chain Config: ", chainConfig);
   // deploy Lista Token at Source Chain (testnet only)
   if (hre.network.name === "bscTestnet") {
     // deploy contract
@@ -24,7 +30,7 @@ async function main() {
     });
   }
   // deploy OFT Adapter at Source Chain
-  if (/^bsc/.test(hre.network.name)) {
+  if (chainConfig.contract === "ListaOFTAdapter") {
     // deploy contract
     const OFTAdapter = await ethers.getContractFactory("ListaOFTAdapter");
     const oftAdapter = await OFTAdapter.deploy(
@@ -42,7 +48,7 @@ async function main() {
     });
   }
   // deploy OFT at destination chain
-  if (/^sepolia|ethereum$/.test(hre.network.name)) {
+  if (chainConfig.contract === "ListaOFT") {
     // deploy Lista oft
     const ListaOFT = await ethers.getContractFactory("ListaOFT");
     const listaOFT = await ListaOFT.deploy(LZ_ENDPOINT, owner);

@@ -1,43 +1,35 @@
 import hre, { ethers } from "hardhat";
+import chains from "./oftChains.json";
+
 /**
- eid = DESTINATION chain id
- source = SOURCE chain OFT contract address
- dst = DESTINATION chain OFT contract address
+ * BSC Testnet: 40102 | Sepolia: 40161 | opBNB Testnet: 40202
  */
-const peers = {
-  bsc: { eid: 30101, source: "", dst: "" },
-  ethereum: { eid: 30102, source: "", dst: "" },
-  bscTestnet: {
-    eid: 40161,
-    source: "0x6F8956d9b26D307f7b9742416E7a4D3AFe08DfDB",
-    dst: "0x6698f6a4B537284ECAD1071C8868186f7ECC8bCb",
-  },
-  sepolia: {
-    eid: 40102,
-    source: "0x6698f6a4B537284ECAD1071C8868186f7ECC8bCb",
-    dst: "0x6F8956d9b26D307f7b9742416E7a4D3AFe08DfDB",
-  },
-};
-const sourceChain = ["bsc", "bscTestnet"];
+const from = 40161;
+const to = 40202;
 
 async function main() {
   const network = hre.network.name;
   console.log("Source Network: ", network);
-  const Contract = await ethers.getContractFactory(
-    sourceChain.includes(network) ? "ListaOFTAdapter" : "ListaOFT"
-  );
-  // @ts-ignore
-  const config = peers[network];
-  console.log("Config: ", config);
-  const contract = Contract.attach(config.source);
+  const chainA = getChainByEid(from);
+  const chainB = getChainByEid(to);
+  const Contract = await ethers.getContractFactory(chainA.contract);
+  const contract = Contract.attach(chainA.oft);
   // set peer
   const tx = await contract.setPeer(
-    config.eid,
-    ethers.utils.arrayify(ethers.utils.hexZeroPad(config.dst, 32))
+    chainB.eid,
+    ethers.utils.arrayify(ethers.utils.hexZeroPad(chainB.oft, 32))
   );
   console.log("tx hash: ", tx.hash);
   await tx.wait(3);
-  console.log(`Chain "${network}" peer is set`);
+  console.log(
+    `Chain "${chainA.network}" > Chain "${chainB.network}" peer is set`
+  );
+}
+
+function getChainByEid(eid: number) {
+  const c = chains.filter((c) => (c.eid as number) === eid)[0];
+  if (!c) throw new Error("Chain not found");
+  return c;
 }
 
 main()
