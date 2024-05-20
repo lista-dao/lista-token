@@ -1,5 +1,19 @@
 [
   {
+    "eid": 30102,
+    "oft": "",
+    "network": "bsc",
+    "lz": "0x1a44076050125825900e736c501f859c50fE728c",
+    "contract": "ListaOFTAdapter"
+  },
+  {
+    "eid": 30101,
+    "oft": "",
+    "network": "ethereum",
+    "lz": "0x1a44076050125825900e736c501f859c50fE728c",
+    "contract": "ListaOFT"
+  },
+  {
     "eid": 40102,
     "oft": "",
     "network": "bscTestnet",

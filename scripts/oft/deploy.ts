@@ -10,13 +10,13 @@ function getConfig() {
 
 async function main() {
   const owner = (await hre.ethers.getSigners())[0].address;
-  let listaTokenAddress, OFTAdapterAddress, listaOFTAddress;
   const chainConfig = getConfig();
   const LZ_ENDPOINT = chainConfig.lz;
   console.log("Network: ", hre.network.name);
   console.log("Chain Config: ", chainConfig);
+  let listaTokenAddress, OFTAdapterAddress, listaOFTAddress;
   // deploy Lista Token at Source Chain (testnet only)
-  if (hre.network.name === "bscTestnet") {
+  if (hre.network.name === "bscTestnet" && !listaTokenAddress) {
     // deploy contract
     const ListaToken = await ethers.getContractFactory("ListaToken");
     const listaToken = await ListaToken.deploy(owner);
@@ -34,6 +34,7 @@ async function main() {
     // deploy contract
     const OFTAdapter = await ethers.getContractFactory("ListaOFTAdapter");
     const oftAdapter = await OFTAdapter.deploy(
+      [],
       listaTokenAddress,
       LZ_ENDPOINT,
       owner
@@ -44,21 +45,21 @@ async function main() {
     // verify contract
     await hre.run("verify:verify", {
       address: OFTAdapterAddress,
-      constructorArguments: [listaTokenAddress, LZ_ENDPOINT, owner],
+      constructorArguments: [[], listaTokenAddress, LZ_ENDPOINT, owner],
     });
   }
   // deploy OFT at destination chain
   if (chainConfig.contract === "ListaOFT") {
     // deploy Lista oft
     const ListaOFT = await ethers.getContractFactory("ListaOFT");
-    const listaOFT = await ListaOFT.deploy(LZ_ENDPOINT, owner);
+    const listaOFT = await ListaOFT.deploy([], LZ_ENDPOINT, owner);
     await listaOFT.deployed();
     listaOFTAddress = listaOFT.address;
     console.log("Deployed ListaOFT: ", listaOFTAddress);
     // verify contract
     await hre.run("verify:verify", {
       address: listaOFTAddress,
-      constructorArguments: [LZ_ENDPOINT, owner],
+      constructorArguments: [[], LZ_ENDPOINT, owner],
     });
   }
 }
