@@ -2,18 +2,16 @@
 pragma solidity ^0.8.10;
 
 import "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTAdapter.sol";
-import "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/utils/RateLimiter.sol";
+import "./TransferLimiter.sol";
+import "./PausableAlt.sol";
 
 /**
   * @title Lista OFTAdapter Contract
-  * @dev Lista OFTAdapter is a contract that adapts the ListaToken to the OFT functionality.
-    User's are can transfer their lista token by lock their tokens into this contract,
+  * @dev Lista OFTAdapter is a contract that adapts the ERC20 token to the OFT functionality.
+    Users can transfer their token by lock their tokens into this contract,
     and receive the 1:1 backed token on the other chain.
   */
-contract ListaOFTAdapter is RateLimiter, OFTAdapter {
-
-  // @dev skip rate limit check (eid) => (bool)
-  mapping(uint32 => bool) public skipRateLimitCheck;
+contract ListaOFTAdapter is TransferLimiter, OFTAdapter, PausableAlt {
 
   /**
     * @dev Constructor for the ListaAdapter contract
@@ -22,31 +20,32 @@ contract ListaOFTAdapter is RateLimiter, OFTAdapter {
     * @param _owner The address of the owner of the contract
     */
   constructor (
-    RateLimitConfig[] memory _rateLimitConfigs,
+    TransferLimit[] memory _transferLimitConfigs,
     address _token,
     address _lzEndpoint,
     address _owner
   ) OFTAdapter(_token, _lzEndpoint, _owner) {
-    _setRateLimits(_rateLimitConfigs);
+    _setTransferLimitConfigs(_transferLimitConfigs);
   }
 
-  //  --- RateLimiter functionality ---
+  // ------ Transfer Limiter functionality ------
+
   /**
-    * @dev Sets the rate limits based on RateLimitConfig array. Only callable by the owner or the rate limiter.
-    * @param _rateLimitConfigs An array of RateLimitConfig structures defining the rate limits.
-    */
-  function setRateLimits(
-    RateLimitConfig[] calldata _rateLimitConfigs
+   * @dev Sets the transfer limit configurations based on TransferLimit array. Only callable by the owner or the rate limiter.
+   * @param _transferLimitConfigs An array of TransferLimit structures defining the transfer limits.
+   */
+  function setTransferLimitConfigs(
+    TransferLimit[] calldata _transferLimitConfigs
   ) external onlyOwner {
-    _setRateLimits(_rateLimitConfigs);
+    _setTransferLimitConfigs(_transferLimitConfigs);
   }
 
   /**
-    * @dev Toggle skip rate limit check
-    * @param _skipRateLimitCheck is check skip rate limit
-    */
-  function setSkipRateLimitCheck(uint32 _eid, bool _skipRateLimitCheck) external onlyOwner {
-    skipRateLimitCheck[_eid] = _skipRateLimitCheck;
+   * @dev Toggle skip transfer limit check
+   * @param _skipTransferLimitCheck is check skip rate limit
+   */
+  function setSkipTransferLimitCheck(uint32 _eid, bool _skipTransferLimitCheck) external onlyOwner {
+    _setSkipTransferLimitCheck(_eid, _skipTransferLimitCheck);
   }
 
   /**
@@ -62,10 +61,8 @@ contract ListaOFTAdapter is RateLimiter, OFTAdapter {
     uint256 _amountLD,
     uint256 _minAmountLD,
     uint32 _dstEid
-  ) internal virtual override returns (uint256 amountSentLD, uint256 amountReceivedLD) {
-    if (skipRateLimitCheck[_dstEid] != true) {
-      _checkAndUpdateRateLimit(_dstEid, _amountLD);
-    }
+  ) internal virtual override whenNotPaused returns (uint256 amountSentLD, uint256 amountReceivedLD) {
+    _checkAndUpdateTransferLimit(_dstEid, _amountLD, _from);
     return super._debit(_from, _amountLD, _minAmountLD, _dstEid);
   }
 

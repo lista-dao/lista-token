@@ -3,12 +3,13 @@ pragma solidity ^0.8.10;
 
 import "../interfaces/IERC2612.sol";
 import "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFT.sol";
-import "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/utils/RateLimiter.sol";
+import "./TransferLimiter.sol";
+import "./PausableAlt.sol";
 
-contract ListaOFT is RateLimiter, OFT, IERC2612 {
+contract ListaOFT is TransferLimiter, OFT, IERC2612, PausableAlt {
   // --- ERC20 Data ---
-  string internal constant _NAME = "Lista DAO";
-  string internal constant _SYMBOL = "LISTA";
+  string internal _NAME;
+  string internal _SYMBOL;
 
   // --- EIP 2612 Data ---
   bytes32 public constant PERMIT_TYPE_HASH =
@@ -29,16 +30,17 @@ contract ListaOFT is RateLimiter, OFT, IERC2612 {
   // @dev Mapping from (owner) => (next valid nonce) for EIP-712 signatures.
   mapping(address => uint256) private _nonces;
 
-  // @dev skip rate limit check (eid) => (bool)
-  mapping(uint32 => bool) public skipRateLimitCheck;
-
   // --- Functions ---
   constructor(
-    RateLimitConfig[] memory _rateLimitConfigs,
+    string memory _name,
+    string memory _symbol,
+    TransferLimit[] memory _transferLimitConfigs,
     address _lzEndpoint,
     address _owner
-  ) OFT(_NAME, _SYMBOL, _lzEndpoint, _owner) {
-    bytes32 hashedName = keccak256(bytes(_NAME));
+  ) OFT(_name, _symbol, _lzEndpoint, _owner) {
+    _NAME = _name;
+    _SYMBOL = _symbol;
+    bytes32 hashedName = keccak256(bytes(_name));
     bytes32 hashedVersion = keccak256(bytes(EIP712_VERSION));
     DOMAIN_SEPARATOR = keccak256(
       abi.encode(
@@ -49,26 +51,25 @@ contract ListaOFT is RateLimiter, OFT, IERC2612 {
         address(this)
       )
     );
-    _setRateLimits(_rateLimitConfigs);
+    _setTransferLimitConfigs(_transferLimitConfigs);
   }
 
-  //  --- RateLimiter functionality ---
+  //  --- Transfer Limiter functionality ---
+
   /**
-    * @dev Sets the rate limits based on RateLimitConfig array. Only callable by the owner or the rate limiter.
-    * @param _rateLimitConfigs An array of RateLimitConfig structures defining the rate limits.
-    */
-  function setRateLimits(
-    RateLimitConfig[] calldata _rateLimitConfigs
-  ) external onlyOwner {
-    _setRateLimits(_rateLimitConfigs);
+   * @dev Sets the transfer limit configurations based on TransferLimit array. Only callable by the owner or the rate limiter.
+   * @param _transferLimitConfigs An array of TransferLimit structures defining the transfer limits.
+   */
+  function setTransferLimitConfigs(TransferLimit[] calldata _transferLimitConfigs) external onlyOwner {
+      _setTransferLimitConfigs(_transferLimitConfigs);
   }
 
   /**
-    * @dev Toggle skip rate limit check
-    * @param _skipRateLimitCheck is check skip rate limit
+    * @dev Toggle skip transfer limit check
+    * @param _skipTransferLimitCheck is check skip rate limit
     */
-  function setSkipRateLimitCheck(uint32 _eid, bool _skipRateLimitCheck) external onlyOwner {
-    skipRateLimitCheck[_eid] = _skipRateLimitCheck;
+  function setSkipTransferLimitCheck(uint32 _eid, bool _skipTransferLimitCheck) external onlyOwner {
+    _setSkipTransferLimitCheck(_eid, _skipTransferLimitCheck);
   }
 
   /**
@@ -84,10 +85,8 @@ contract ListaOFT is RateLimiter, OFT, IERC2612 {
     uint256 _amountLD,
     uint256 _minAmountLD,
     uint32 _dstEid
-  ) internal virtual override returns (uint256 amountSentLD, uint256 amountReceivedLD) {
-    if (skipRateLimitCheck[_dstEid] != true) {
-      _checkAndUpdateRateLimit(_dstEid, _amountLD);
-    }
+  ) internal virtual override whenNotPaused returns (uint256 amountSentLD, uint256 amountReceivedLD) {
+    _checkAndUpdateTransferLimit(_dstEid, _amountLD, _from);
     return super._debit(_from, _amountLD, _minAmountLD, _dstEid);
   }
 
