@@ -4,34 +4,83 @@
     "oft": "",
     "network": "bsc",
     "lz": "0x1a44076050125825900e736c501f859c50fE728c",
-    "contract": "ListaOFTAdapter"
+    "contract": "ListaOFTAdapter",
+    "multiSig": "",
+    "transferLimits": [
+      {
+        "dstEid": 30101,
+        "maxDailyTransferAmount": 0,
+        "singleTransferUpperLimit": 0,
+        "singleTransferLowerLimit": 0,
+        "dailyTransferAmountPerAddress": 0,
+        "dailyTransferAttemptPerAddress": 0
+      }
+    ]
   },
   {
     "eid": 30101,
     "oft": "",
     "network": "ethereum",
     "lz": "0x1a44076050125825900e736c501f859c50fE728c",
-    "contract": "ListaOFT"
+    "contract": "ListaOFT",
+    "tokenName": "token_name",
+    "symbol": "token_symbol",
+    "multiSig": "",
+    "transferLimits": [
+      {
+        "dstEid": 30102,
+        "maxDailyTransferAmount": 0,
+        "singleTransferUpperLimit": 0,
+        "singleTransferLowerLimit": 0,
+        "dailyTransferAmountPerAddress": 0,
+        "dailyTransferAttemptPerAddress": 0
+      }
+    ]
   },
   {
     "eid": 40102,
     "oft": "",
     "network": "bscTestnet",
     "lz": "0x6EDCE65403992e310A62460808c4b910D972f10f",
-    "contract": "ListaOFTAdapter"
+    "contract": "ListaOFTAdapter",
+    "multiSig": "",
+    "transferLimits": [
+      {
+        "dstEid": 40161,
+        "maxDailyTransferAmount": 0,
+        "singleTransferUpperLimit": 0,
+        "singleTransferLowerLimit": 0,
+        "dailyTransferAmountPerAddress": 0,
+        "dailyTransferAttemptPerAddress": 0
+      }
+    ]
   },
   {
     "eid": 40161,
     "oft": "",
     "network": "sepolia",
     "lz": "0x6EDCE65403992e310A62460808c4b910D972f10f",
-    "contract": "ListaOFT"
+    "contract": "ListaOFT",
+    "tokenName": "token_name",
+    "symbol": "token_symbol",
+    "transferLimits": [
+      {
+        "dstEid": 40102,
+        "maxDailyTransferAmount": 0,
+        "singleTransferUpperLimit": 0,
+        "singleTransferLowerLimit": 0,
+        "dailyTransferAmountPerAddress": 0,
+        "dailyTransferAttemptPerAddress": 0
+      }
+    ]
   },
   {
     "eid": 40202,
     "oft": "",
     "network": "opBnbTestnet",
     "lz": "0x6EDCE65403992e310A62460808c4b910D972f10f",
-    "contract": "ListaOFT"
+    "contract": "ListaOFT",
+    "tokenName": "token_name",
+    "symbol": "token_symbol"
   }
 ]
