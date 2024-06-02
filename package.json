@@ -65,6 +65,7 @@
     "@layerzerolabs/lz-definitions": "^2.3.8",
     "@layerzerolabs/lz-evm-messagelib-v2": "^2.3.8",
     "@layerzerolabs/lz-evm-protocol-v2": "^2.3.8",
+    "@layerzerolabs/lz-evm-v1-0.7": "^2.3.19",
     "@layerzerolabs/toolbox-foundry": "^0.1.5"
   }
 }

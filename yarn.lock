@@ -699,6 +699,11 @@
   resolved "https://registry.yarnpkg.com/@layerzerolabs/lz-evm-protocol-v2/-/lz-evm-protocol-v2-2.3.8.tgz#86cdb5ce2652b04d837f4421f5a0b40bf069fbc8"
   integrity sha512-Xa/qOuGBaEG5/v2p46xyjAB+cUth9atnD4ELCphX7VasymA9J0CDbg+ay0WAYsONB0oAbbGEPTq3XbxxtHxelA==
 
+"@layerzerolabs/lz-evm-v1-0.7@^2.3.19":
+  version "2.3.19"
+  resolved "https://registry.yarnpkg.com/@layerzerolabs/lz-evm-v1-0.7/-/lz-evm-v1-0.7-2.3.19.tgz#086ae59208f2890c07188672be0ef11b3796ee18"
+  integrity sha512-oInQFBxyL7gG7nuq027C37j7TIaHUa7vyvJxM3ln1Jo4jAmIl6AmA7RnypdjRvbvhsygHgJ6Ke2xln7CSuL+VQ==
+
 "@layerzerolabs/toolbox-foundry@^0.1.5":
   version "0.1.5"
   resolved "https://registry.yarnpkg.com/@layerzerolabs/toolbox-foundry/-/toolbox-foundry-0.1.5.tgz#e77903608d563128bf8bcb51b42f5eabf8aa65cb"
