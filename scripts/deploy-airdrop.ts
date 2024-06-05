@@ -13,6 +13,7 @@ async function main() {
   const MerkleVerifier = await ethers.getContractFactory("MerkleVerifier");
   const merkleVerifier = await MerkleVerifier.deploy();
   await merkleVerifier.deployed();
+  console.log("MerkleVerifier deployed to:", merkleVerifier.address);
 
   const ListaAirdrop = await ethers.getContractFactory("ListaAirdrop", {
     libraries: {

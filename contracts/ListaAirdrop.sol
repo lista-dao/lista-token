@@ -74,7 +74,7 @@ contract ListaAirdrop is Ownable {
         bytes32[] memory proof
     ) external {
         require(block.number >= startBlock && block.number <= endBlock, "Airdrop not started or has ended");
-        bytes32 leaf = keccak256(abi.encodePacked(account, amount));
+        bytes32 leaf = keccak256(abi.encodePacked(account, amount)); // Use abi.encode to deal with more than one dynamic types to prevents collision
         require(!claimed[leaf], "Airdrop already claimed");
         MerkleVerifier._verifyProof(leaf, merkleRoot, proof);
         claimed[leaf] = true;
