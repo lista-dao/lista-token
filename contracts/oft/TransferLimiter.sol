@@ -16,10 +16,6 @@ abstract contract TransferLimiter {
   // @dev destination endpoint id => TransferLimit
   mapping(uint32 dstEid => TransferLimit limit) public transferLimitConfigs;
 
-  // @dev skip transfer limit check (eid) => (bool)
-  mapping(uint32 => bool) public skipTransferLimitCheck;
-
-
   // ------- global limits -------
   // @notice records the total amount of tokens transferred to a destination endpoint id
   // @dev destination endpoint id => amount
@@ -49,23 +45,12 @@ abstract contract TransferLimiter {
     uint256 dailyTransferAmountPerAddress,
     uint256 dailyTransferAttemptPerAddress
   );
-  // @dev event of transfer limit skip checking toggled
-  event TransferLimitSkipCheckingToggled(uint32 dstEid, bool skipTransferLimitCheck);
 
   // -------- Errors --------
   // @dev Error that is thrown when an amount exceeds the rate_limit.
   error TransferLimitExceeded();
   // @dev Error that is thrown when the transfer limit is not set.
   error TransferLimitNotSet();
-
-  /**
-    * @dev Toggle skip transfer limit check
-    * @param _skipTransferLimitCheck is check skip rate limit
-    */
-  function _setSkipTransferLimitCheck(uint32 _eid, bool _skipTransferLimitCheck) internal virtual {
-    skipTransferLimitCheck[_eid] = _skipTransferLimitCheck;
-    emit TransferLimitSkipCheckingToggled(_eid, _skipTransferLimitCheck);
-  }
 
   /**
    * @notice sets the transfer limit configurations
@@ -107,43 +92,40 @@ abstract contract TransferLimiter {
    */
   function _checkAndUpdateTransferLimit(uint32 _dstEid, uint256 _amount, address _user) internal virtual {
     TransferLimit memory limit = transferLimitConfigs[_dstEid];
-    // check if the validation is skipped
-    if (skipTransferLimitCheck[_dstEid] != true) {
-      // check if transfer limit is set
-      if (limit.dstEid == 0) {
-        revert TransferLimitNotSet();
-      }
-      // reset global transfer limit if the last transfer is made more than a calendar day
-      if (isMoreThanACalendarDay(lastUpdatedTime[_dstEid], block.timestamp)) {
-        dailyTransferAmount[_dstEid] = 0;
-        lastUpdatedTime[_dstEid] = block.timestamp;
-      }
-      // reset user transfer limit and attempt if the last transfer is made more than a calendar day
-      if (isMoreThanACalendarDay(lastUserUpdatedTime[_dstEid][_user], block.timestamp)) {
-        userDailyTransferAmount[_dstEid][_user] = 0;
-        userDailyAttempt[_dstEid][_user] = 0;
-        lastUserUpdatedTime[_dstEid][_user] = block.timestamp;
-      }
+    // check if transfer limit is set
+    if (limit.dstEid == 0) {
+      revert TransferLimitNotSet();
+    }
+    // reset global transfer limit if the last transfer is made more than a calendar day
+    if (isMoreThanACalendarDay(lastUpdatedTime[_dstEid], block.timestamp)) {
+      dailyTransferAmount[_dstEid] = 0;
+      lastUpdatedTime[_dstEid] = block.timestamp;
+    }
+    // reset user transfer limit and attempt if the last transfer is made more than a calendar day
+    if (isMoreThanACalendarDay(lastUserUpdatedTime[_dstEid][_user], block.timestamp)) {
+      userDailyTransferAmount[_dstEid][_user] = 0;
+      userDailyAttempt[_dstEid][_user] = 0;
+      lastUserUpdatedTime[_dstEid][_user] = block.timestamp;
+    }
 
-      // check if the transfer amount exceeds the upper and lower limit
-      if (_amount > limit.singleTransferUpperLimit || _amount < limit.singleTransferLowerLimit) {
-        revert TransferLimitExceeded();
-      }
+    // check if the transfer amount exceeds the upper and lower limit
+    if (_amount > limit.singleTransferUpperLimit || _amount < limit.singleTransferLowerLimit) {
+      revert TransferLimitExceeded();
+    }
 
-      // check if the transfer amount exceeds the daily transfer amount limit
-      if (dailyTransferAmount[_dstEid] + _amount > limit.maxDailyTransferAmount) {
-        revert TransferLimitExceeded();
-      }
+    // check if the transfer amount exceeds the daily transfer amount limit
+    if (dailyTransferAmount[_dstEid] + _amount > limit.maxDailyTransferAmount) {
+      revert TransferLimitExceeded();
+    }
 
-      // check if the transfer amount exceeds the daily transfer amount limit per address
-      if (userDailyTransferAmount[_dstEid][_user] + _amount > limit.dailyTransferAmountPerAddress) {
-        revert TransferLimitExceeded();
-      }
+    // check if the transfer amount exceeds the daily transfer amount limit per address
+    if (userDailyTransferAmount[_dstEid][_user] + _amount > limit.dailyTransferAmountPerAddress) {
+      revert TransferLimitExceeded();
+    }
 
-      // check if the user exceeds the daily transfer attempt limit
-      if (userDailyAttempt[_dstEid][_user] >= limit.dailyTransferAttemptPerAddress) {
-        revert TransferLimitExceeded();
-      }
+    // check if the user exceeds the daily transfer attempt limit
+    if (userDailyAttempt[_dstEid][_user] >= limit.dailyTransferAttemptPerAddress) {
+      revert TransferLimitExceeded();
     }
     // update global transfer limit and updated timestamp
     dailyTransferAmount[_dstEid] += _amount;
