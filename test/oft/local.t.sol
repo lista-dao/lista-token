@@ -264,8 +264,8 @@ contract OFTTest is TestHelperOz5, TransferLimiter {
     vm.expectRevert("PausableAlt: multiSig not set");
     oftAdapter.pause();
     // 3. set multiSig address
-    oftAdapter.setMultiSig(address(this));
-    assertEq(oftAdapter.multiSig(), address(this));
+    oftAdapter.setMultiSig(address(0x4321));
+    assertEq(oftAdapter.multiSig(), address(0x4321));
     // 4. non multiSig wallet try to pause
     vm.startPrank(address(0x1234));
     vm.expectRevert("PausableAlt: not multiSig");
@@ -277,8 +277,10 @@ contract OFTTest is TestHelperOz5, TransferLimiter {
     oftAdapter.unpause();
     vm.stopPrank();
     // 6. pause it
+    vm.startPrank(address(0x4321));
     oftAdapter.pause();
     assertEq(oftAdapter.paused(), true);
+    vm.stopPrank();
     // 7. transfer revert when paused
     vm.startPrank(userA);
     bytes memory opts = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
