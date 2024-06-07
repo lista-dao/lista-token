@@ -28,6 +28,16 @@ contract ListaOFTAdapter is TransferLimiter, OFTAdapter, PausableAlt {
     _setTransferLimitConfigs(_transferLimitConfigs);
   }
 
+  //  --- Transfer Limiter functionality ---
+
+  /**
+   * @dev Sets the transfer limit configurations based on TransferLimit array. Only callable by the owner or the rate limiter.
+   * @param _transferLimitConfigs An array of TransferLimit structures defining the transfer limits.
+   */
+  function setTransferLimitConfigs(TransferLimit[] calldata _transferLimitConfigs) external onlyOwner {
+    _setTransferLimitConfigs(_transferLimitConfigs);
+  }
+
   /**
    * @dev Checks and updates the rate limit before initiating a token transfer.
    * @param _amountLD The amount of tokens to be transferred.
