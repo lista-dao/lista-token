@@ -99,13 +99,11 @@ abstract contract TransferLimiter {
     // reset global transfer limit if the last transfer is made more than a calendar day
     if (isMoreThanACalendarDay(lastUpdatedTime[_dstEid], block.timestamp)) {
       dailyTransferAmount[_dstEid] = 0;
-      lastUpdatedTime[_dstEid] = block.timestamp;
     }
     // reset user transfer limit and attempt if the last transfer is made more than a calendar day
     if (isMoreThanACalendarDay(lastUserUpdatedTime[_dstEid][_user], block.timestamp)) {
       userDailyTransferAmount[_dstEid][_user] = 0;
       userDailyAttempt[_dstEid][_user] = 0;
-      lastUserUpdatedTime[_dstEid][_user] = block.timestamp;
     }
 
     // check if the transfer amount exceeds the upper and lower limit
