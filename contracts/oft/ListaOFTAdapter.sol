@@ -15,6 +15,7 @@ contract ListaOFTAdapter is TransferLimiter, OFTAdapter, PausableAlt {
 
   /**
     * @dev Constructor for the ListaAdapter contract
+    * @param _transferLimitConfigs An array of TransferLimit structures defining the transfer limits.
     * @param _token An ERC20 token address that has already been deployed and exists.
     * @param _lzEndpoint The address of the LayerZero endpoint
     * @param _owner The address of the owner of the contract
