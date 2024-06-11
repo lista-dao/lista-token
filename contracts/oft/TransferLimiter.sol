@@ -57,8 +57,12 @@ abstract contract TransferLimiter {
    * @param limit TransferLimit
    */
   function _setTransferLimitConfig(TransferLimit memory limit) internal virtual {
-    // upper limit must be greater than lower limit
+    // validate transfer limit config
+    require(limit.dstEid > 0, "dstEid must be greater than 0");
     require(limit.singleTransferUpperLimit > limit.singleTransferLowerLimit, "upper limit must be greater than lower limit");
+    require(limit.dailyTransferAttemptPerAddress > 0, "dailyTransferAttemptPerAddress must be greater than 0");
+    require(limit.maxDailyTransferAmount > limit.singleTransferLowerLimit, "maxDailyTransferAmount must be greater than singleTransferLowerLimit");
+    require(limit.dailyTransferAmountPerAddress > limit.singleTransferLowerLimit, "dailyTransferAmountPerAddress must be greater than singleTransferLowerLimit");
     // assign limit to the mapping
     transferLimitConfigs[limit.dstEid] = limit;
     // emit event
@@ -96,6 +100,11 @@ abstract contract TransferLimiter {
     if (limit.dstEid == 0) {
       revert TransferLimitNotSet();
     }
+    // check if amount is greater than 0
+    if (_amount == 0) {
+      revert TransferLimitExceeded();
+    }
+
     // reset global transfer limit if the last transfer is made more than a calendar day
     if (isMoreThanACalendarDay(lastUpdatedTime[_dstEid], block.timestamp)) {
       dailyTransferAmount[_dstEid] = 0;
