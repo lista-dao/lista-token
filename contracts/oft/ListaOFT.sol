@@ -5,6 +5,7 @@ import "../interfaces/IERC2612.sol";
 import "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFT.sol";
 import "./TransferLimiter.sol";
 import "./PausableAlt.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract ListaOFT is TransferLimiter, OFT, IERC2612, PausableAlt {
   // --- EIP 2612 Data ---
@@ -103,8 +104,8 @@ contract ListaOFT is TransferLimiter, OFT, IERC2612, PausableAlt {
         )
       )
     );
-    address recoveredAddress = ecrecover(digest, v, r, s);
-    require(recoveredAddress == owner && owner != address(0), "ERC20Permit: invalid signature");
+    address recoveredAddress = ECDSA.recover(digest, v, r, s);
+    require(recoveredAddress == owner, "ERC20Permit: invalid signature");
     _approve(owner, spender, amount);
   }
 
