@@ -7,10 +7,6 @@ import "./TransferLimiter.sol";
 import "./PausableAlt.sol";
 
 contract ListaOFT is TransferLimiter, OFT, IERC2612, PausableAlt {
-  // --- ERC20 Data ---
-  string internal _NAME;
-  string internal _SYMBOL;
-
   // --- EIP 2612 Data ---
   bytes32 public constant PERMIT_TYPE_HASH =
   keccak256(
@@ -38,8 +34,6 @@ contract ListaOFT is TransferLimiter, OFT, IERC2612, PausableAlt {
     address _lzEndpoint,
     address _owner
   ) OFT(_name, _symbol, _lzEndpoint, _owner) {
-    _NAME = _name;
-    _SYMBOL = _symbol;
     bytes32 hashedName = keccak256(bytes(_name));
     bytes32 hashedVersion = keccak256(bytes(EIP712_VERSION));
     DOMAIN_SEPARATOR = keccak256(
@@ -129,7 +123,7 @@ contract ListaOFT is TransferLimiter, OFT, IERC2612, PausableAlt {
    * @dev Updates the domain separator with the latest chain id.
      */
   function updateDomainSeparator() external {
-    bytes32 hashedName = keccak256(bytes(_NAME));
+    bytes32 hashedName = keccak256(bytes(name()));
     bytes32 hashedVersion = keccak256(bytes(EIP712_VERSION));
     DOMAIN_SEPARATOR = keccak256(
       abi.encode(
