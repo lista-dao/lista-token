@@ -111,13 +111,12 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         AccountData storage _accountData = accountData[_account];
         require(_accountData.locked > 0, "no lock data");
         uint256 amount = _accountData.locked;
-        _accountData.locked = 0;
         _createLock(_account, amount, week, autoLock);
 
     }
 
     // create new lock
-    function _createLock(address _account, uint256 _amount, uint16 _week, bool autoLock) internal {
+    function _createLock(address _account, uint256 _amount, uint16 _week, bool autoLock) private {
         require(block.timestamp >= startTime, "Not started");
         require(_week <= MAX_LOCK_WEEKS, "Exceeds MAX_LOCK_WEEKS");
         require(_week > 0, "Invalid lock week");
@@ -345,22 +344,24 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     // get veLista balance of account at week
-    function _balanceOfAtWeek(address account, uint16 week) internal view returns (uint256) {
+    function _balanceOfAtWeek(address account, uint16 week) private view returns (uint256) {
         LockedData[] memory lockedData = accountLockedData[account];
         if (lockedData.length == 0) {
             return 0;
         }
         uint256 min = 0;
         uint256 max = lockedData.length - 1;
-        uint8 i;
-        for (; i < 128; ++i) {
-            if (min >= max) {
-                break;
-            }
+        uint256 result;
+        uint8 i = 0;
+        for (; i < 128 && min <= max; i++) {
             uint256 mid = (min + max) / 2;
             if (lockedData[mid].week <= week) {
-                min = mid;
+                result = mid;
+                min = mid + 1;
             } else {
+                if (mid == 0) {
+                    break;
+                }
                 max = mid - 1;
             }
         }
@@ -368,7 +369,11 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
             revert("array overflow");
         }
 
-        LockedData memory locked = lockedData[min];
+        LockedData memory locked = lockedData[result];
+
+        if (result == 0 && locked.week > week) {
+            return 0;
+        }
 
         if (locked.week == week) {
             return locked.weight;
@@ -382,7 +387,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     // write history total weight
-    function _writeTotalWeight() internal returns (uint256) {
+    function _writeTotalWeight() private returns (uint256) {
         uint16 currentWeek = getCurrentWeek();
 
         uint16 updateWeek = lastUpdateTotalWeek;
@@ -441,7 +446,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     // get total supply at week
-    function _totalSupplyAtWeek(uint16 week) internal view returns (uint256) {
+    function _totalSupplyAtWeek(uint16 week) private view returns (uint256) {
         if (lastUpdateTotalWeek >= week) {
             return totalLockedData[week].weight;
         }
@@ -695,5 +700,14 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
             penalty = _accountData.locked * uint256(_accountData.lockWeeks) / uint256(MAX_LOCK_WEEKS);
         }
         return penalty;
+    }
+
+    /**
+     * @dev Get total locked data at week
+     * @param week week number
+     * @return total locked data
+     */
+    function getTotalLockedAtWeek(uint16 week) external view returns (uint256) {
+        return totalLockedData[week].locked;
     }
 }

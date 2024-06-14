@@ -119,51 +119,77 @@ contract VeListaDistributorTest is Test {
         vm.prank(manager);
         distributor.depositNewReward(week, tokensAmount);
 
-        VeListaDistributor.TokenAmount[] memory tokenAmounts = distributor.getClaimable(user1);
+        VeListaDistributor.TokenAmount[] memory tokenAmounts = distributor.getClaimable(user1, veLista.getCurrentWeek() - 1);
         assertEq(tokenAmounts.length, 2, "user1 has not claimable tokens");
         assertEq(tokenAmounts[0].token, address(token1), "user1 has not claimable token1");
         assertEq(tokenAmounts[1].token, address(token2), "user1 has not claimable token2");
-        assertEq(tokenAmounts[0].amount, 30 ether, "user1 has not claimable amount of token1");
-        assertEq(tokenAmounts[1].amount, 300 ether, "user1 has not claimable amount of token2");
+        assertEq(tokenAmounts[0].amount,
+            tokensAmount[0].amount * veLista.balanceOfAtWeek(user1, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user1 has not claimable amount of token1");
+        assertEq(tokenAmounts[1].amount,
+            tokensAmount[1].amount * veLista.balanceOfAtWeek(user1, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user1 has not claimable amount of token2");
 
-        VeListaDistributor.TokenAmount[] memory tokenAmounts2 = distributor.getClaimable(user2);
+        VeListaDistributor.TokenAmount[] memory tokenAmounts2 = distributor.getClaimable(user2, veLista.getCurrentWeek() - 1);
         assertEq(tokenAmounts2.length, 2, "user2 has not claimable tokens");
         assertEq(tokenAmounts2[0].token, address(token1), "user2 has not claimable token1");
         assertEq(tokenAmounts2[1].token, address(token2), "user2 has not claimable token2");
-        assertEq(tokenAmounts2[0].amount, 70 ether, "user2 has not claimable amount of token1");
-        assertEq(tokenAmounts2[1].amount, 700 ether, "user2 has not claimable amount of token2");
+        assertEq(tokenAmounts2[0].amount,
+            tokensAmount[0].amount * veLista.balanceOfAtWeek(user2, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user2 has not claimable amount of token1");
+        assertEq(tokenAmounts2[1].amount,
+            tokensAmount[1].amount * veLista.balanceOfAtWeek(user2, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user2 has not claimable amount of token2");
 
-        vm.prank(user1);
-        distributor.claimAll(tokens);
+        vm.startPrank(user1);
+        distributor.claimAll(tokens, veLista.getCurrentWeek() - 1);
+        vm.stopPrank();
         uint256 user1Token1Balance = token1.balanceOf(user1);
         uint256 user1Token2Balance = token2.balanceOf(user1);
-        assertEq(user1Token1Balance, 30 ether, "user1 has not claimed token1");
-        assertEq(user1Token2Balance, 300 ether, "user1 has not claimed token2");
+        assertEq(user1Token1Balance,
+            tokensAmount[0].amount * veLista.balanceOfAtWeek(user1, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user1 has not claimed token1");
+        assertEq(user1Token2Balance,
+            tokensAmount[1].amount * veLista.balanceOfAtWeek(user1, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user1 has not claimed token2");
 
-        vm.prank(user2);
-        distributor.claimAll(tokens);
+        vm.startPrank(user2);
+        distributor.claimAll(tokens, veLista.getCurrentWeek() - 1);
+        vm.stopPrank();
         uint256 user2Token1Balance = token1.balanceOf(user2);
         uint256 user2Token2Balance = token2.balanceOf(user2);
-        assertEq(user2Token1Balance, 70 ether, "user2 has not claimed token1");
-        assertEq(user2Token2Balance, 700 ether, "user2 has not claimed token2");
+        assertEq(user2Token1Balance,
+            tokensAmount[0].amount * veLista.balanceOfAtWeek(user2, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user2 has not claimed token1");
+        assertEq(user2Token2Balance,
+            tokensAmount[1].amount * veLista.balanceOfAtWeek(user2, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user2 has not claimed token2");
 
         skip(20 weeks);
         week = veLista.getCurrentWeek() - 1;
         vm.prank(manager);
         distributor.depositNewReward(week, tokensAmount);
 
-        tokenAmounts = distributor.getClaimable(user1);
+        tokenAmounts = distributor.getClaimable(user1, veLista.getCurrentWeek() - 1);
         assertEq(tokenAmounts.length, 2, "user1 has not claimable tokens");
         assertEq(tokenAmounts[0].token, address(token1), "user1 has not claimable token1");
         assertEq(tokenAmounts[1].token, address(token2), "user1 has not claimable token2");
-        assertEq(tokenAmounts[0].amount, 30 ether, "user1 has not claimable amount of token1");
-        assertEq(tokenAmounts[1].amount, 300 ether, "user1 has not claimable amount of token2");
+        assertEq(tokenAmounts[0].amount,
+            tokensAmount[0].amount * veLista.balanceOfAtWeek(user1, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user1 has not claimable amount of token1");
+        assertEq(tokenAmounts[1].amount,
+            tokensAmount[1].amount * veLista.balanceOfAtWeek(user1, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user1 has not claimable amount of token2");
 
         vm.prank(user1);
-        distributor.claimAll(tokens);
+        distributor.claimAll(tokens, veLista.getCurrentWeek() - 1);
         user1Token1Balance = token1.balanceOf(user1);
         user1Token2Balance = token2.balanceOf(user1);
-        assertEq(user1Token1Balance, 60 ether, "user1 has not claimed token1");
-        assertEq(user1Token2Balance, 600 ether, "user1 has not claimed token2");
+        assertEq(tokenAmounts2[0].amount,
+            tokensAmount[0].amount * veLista.balanceOfAtWeek(user2, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user2 has not claimable amount of token1");
+        assertEq(tokenAmounts2[1].amount,
+            tokensAmount[1].amount * veLista.balanceOfAtWeek(user2, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
+            "user2 has not claimable amount of token2");
     }
 }
