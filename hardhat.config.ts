@@ -72,6 +72,7 @@ const config: HardhatUserConfig = {
     // Your API key for Etherscan
     // Obtain one at https://bscscan.com/ or https://etherscan.io
     apiKey: {
+      ethereum: process.env.ETHERSCAN_API_KEY || "",
       bscTestnet: process.env.BSCSCAN_API_KEY || "",
       bsc: process.env.BSCSCAN_API_KEY || "",
       sepolia: process.env.ETHERSCAN_API_KEY || "",
