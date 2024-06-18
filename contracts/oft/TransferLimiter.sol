@@ -61,8 +61,8 @@ abstract contract TransferLimiter {
     require(limit.dstEid > 0, "dstEid must be greater than 0");
     require(limit.singleTransferUpperLimit > limit.singleTransferLowerLimit, "upper limit must be greater than lower limit");
     require(limit.dailyTransferAttemptPerAddress > 0, "dailyTransferAttemptPerAddress must be greater than 0");
-    require(limit.maxDailyTransferAmount > limit.singleTransferUpperLimit, "maxDailyTransferAmount must be greater than singleTransferLowerLimit");
-    require(limit.dailyTransferAmountPerAddress > limit.singleTransferUpperLimit, "dailyTransferAmountPerAddress must be greater than singleTransferLowerLimit");
+    require(limit.maxDailyTransferAmount > limit.singleTransferUpperLimit, "maxDailyTransferAmount must be greater than singleTransferUpperLimit");
+    require(limit.dailyTransferAmountPerAddress > limit.singleTransferUpperLimit, "dailyTransferAmountPerAddress must be greater than singleTransferUpperLimit");
     require(limit.maxDailyTransferAmount > limit.dailyTransferAmountPerAddress, "maxDailyTransferAmount must be greater than dailyTransferAmountPerAddress");
     // assign limit to the mapping
     transferLimitConfigs[limit.dstEid] = limit;
