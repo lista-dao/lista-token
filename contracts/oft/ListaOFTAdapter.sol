@@ -53,7 +53,9 @@ contract ListaOFTAdapter is TransferLimiter, OFTAdapter, PausableAlt {
     uint256 _minAmountLD,
     uint32 _dstEid
   ) internal virtual override whenNotPaused returns (uint256 amountSentLD, uint256 amountReceivedLD) {
-    _checkAndUpdateTransferLimit(_dstEid, _amountLD, _from);
+    // remove dust before checking
+    uint256 _amount = _removeDust(_amountLD);
+    _checkAndUpdateTransferLimit(_dstEid, _amount, _from);
     return super._debit(_from, _amountLD, _minAmountLD, _dstEid);
   }
 

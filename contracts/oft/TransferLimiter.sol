@@ -61,8 +61,9 @@ abstract contract TransferLimiter {
     require(limit.dstEid > 0, "dstEid must be greater than 0");
     require(limit.singleTransferUpperLimit > limit.singleTransferLowerLimit, "upper limit must be greater than lower limit");
     require(limit.dailyTransferAttemptPerAddress > 0, "dailyTransferAttemptPerAddress must be greater than 0");
-    require(limit.maxDailyTransferAmount > limit.singleTransferLowerLimit, "maxDailyTransferAmount must be greater than singleTransferLowerLimit");
+    require(limit.maxDailyTransferAmount > limit.singleTransferUpperLimit, "maxDailyTransferAmount must be greater than singleTransferLowerLimit");
     require(limit.dailyTransferAmountPerAddress > limit.singleTransferLowerLimit, "dailyTransferAmountPerAddress must be greater than singleTransferLowerLimit");
+    require(limit.maxDailyTransferAmount > limit.dailyTransferAmountPerAddress, "maxDailyTransferAmount must be greater than dailyTransferAmountPerAddress");
     // assign limit to the mapping
     transferLimitConfigs[limit.dstEid] = limit;
     // emit event
@@ -153,9 +154,7 @@ abstract contract TransferLimiter {
    */
   function isMoreThanACalendarDay(uint256 timestampA, uint256 timestampB) internal virtual pure returns (bool) {
     uint256 secondsPerDay = 86400; // 60 * 60 * 24
-    uint256 dayA = timestampA / secondsPerDay;
-    uint256 dayB = timestampB / secondsPerDay;
-
-    return dayB - dayA >= 1;
+    uint256 diffInDays = (timestampB - timestampA)/secondsPerDay;
+    return diffInDays >= 1;
   }
 }
