@@ -37,6 +37,8 @@ contract VeListaTest is Test {
         uint256 lockAmount = 10000 ether;
         uint16 lockWeek = 50;
 
+        uint256 startTotalSupply = veLista.totalSupply();
+
         vm.startPrank(user1);
         lista.approve(address(veLista), MAX_UINT);
         veLista.lock(lockAmount, lockWeek, false);
@@ -45,7 +47,7 @@ contract VeListaTest is Test {
         uint256 user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
         uint256 totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, lockAmount*lockWeek, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
 
         skip(1 weeks);
 
@@ -53,7 +55,7 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         totalSupply = veLista.totalSupply();
         assertEq(user1VeListaBalance, lockAmount*(lockWeek - 1), "weeks 1 user1VeListaBalance");
-        assertEq(totalSupply, user1VeListaBalance, "weeks 1 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user1VeListaBalance, "weeks 1 totalSupply");
 
 
         uint256 user2LockAmount = 1000 ether;
@@ -65,7 +67,7 @@ contract VeListaTest is Test {
         uint256 user2VeListaBalance = veLista.balanceOf(user2);
         assertEq(user2VeListaBalance, user2LockAmount*user2LockWeek, "weeks 1 user2VeListaBalance");
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user2VeListaBalance + user1VeListaBalance, "weeks 1 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user2VeListaBalance + user1VeListaBalance, "weeks 1 totalSupply");
 
         skip(1 weeks);
         user1VeListaBalance = veLista.balanceOf(user1);
@@ -75,7 +77,7 @@ contract VeListaTest is Test {
         assertEq(user2VeListaBalance, user2LockAmount*(user2LockWeek - 1), "weeks 2 user2VeListaBalance");
 
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user2VeListaBalance + user1VeListaBalance, "weeks 2 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user2VeListaBalance + user1VeListaBalance, "weeks 2 totalSupply");
 
         skip(20 weeks);
         user1VeListaBalance = veLista.balanceOf(user1);
@@ -85,7 +87,7 @@ contract VeListaTest is Test {
         assertEq(user2VeListaBalance, 0, "weeks 21 user2VeListaBalance");
 
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user1VeListaBalance, "weeks 22 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user1VeListaBalance, "weeks 22 totalSupply");
     }
 
     function test_extendAmount() public {
@@ -93,6 +95,7 @@ contract VeListaTest is Test {
         uint16 lockWeek = 50;
         uint256 extendAmount = 100 ether;
 
+        uint256 startTotalSupply = veLista.totalSupply();
         vm.startPrank(user1);
         lista.approve(address(veLista), MAX_UINT);
         veLista.lock(lockAmount, lockWeek, false);
@@ -101,7 +104,7 @@ contract VeListaTest is Test {
         uint256 user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
         uint256 totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, lockAmount*lockWeek, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
 
         vm.prank(user1);
         veLista.increaseAmount(extendAmount);
@@ -109,7 +112,7 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, (lockAmount + extendAmount)*lockWeek, "weeks 0 user1VeListaBalance");
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user1VeListaBalance, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user1VeListaBalance, "weeks 0 totalSupply");
 
         skip(1 weeks);
         vm.prank(user1);
@@ -118,13 +121,14 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, (lockAmount + extendAmount*2)*(lockWeek - 1), "weeks 1 user1VeListaBalance");
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user1VeListaBalance, "weeks 1 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user1VeListaBalance, "weeks 1 totalSupply");
     }
 
     function test_extendWeek() public {
         uint256 lockAmount = 100 ether;
         uint16 lockWeek = 10;
 
+        uint256 startTotalSupply = veLista.totalSupply();
         vm.startPrank(user1);
         lista.approve(address(veLista), MAX_UINT);
         veLista.lock(lockAmount, lockWeek, false);
@@ -133,7 +137,7 @@ contract VeListaTest is Test {
         uint256 user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
         uint256 totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, lockAmount*lockWeek, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
 
         vm.prank(user1);
         veLista.extendWeek(12);
@@ -141,7 +145,7 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, lockAmount*12, "weeks 0 user1VeListaBalance");
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user1VeListaBalance, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user1VeListaBalance, "weeks 0 totalSupply");
 
         skip(1 weeks);
         vm.prank(user1);
@@ -150,13 +154,14 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, lockAmount*20, "weeks 0 user1VeListaBalance");
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user1VeListaBalance, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user1VeListaBalance, "weeks 0 totalSupply");
     }
 
     function test_autoLock() public {
         uint256 lockAmount = 100 ether;
         uint16 lockWeek = 10;
 
+        uint256 startTotalSupply = veLista.totalSupply();
         vm.startPrank(user1);
         lista.approve(address(veLista), MAX_UINT);
         veLista.lock(lockAmount, lockWeek, true);
@@ -165,13 +170,13 @@ contract VeListaTest is Test {
         uint256 user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
         uint256 totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, lockAmount*lockWeek, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
 
         skip(1 weeks);
         user1VeListaBalance = veLista.balanceOf(user1);
         totalSupply = veLista.totalSupply();
         assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 1 user1VeListaBalance");
-        assertEq(totalSupply, user1VeListaBalance, "weeks 1 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user1VeListaBalance, "weeks 1 totalSupply");
 
         skip(10 weeks);
         user1VeListaBalance = veLista.balanceOf(user1);
@@ -190,7 +195,7 @@ contract VeListaTest is Test {
         assertEq(user2VeListaBalance, user2LockAmount*user2LockWeek, "weeks 11 user2VeListaBalance");
 
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user2VeListaBalance + user1VeListaBalance, "weeks 11 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user2VeListaBalance + user1VeListaBalance, "weeks 11 totalSupply");
 
         skip(1 weeks);
         user1VeListaBalance = veLista.balanceOf(user1);
@@ -199,7 +204,7 @@ contract VeListaTest is Test {
         assertEq(user2VeListaBalance, user2LockAmount*(user2LockWeek - 1), "weeks 12 user2VeListaBalance");
 
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user2VeListaBalance + user1VeListaBalance, "weeks 12 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user2VeListaBalance + user1VeListaBalance, "weeks 12 totalSupply");
 
         vm.prank(user1);
         veLista.increaseAmount(lockAmount);
@@ -222,13 +227,14 @@ contract VeListaTest is Test {
         assertEq(user2VeListaBalance, 2*user2LockAmount*(user2LockWeek-2), "weeks 13 user2VeListaBalance");
 
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, user2VeListaBalance + user1VeListaBalance, "weeks 13 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user2VeListaBalance + user1VeListaBalance, "weeks 13 totalSupply");
     }
 
     function test_disableAutoLock() public {
         uint256 lockAmount = 100 ether;
         uint16 lockWeek = 10;
 
+        uint256 startTotalSupply = veLista.totalSupply();
         vm.startPrank(user1);
         lista.approve(address(veLista), MAX_UINT);
         veLista.lock(lockAmount, lockWeek, false);
@@ -238,7 +244,7 @@ contract VeListaTest is Test {
         uint256 user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
         uint256 totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, lockAmount*lockWeek, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
 
         skip(1 weeks);
         vm.prank(user1);
@@ -246,19 +252,20 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         totalSupply = veLista.totalSupply();
         assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 1 user1VeListaBalance");
-        assertEq(totalSupply, user1VeListaBalance, "weeks 1 totalSupply");
+        assertEq(totalSupply, startTotalSupply+user1VeListaBalance, "weeks 1 totalSupply");
 
         skip(10 weeks);
         user1VeListaBalance = veLista.balanceOf(user1);
         totalSupply = veLista.totalSupply();
         assertEq(user1VeListaBalance, 0, "weeks 11 user1VeListaBalance");
-        assertEq(totalSupply, 0, "weeks 11 totalSupply");
+        assertEq(totalSupply, startTotalSupply, "weeks 11 totalSupply");
     }
 
     function test_claim() public {
         uint256 lockAmount = 100 ether;
         uint16 lockWeek = 10;
 
+        uint256 startTotalSupply = veLista.totalSupply();
         vm.startPrank(user1);
         lista.approve(address(veLista), MAX_UINT);
         veLista.lock(lockAmount, lockWeek, false);
@@ -267,7 +274,7 @@ contract VeListaTest is Test {
         uint256 user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
         uint256 totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, lockAmount*lockWeek, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
         uint256 user1ListaBalance = lista.balanceOf(user1);
         assertEq(user1ListaBalance, 10000 ether - 100 ether, "weeks 0 user1ListaBalance");
 
@@ -279,7 +286,7 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, 0, "weeks 10 user1VeListaBalance");
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, 0, "weeks 10 totalSupply");
+        assertEq(totalSupply, startTotalSupply, "weeks 10 totalSupply");
 
         user1ListaBalance = lista.balanceOf(user1);
         assertEq(user1ListaBalance, 10000 ether, "weeks 10 user1ListaBalance");
@@ -290,6 +297,7 @@ contract VeListaTest is Test {
         uint256 lockAmount = 100 ether;
         uint16 lockWeek = 10;
 
+        uint256 startTotalSupply = veLista.totalSupply();
         vm.startPrank(user1);
         lista.approve(address(veLista), MAX_UINT);
         veLista.lock(lockAmount, lockWeek, false);
@@ -298,7 +306,7 @@ contract VeListaTest is Test {
         uint256 user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
         uint256 totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, lockAmount*lockWeek, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
         uint256 user1ListaBalance = lista.balanceOf(user1);
         assertEq(user1ListaBalance, 10000 ether - 100 ether, "weeks 0 user1ListaBalance");
 
@@ -308,7 +316,7 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, 0, "weeks 0 user1VeListaBalance");
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, 0, "weeks 0 totalSupply");
+        assertEq(totalSupply, startTotalSupply, "weeks 0 totalSupply");
         user1ListaBalance = lista.balanceOf(user1);
         uint256 penalty = 100 ether * lockWeek / veLista.MAX_LOCK_WEEKS();
         assertEq(user1ListaBalance, 10000 ether - penalty, "weeks 0 user1ListaBalance");
@@ -322,7 +330,7 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, 0, "weeks 5 user1VeListaBalance");
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, 0, "weeks 5 totalSupply");
+        assertEq(totalSupply, startTotalSupply, "weeks 5 totalSupply");
         user1ListaBalance = lista.balanceOf(user1);
         penalty += 100 ether * (lockWeek - 5) / veLista.MAX_LOCK_WEEKS();
         assertEq(user1ListaBalance, 10000 ether - penalty, "weeks 5 user1ListaBalance");
@@ -335,7 +343,7 @@ contract VeListaTest is Test {
         user1VeListaBalance = veLista.balanceOf(user1);
         assertEq(user1VeListaBalance, 0, "weeks 10 user1VeListaBalance");
         totalSupply = veLista.totalSupply();
-        assertEq(totalSupply, 0, "weeks 10 totalSupply");
+        assertEq(totalSupply, startTotalSupply, "weeks 10 totalSupply");
         user1ListaBalance = lista.balanceOf(user1);
         penalty += 100 ether * lockWeek / veLista.MAX_LOCK_WEEKS();
         assertEq(user1ListaBalance, 10000 ether - penalty, "weeks 10 user1ListaBalance");

@@ -7,6 +7,10 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IVeLista} from "./interfaces/IVeLista.sol";
 
+/**
+  * @title VeLista
+  * @dev lock veLista token to get veLista (voting power)
+  */
 contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     using SafeERC20 for IERC20;
 
@@ -40,7 +44,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-      * @dev Initialize veLista contract
+      * @dev initialize veLista contract
       * @param _admin admin address
       * @param _manager manager address
       * @param _startTime start time
@@ -55,6 +59,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         address _penaltyReceiver
     ) external initializer {
         require(_admin != address(0), "admin is the zero address");
+        require(_manager != address(0), "manager is the zero address");
         require(_token != address(0), "lista token is the zero address");
         require(_penaltyReceiver != address(0), "penalty receiver is the zero address");
         __AccessControl_init();
@@ -67,26 +72,26 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Get week number
-     * @param timestamp timestamp
+     * @dev get week number by timestamp
+     * @param timestamp second timestamp
      */
     function getWeek(uint256 timestamp) public view returns (uint16) {
         uint256 week = (timestamp - startTime) / 1 weeks;
         if (week <= 65535) {
             return uint16(week);
         }
-        revert("Exceeds MAX_WEEKS");
+        revert("exceeds MAX_WEEKS");
     }
 
     /**
-     * @dev Get current week number
+     * @dev get current week number
      */
     function getCurrentWeek() public view returns (uint16) {
         return getWeek(block.timestamp);
     }
 
     /**
-     * @dev Lock token
+     * @dev create a new lock to get veLista
      * @param amount amount of token to lock
      * @param week lock weeks
      * @param autoLock auto lock status
@@ -100,7 +105,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Lock token without claim
+     * @dev lock token without claim
      * @param week lock weeks
      * @param autoLock auto lock status
      */
@@ -111,16 +116,15 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         AccountData storage _accountData = accountData[_account];
         require(_accountData.locked > 0, "no lock data");
         uint256 amount = _accountData.locked;
-        _accountData.locked = 0;
         _createLock(_account, amount, week, autoLock);
 
     }
 
     // create new lock
-    function _createLock(address _account, uint256 _amount, uint16 _week, bool autoLock) internal {
-        require(block.timestamp >= startTime, "Not started");
-        require(_week <= MAX_LOCK_WEEKS, "Exceeds MAX_LOCK_WEEKS");
-        require(_week > 0, "Invalid lock week");
+    function _createLock(address _account, uint256 _amount, uint16 _week, bool autoLock) private {
+        require(block.timestamp >= startTime, "not started");
+        require(_week <= MAX_LOCK_WEEKS, "exceeds MAX_LOCK_WEEKS");
+        require(_week > 0, "invalid lock week");
 
         // write history total weight
         _writeTotalWeight();
@@ -151,9 +155,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
             if (lastAccountLockedData.week == currentWeek) {
                 lastAccountLockedData.locked = _amount;
                 lastAccountLockedData.weight = weight;
-                if (autoLock) {
-                    lastAccountLockedData.autoLockAmount = _amount;
-                }
+                lastAccountLockedData.autoLockAmount = autoLock ? _amount : 0;
             } else {
                 lockedDataHistory.push(LockedData({
                     week: currentWeek,
@@ -170,24 +172,23 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         _totalLockedData.weight += weight;
         if (autoLock) {
             _totalLockedData.autoLockAmount += _amount;
-        }
-
-        // update total unlocked data
-        if (!autoLock) {
+        } else {
+            // update total unlocked data
             totalUnlockedData[currentWeek + _week] += _amount;
         }
+
         emit LockCreated(_account, _amount, _week, autoLock);
     }
 
     /**
-     * @dev Increase lock amount
+     * @dev increase lock amount
      * @param _amount amount of token to increase
      */
     function increaseAmount(uint256 _amount) external {
         address _account = msg.sender;
         uint256 weight = balanceOf(_account);
-        require(weight > 0, "No lock data");
-        require(_amount > 0, "Invalid amount");
+        require(weight > 0, "no lock data");
+        require(_amount > 0, "invalid amount");
 
         // transfer lista token
         token.safeTransferFrom(_account, address(this), _amount);
@@ -216,9 +217,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         if (lastAccountLockedData.week == currentWeek) {
             lastAccountLockedData.locked = _accountData.locked;
             lastAccountLockedData.weight = newWeight;
-            if (_accountData.autoLock) {
-                lastAccountLockedData.autoLockAmount = _accountData.locked;
-            }
+            lastAccountLockedData.autoLockAmount = _accountData.autoLock ? _accountData.locked : 0;
         } else {
             lockedDataHistory.push(LockedData({
                 week: currentWeek,
@@ -234,10 +233,8 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         _totalLockedData.weight += newWeight - oldWeight;
         if (_accountData.autoLock) {
             _totalLockedData.autoLockAmount += _amount;
-        }
-
-        // update total unlocked data
-        if (!_accountData.autoLock) {
+        } else {
+            // update total unlocked data
             totalUnlockedData[currentWeek + _accountData.lockWeeks] += _amount;
         }
 
@@ -245,15 +242,15 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Extend lock week
+     * @dev extend lock week
      * @param _week lock weeks
      */
     function extendWeek(uint16 _week) external {
-        require(_week > 0, "Invalid lock week");
-        require(_week <= MAX_LOCK_WEEKS, "Exceeds MAX_LOCK_WEEKS");
+        require(_week > 0, "invalid lock week");
+        require(_week <= MAX_LOCK_WEEKS, "exceeds MAX_LOCK_WEEKS");
         address _account = msg.sender;
         uint256 oldWeight = balanceOf(_account);
-        require(oldWeight > 0, "No lock data");
+        require(oldWeight > 0, "no lock data");
 
         // write history total weight
         _writeTotalWeight();
@@ -267,12 +264,12 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
 
         uint16 addWeek;
         if (_accountData.autoLock) {
-            require(_week > _accountData.lockWeeks, "Invalid lock week");
+            require(_week > _accountData.lockWeeks, "invalid lock week");
             addWeek = _week - _accountData.lockWeeks;
             _accountData.lockWeeks = _week;
         } else {
             uint16 remainWeek = _accountData.lastLockWeek + _accountData.lockWeeks - currentWeek;
-            require(_week > remainWeek, "Invalid lock week");
+            require(_week > remainWeek, "invalid lock week");
             addWeek = _week - remainWeek;
             _accountData.lastLockWeek = currentWeek;
             _accountData.lockWeeks = _week;
@@ -282,7 +279,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         LockedData[] storage lockedDataHistory = accountLockedData[_account];
         LockedData storage lastAccountLockedData = lockedDataHistory[lockedDataHistory.length - 1];
         if (lastAccountLockedData.week == currentWeek) {
-            lastAccountLockedData.weight += _accountData.locked * uint256(addWeek);
+            lastAccountLockedData.weight = _accountData.locked * uint256(_accountData.lockWeeks);
         } else {
             lockedDataHistory.push(LockedData({
                 week: currentWeek,
@@ -307,7 +304,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Get veLista balance of account
+     * @dev get veLista balance of account
      * @param account account address
      */
     function balanceOf(address account) public view returns (uint256) {
@@ -325,9 +322,9 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Get veLista balance of account at time
+     * @dev get veLista balance of account at time
      * @param account account address
-     * @param timestamp time
+     * @param timestamp second timestamp
      * @return veLista balance of account
      */
     function balanceOfAtTime(address account, uint256 timestamp) public view returns (uint256) {
@@ -335,7 +332,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Get veLista balance of account at week
+     * @dev get veLista balance of account at week
      * @param account account address
      * @param week week number
      * @return veLista balance of account
@@ -345,22 +342,27 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     // get veLista balance of account at week
-    function _balanceOfAtWeek(address account, uint16 week) internal view returns (uint256) {
+    function _balanceOfAtWeek(address account, uint16 week) private view returns (uint256) {
         LockedData[] memory lockedData = accountLockedData[account];
         if (lockedData.length == 0) {
             return 0;
         }
         uint256 min = 0;
         uint256 max = lockedData.length - 1;
-        uint8 i;
-        for (; i < 128; ++i) {
-            if (min >= max) {
-                break;
-            }
+        uint256 result;
+        uint8 i = 0;
+        for (; i < 128 && min <= max; i++) {
             uint256 mid = (min + max) / 2;
-            if (lockedData[mid].week <= week) {
-                min = mid;
+            if (lockedData[mid].week == week) {
+                result = mid;
+                break;
+            } else if (lockedData[mid].week < week) {
+                result = mid;
+                min = mid + 1;
             } else {
+                if (mid == 0) {
+                    break;
+                }
                 max = mid - 1;
             }
         }
@@ -368,7 +370,11 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
             revert("array overflow");
         }
 
-        LockedData memory locked = lockedData[min];
+        LockedData memory locked = lockedData[result];
+
+        if (result == 0 && locked.week > week) {
+            return 0;
+        }
 
         if (locked.week == week) {
             return locked.weight;
@@ -382,7 +388,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     // write history total weight
-    function _writeTotalWeight() internal returns (uint256) {
+    function _writeTotalWeight() private returns (uint256) {
         uint16 currentWeek = getCurrentWeek();
 
         uint16 updateWeek = lastUpdateTotalWeek;
@@ -415,7 +421,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Get total supply
+     * @dev get total supply
      * @return total supply of veLista
      */
     function totalSupply() public view returns (uint256) {
@@ -423,7 +429,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Get total supply at week
+     * @dev get total supply at week
      * @param week week number
      * @return total supply of veLista
      */
@@ -432,8 +438,8 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Get total supply at time
-     * @param timestamp timestamp
+     * @dev get total supply at time
+     * @param timestamp second timestamp
      * @return total supply of veLista
      */
     function totalSupplyAtTime(uint256 timestamp) public view returns (uint256) {
@@ -441,7 +447,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     // get total supply at week
-    function _totalSupplyAtWeek(uint16 week) internal view returns (uint256) {
+    function _totalSupplyAtWeek(uint16 week) private view returns (uint256) {
         if (lastUpdateTotalWeek >= week) {
             return totalLockedData[week].weight;
         }
@@ -466,13 +472,13 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Claim expired token
+     * @dev claim expired token
      * @return claimed amount
      */
     function claim() external returns (uint256) {
         address _account = msg.sender;
         AccountData storage _accountData = accountData[_account];
-        require(!_accountData.autoLock && block.timestamp >= _accountData.lockTimestamp + uint256(_accountData.lockWeeks) * 1 weeks, "Not expired");
+        require(!_accountData.autoLock && block.timestamp >= _accountData.lockTimestamp + uint256(_accountData.lockWeeks) * 1 weeks, "no claimable tokens");
 
         uint256 amount = _accountData.locked;
         _accountData.locked = 0;
@@ -481,7 +487,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         _accountData.lockWeeks = 0;
         _accountData.lockTimestamp = 0;
 
-        require(amount > 0, "Invalid claimed amount");
+        require(amount > 0, "invalid claimed amount");
 
         token.safeTransfer(_account, amount);
 
@@ -492,7 +498,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Claim token with penalty
+     * @dev claim token with penalty
      * @return claimed amount
      */
     function earlyClaim() external returns (uint256) {
@@ -573,8 +579,8 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     function enableAutoLock() external {
         address _account = msg.sender;
         AccountData storage _accountData = accountData[_account];
-        require(balanceOf(_account) > 0, "No lock data");
-        require(!_accountData.autoLock, "Already auto lock");
+        require(balanceOf(_account) > 0, "no lock data");
+        require(!_accountData.autoLock, "already auto lock");
         uint16 unlockWeek = _accountData.lastLockWeek + _accountData.lockWeeks;
         uint16 currentWeek = getCurrentWeek();
         uint16 remainWeek = unlockWeek - currentWeek;
@@ -616,8 +622,8 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     function disableAutoLock() external {
         address _account = msg.sender;
         AccountData storage _accountData = accountData[_account];
-        require(_accountData.locked > 0, "No lock data");
-        require(_accountData.autoLock, "Not auto lock");
+        require(_accountData.locked > 0, "no lock data");
+        require(_accountData.autoLock, "not auto lock");
 
         uint16 currentWeek = getCurrentWeek();
 
@@ -648,11 +654,11 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         // update total unlocked data
         totalUnlockedData[currentWeek + _accountData.lockWeeks] += _accountData.locked;
 
-        emit EnableAutoLock(_account);
+        emit DisableAutoLock(_account);
     }
 
     /**
-     * @dev Get locked data of account
+     * @dev get locked data of account
      * @param account account address
      * @return locked data of account
      */
@@ -661,10 +667,10 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Claim penalty
+     * @dev claim penalty
      */
     function claimPenalty() external onlyRole(MANAGER) {
-        require(totalPenalty > 0, "No penalty");
+        require(totalPenalty > 0, "no penalty");
         uint256 amount = totalPenalty;
         totalPenalty = 0;
         token.safeTransfer(penaltyReceiver, amount);
@@ -672,7 +678,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Get penalty of account
+     * @dev get penalty of account
      * @param _account account address
      * @return penalty of account
      */
@@ -695,5 +701,28 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
             penalty = _accountData.locked * uint256(_accountData.lockWeeks) / uint256(MAX_LOCK_WEEKS);
         }
         return penalty;
+    }
+
+    /**
+     * @dev get total locked data at week
+     * @param week week number
+     * @return total locked data
+     */
+    function getTotalLockedAtWeek(uint16 week) external view returns (uint256) {
+        if (lastUpdateTotalWeek >= week) {
+            return totalLockedData[week].locked;
+        }
+        LockedData memory lastTotalLockedData = totalLockedData[lastUpdateTotalWeek];
+        uint256 locked = lastTotalLockedData.locked;
+
+        uint256 updateWeek = lastUpdateTotalWeek;
+        while(updateWeek < week) {
+            ++updateWeek;
+            uint256 unlocked = totalUnlockedData[updateWeek];
+            if (unlocked > 0) {
+                locked -= unlocked;
+            }
+        }
+        return locked;
     }
 }
