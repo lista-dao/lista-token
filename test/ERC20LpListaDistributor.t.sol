@@ -91,7 +91,7 @@ contract ERC20LpListaDistributorTest is Test {
         ids[0] = id;
         uint256[] memory percents = new uint256[](1);
         percents[0] = 1e18;
-        listaVault.setweeklyDistributorPercent(currentWeek+1, ids, percents);
+        listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
 
         lista.approve(address(listaVault), MAX_UINT);
         listaVault.depositRewards(100 ether, currentWeek+1);
