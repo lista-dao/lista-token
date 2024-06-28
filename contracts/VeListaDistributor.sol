@@ -69,7 +69,9 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
         uint8 idx = rewardTokenIndexes[_token];
         require(_token != address(0), "token is the zero address");
         require(idx == 0, "token already registered");
-        for (idx = 1; idx < rewardTokens.length; ++idx) {
+
+        uint256 rewardTokensLength = rewardTokens.length;
+        for (idx = 1; idx < rewardTokensLength; ++idx) {
             if (rewardTokens[idx].token == address(0)) {
                 rewardTokens[idx] = RewardToken({
                     token: _token,
@@ -93,13 +95,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
         require(_tokens.length > 0, "no tokens");
         require(_week >= lastDepositWeek, "week must be greater than or equal to last deposit week");
         require(_week < veLista.getCurrentWeek(), "week must be less than current week");
-        if (lastDepositWeek == _week) {
-            for (uint8 i = 0; i < _tokens.length; ++i) {
-                uint8 tokenIdx = rewardTokenIndexes[_tokens[i].token];
-                require(tokenIdx > 0, "token not registered");
-                require(weeklyRewards[_week][tokenIdx].amount == 0, "reward already deposited");
-            }
-        }
+        require(veLista.totalSupplyAtWeek(_week) > 0, "no veLista holders");
 
         lastDepositWeek = _week;
 
@@ -132,8 +128,10 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
         require(toWeek + 1 <= currentWeek, "to week must be less than current week");
         TokenAmount[] memory claimableAmount = new TokenAmount[](rewardTokens.length);
 
+        uint256 rewardTokensLength = rewardTokens.length;
+
         uint256 len;
-        for (uint8 i = 1; i < rewardTokens.length; ++i) {
+        for (uint8 i = 1; i < rewardTokensLength; ++i) {
             address token = rewardTokens[i].token;
             if (token == address(0)) {
                 break;
@@ -164,7 +162,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
 
         TokenAmount[] memory claimable = new TokenAmount[](len);
         uint256 idx;
-        for (uint8 i = 1; i < rewardTokens.length; ++i) {
+        for (uint8 i = 1; i < rewardTokensLength; ++i) {
             if (claimableAmount[i].amount > 0) {
                 claimable[idx] = claimableAmount[i];
                 ++idx;
@@ -216,7 +214,8 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
       */
     function claimAll(address[] memory tokens, uint16 toWeek) external {
         address _account = msg.sender;
-        for (uint256 i = 0; i < tokens.length; ++i) {
+        uint256 tokenLength = tokens.length;
+        for (uint256 i = 0; i < tokenLength; ++i) {
             _claimWithToken(_account, tokens[i], toWeek);
         }
     }
@@ -244,6 +243,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
 
         uint256 amount;
 
+        uint16 lastClaimableWeek = accountWeek;
         for (; accountWeek <= toWeek; ++accountWeek) {
             TokenAmount memory reward = weeklyRewards[accountWeek][tokenIdx];
             if (reward.amount == 0) {
@@ -254,13 +254,17 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
             if (totalWeight == 0) {
                 continue;
             }
-            uint256 rewardAmount = reward.amount;
+            uint256 rewardAmount = reward.amount * 1e18  * accountWeight / totalWeight;
+            if (rewardAmount > 0) {
+                lastClaimableWeek = accountWeek+1;
+            }
 
-            amount += rewardAmount * accountWeight / totalWeight;
+            amount += rewardAmount;
         }
 
+        amount /= 1e18;
         if (amount > 0) {
-            accountClaimedWeek[_account][token] = accountWeek;
+            accountClaimedWeek[_account][token] = lastClaimableWeek;
             IERC20(token).safeTransfer(_account, amount);
             emit Claimed(_account, token, amount);
         }

@@ -62,6 +62,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         require(_manager != address(0), "manager is the zero address");
         require(_token != address(0), "lista token is the zero address");
         require(_penaltyReceiver != address(0), "penalty receiver is the zero address");
+        require(_startTime < block.timestamp && block.timestamp - _startTime <= 10 weeks, "invalid start time");
         __AccessControl_init();
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
@@ -97,7 +98,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
      * @param autoLock auto lock status
      */
     function lock(uint256 amount, uint16 week, bool autoLock) external {
-        require(amount > 0, "lock amount must be greater than 0");
+        require(amount >= 1e16, "lock amount must be greater or equal than 0.01");
         address _account = msg.sender;
         require(accountData[_account].locked == 0, "locked amount must be 0");
         _createLock(_account, amount, week, autoLock);
@@ -186,8 +187,8 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
      */
     function increaseAmount(uint256 _amount) external {
         address _account = msg.sender;
-        uint256 weight = balanceOf(_account);
-        require(weight > 0, "no lock data");
+        uint256 oldWeight = balanceOf(_account);
+        require(oldWeight > 0, "no lock data");
         require(_amount > 0, "invalid amount");
 
         // transfer lista token
@@ -197,7 +198,6 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
 
         AccountData storage _accountData = accountData[_account];
         uint16 currentWeek = getCurrentWeek();
-        uint256 oldWeight = balanceOf(_account);
 
         // update account data
         _accountData.locked += _amount;
@@ -223,7 +223,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
                 week: currentWeek,
                 locked: _accountData.locked,
                 weight: newWeight,
-                autoLockAmount: _accountData.autoLock ? _amount : 0
+                autoLockAmount: _accountData.autoLock ? _accountData.locked : 0
             }));
         }
 
@@ -388,12 +388,12 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     // write history total weight
-    function _writeTotalWeight() private returns (uint256) {
+    function _writeTotalWeight() private {
         uint16 currentWeek = getCurrentWeek();
 
         uint16 updateWeek = lastUpdateTotalWeek;
         if (updateWeek == currentWeek) {
-            return totalLockedData[updateWeek].weight;
+            return;
         }
 
 
@@ -417,7 +417,6 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         }
 
         lastUpdateTotalWeek = currentWeek;
-        return weight;
     }
 
     /**
@@ -482,7 +481,6 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
 
         uint256 amount = _accountData.locked;
         _accountData.locked = 0;
-        _accountData.autoLock = false;
         _accountData.lastLockWeek = 0;
         _accountData.lockWeeks = 0;
         _accountData.lockTimestamp = 0;
