@@ -134,6 +134,18 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
     }
 
     /**
+      * @dev get account reward rate
+      * @param account account address
+      * @return reward rate
+      */
+    function getAccountRewardRate(address account) external view returns (uint256) {
+        uint256 balance = balanceOf[account];
+        uint256 supply = totalSupply;
+        if (supply == 0) return 0;
+        return (rewardRate * balance) / supply;
+    }
+
+    /**
       * @dev claim reward, only vault can call this function
       * @param _account account address
       * @return reward amount

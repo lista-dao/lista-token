@@ -112,7 +112,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @param ids distributor ids
      * @param percent distributor percent
      */
-    function setweeklyDistributorPercent(uint16 week, uint16[] memory ids, uint256[] memory percent) onlyRole(MANAGER) external {
+    function setWeeklyDistributorPercent(uint16 week, uint16[] memory ids, uint256[] memory percent) onlyRole(MANAGER) external {
         require(week > veLista.getCurrentWeek(), "week must be greater than current week");
         require(ids.length > 0 && ids.length == percent.length, "ids and percent length mismatch");
         uint256 totalPercent;

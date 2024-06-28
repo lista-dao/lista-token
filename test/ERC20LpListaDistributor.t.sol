@@ -151,7 +151,7 @@ contract ERC20LpListaDistributorTest is Test {
         ids[0] = id;
         uint256[] memory percents = new uint256[](1);
         percents[0] = 1e18;
-        listaVault.setweeklyDistributorPercent(currentWeek+1, ids, percents);
+        listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
 
         vm.stopPrank();
 
@@ -180,7 +180,7 @@ contract ERC20LpListaDistributorTest is Test {
         ids[0] = id;
         uint256[] memory percents = new uint256[](1);
         percents[0] = 1e18;
-        listaVault.setweeklyDistributorPercent(currentWeek+1, ids, percents);
+        listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
 
         lpToken.transfer(user1, 10000 ether);
         vm.stopPrank();

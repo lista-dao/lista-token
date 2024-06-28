@@ -5,4 +5,8 @@ interface IVault {
     function getWeek(uint256 timestamp) external view returns (uint16);
     function transferAllocatedTokens(uint16 _receiverId, address account, uint256 amount) external;
     function getDistributorWeeklyEmissions(uint16 id, uint16 week) external view returns (uint256);
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> vetoken-emission
