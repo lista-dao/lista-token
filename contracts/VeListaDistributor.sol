@@ -16,6 +16,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
     event RewardRegistered(address token, uint256 week);
     event DepositReward(uint256 week, TokenAmount[] tokens);
     event Claimed(address account, address token, uint256 amount);
+    event RecoveredERC20(address token, uint256 amount);
 
     struct TokenAmount {
         address token;
@@ -333,5 +334,16 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
                 ++idx;
             }
         }
+    }
+
+    /**
+     * @dev recover ERC20 token added to support recovering mistaken rewards
+      * @param token ERC20 token address
+      * @param amount token amount
+      */
+    function recoverERC20(address token, uint256 amount) external onlyRole(MANAGER) {
+        // Only the owner address can ever receive the recovery withdrawal
+        IERC20(token).safeTransfer(msg.sender, amount);
+        emit RecoveredERC20(token, amount);
     }
 }
