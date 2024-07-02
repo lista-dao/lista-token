@@ -22,6 +22,7 @@
   "devDependencies": {
     "@ethereum-waffle/mock-contract": "^4.0.4",
     "@layerzerolabs/lz-evm-oapp-v2": "^2.0.14",
+    "@nomicfoundation/hardhat-foundry": "^1.1.2",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.10",
     "@nomiclabs/hardhat-ethers": "^2.0.6",
     "@nomiclabs/hardhat-etherscan": "^3.0.4",
@@ -60,5 +61,8 @@
     "ts-node": "^10.8.1",
     "typechain": "^5.2.0",
     "typescript": "^4.7.3"
+  },
+  "dependencies": {
+    "moment": "^2.30.1"
   }
 }

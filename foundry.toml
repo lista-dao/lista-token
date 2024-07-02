@@ -1,0 +1,16 @@
+[profile.default]
+src = 'contracts'
+out = 'out'
+libs = ['lib']
+test = 'test'
+cache_path  = 'cache_forge'
+
+remappings=[
+    "@openzeppelin/contracts=./node_modules/@openzeppelin/contracts",
+    "@openzeppelin/contracts-upgradeable=./node_modules/@openzeppelin/contracts-upgradeable",
+    "@chainlink/contracts=./node_modules/@chainlink/contracts",
+]
+
+[rpc_endpoints]
+bsc-test = "https://data-seed-prebsc-1-s1.binance.org:8545/"
+bsc-main = "https://bsc-dataseed.binance.org/"
