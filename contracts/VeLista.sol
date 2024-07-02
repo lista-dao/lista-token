@@ -9,7 +9,7 @@ import {IVeLista} from "./interfaces/IVeLista.sol";
 
 /**
   * @title VeLista
-  * @dev lock veLista token to get veLista (voting power)
+  * @dev lock lista token to get veLista (voting power)
   */
 contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     using SafeERC20 for IERC20;
