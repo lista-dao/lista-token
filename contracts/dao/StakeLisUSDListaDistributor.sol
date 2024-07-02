@@ -18,15 +18,16 @@ contract StakeLisUSDListaDistributor is CommonListaDistributor, ReentrancyGuard 
 
   /**
     * @dev Initialize contract
-    * @param name lp token name
-    * @param symbol lp token symbol
+    * @param _name lp token name
+    * @param _symbol lp token symbol
     * @param _admin admin address
     * @param _manager manager address
+    * @param _vault vault address
     * @param _lpToken lp token address
     */
   function initialize(
-    string _name,
-    string _symbol,
+    string memory _name,
+    string memory _symbol,
     address _admin,
     address _manager,
     address _vault,
@@ -49,16 +50,16 @@ contract StakeLisUSDListaDistributor is CommonListaDistributor, ReentrancyGuard 
   /**
     * @dev take snapshot when user stakes/unstakes LisUSD
     * @param user user address
-    * @param _balance user's latest balance of staked LisUSD
+    * @param balance user's latest balance of staked LisUSD
     */
-  function takeSnapshot(address user, uint256 _balance) nonReentrant onlyRole(MANAGER) external {
+  function takeSnapshot(address user, uint256 balance) nonReentrant onlyRole(MANAGER) external {
     // check user's balanceOf value of that collateral
     // update user's balanceOf, _deposit() if diff > 0
     // otherwise _withdraw()
-    if (_balance > balanceOf[user]) {
-      _deposit(user, _balance - balanceOf[user]);
+    if (balance > balanceOf[user]) {
+      _deposit(user, balance - balanceOf[user]);
     } else {
-      _withdraw(user, balanceOf[user] - _balance);
+      _withdraw(user, balanceOf[user] - balance);
     }
   }
 }

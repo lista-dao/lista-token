@@ -30,15 +30,16 @@ contract BorrowLisUSDListaDistributor is CommonListaDistributor, ReentrancyGuard
 
   /**
     * @dev Initialize contract
-    * @param name lp token name
-    * @param symbol lp token symbol
+    * @param _name lp token name
+    * @param _symbol lp token symbol
     * @param _admin admin address
     * @param _manager manager address
+    * @param _vault vault address
     * @param _lpToken lp token address
     */
   function initialize(
-    string _name,
-    string _symbol,
+    string memory _name,
+    string memory _symbol,
     address _admin,
     address _manager,
     address _vault,
@@ -74,17 +75,17 @@ contract BorrowLisUSDListaDistributor is CommonListaDistributor, ReentrancyGuard
     * @dev take snapshot of user's activity
     * @param token collateral token address
     * @param user user address
-    * @param _balance user's latest debt by borrowing LisUSD from the collateral
+    * @param debt user's latest debt by borrowing LisUSD from the collateral
     */
-  function takeSnapshot(address token, address user, uint256 _debt) nonReentrant onlyRole(MANAGER) external {
+  function takeSnapshot(address token, address user, uint256 debt) nonReentrant onlyRole(MANAGER) external {
     // check whether collateral is enabled or not
     require(collateralEnabled[token], "collateral is not enabled");
     // For this collateral, if the latest debt is larger than the previous one
     // call _deposit(user, debt diff.), otherwise call _withdraw(user, debt diff.)
-    if (_debt > debtByCollateral[token][user]) {
-      _deposit(user, _debt - debtByCollateral[token][user]);
+    if (debt > debtByCollateral[token][user]) {
+      _deposit(user, debt - debtByCollateral[token][user]);
     } else {
-      _withdraw(user, debtByCollateral[token][user] - _debt);
+      _withdraw(user, debtByCollateral[token][user] - debt);
     }
   }
 }
