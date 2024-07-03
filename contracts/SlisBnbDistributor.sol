@@ -22,7 +22,7 @@ contract SlisBnbDistributor is Initializable, AccessControlUpgradeable {
     mapping(uint16 => mapping(address => bool)) public claimed;
 
     // claim expires after week + expireDelay
-    uint256 public expireDelay = 10 weeks;
+    uint256 public expireDelay;
 
     // vault role
     bytes32 public constant VAULT = keccak256("VAULT");
@@ -46,8 +46,9 @@ contract SlisBnbDistributor is Initializable, AccessControlUpgradeable {
 
         vault = IVault(_vault);
         expireDelay = _expireDelay;
-         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
-         _setupRole(VAULT, _vault);
+        _setRoleAdmin(VAULT, DEFAULT_ADMIN_ROLE);
+        _setupRole(DEFAULT_ADMIN_ROLE, _admin);
+        _setupRole(VAULT, _vault);
     }
 
     /**
