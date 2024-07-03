@@ -9,7 +9,7 @@ import "./CommonListaDistributor.sol";
   * @title StakeLisUSDListaDistributor
   * @dev This contract inherits from CommonListaDistributor stores user's reward data when an user stakes LisUSD
   */
-contract StakeLisUSDListaDistributor is CommonListaDistributor, ReentrancyGuard {
+contract StakeLisUSDListaDistributor is CommonListaDistributor {
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -52,7 +52,7 @@ contract StakeLisUSDListaDistributor is CommonListaDistributor, ReentrancyGuard 
     * @param user user address
     * @param balance user's latest balance of staked LisUSD
     */
-  function takeSnapshot(address user, uint256 balance) nonReentrant onlyRole(MANAGER) external {
+  function takeSnapshot(address user, uint256 balance) onlyRole(MANAGER) external {
     // check user's balanceOf value of that collateral
     // update user's balanceOf, _deposit() if diff > 0
     // otherwise _withdraw()
