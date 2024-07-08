@@ -1,7 +1,10 @@
 import "@openzeppelin/hardhat-upgrades";
 import "dotenv/config";
-import "@nomiclabs/hardhat-etherscan";
-import "@nomiclabs/hardhat-waffle";
+import "@nomicfoundation/hardhat-verify";
+import "@nomicfoundation/hardhat-ethers";
+import "@nomicfoundation/hardhat-toolbox";
+import "@nomicfoundation/hardhat-chai-matchers";
+import "@typechain/hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { HardhatUserConfig, task } from "hardhat/config";
 import "hardhat-gas-reporter";
@@ -25,18 +28,6 @@ const config: HardhatUserConfig = {
       },
       viaIR: true,
     },
-    compilers: [
-      {
-        version: "0.8.19",
-        settings: {
-          outputSelection: {
-            "*": {
-              "*": ["storageLayout"],
-            },
-          },
-        },
-      },
-    ],
   },
   networks: {
     hardhat: {
@@ -72,7 +63,6 @@ const config: HardhatUserConfig = {
     // Your API key for Etherscan
     // Obtain one at https://bscscan.com/ or https://etherscan.io
     apiKey: {
-      ethereum: process.env.ETHERSCAN_API_KEY || "",
       bscTestnet: process.env.BSCSCAN_API_KEY || "",
       bsc: process.env.BSCSCAN_API_KEY || "",
       sepolia: process.env.ETHERSCAN_API_KEY || "",

@@ -53,9 +53,9 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
       */
     function initialize(address _admin, address _manager, address _veLista) external initializer {
         __AccessControl_init();
-        require(_admin != address(0), "admin is the zero address");
-        require(_manager != address(0), "manager is the zero address");
-        require(_veLista != address(0), "veLista is the zero address");
+        require(_admin != address(0), "admin is a zero address");
+        require(_manager != address(0), "manager is a zero address");
+        require(_veLista != address(0), "veLista is a zero address");
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setupRole(MANAGER, _manager);
 
@@ -68,7 +68,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
       */
     function registerNewToken(address _token) external onlyRole(MANAGER) {
         uint8 idx = rewardTokenIndexes[_token];
-        require(_token != address(0), "token is the zero address");
+        require(_token != address(0), "token is a zero address");
         require(idx == 0, "token already registered");
 
         uint256 rewardTokensLength = rewardTokens.length;
@@ -89,13 +89,13 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
 
     /**
       * @dev deposit new rewards for a specific week
-      * @param _week week number to deposit rewards for
+      * @param _week week number of rewards to deposit
       * @param _tokens array of token and amount to deposit
       */
     function depositNewReward(uint16 _week, TokenAmount[] memory _tokens) external onlyRole(MANAGER) {
         require(_tokens.length > 0, "no tokens");
-        require(_week >= lastDepositWeek, "week must be greater than or equal to last deposit week");
-        require(_week < veLista.getCurrentWeek(), "week must be less than current week");
+        require(_week >= lastDepositWeek, "_week must be greater than or equal to last deposit week");
+        require(_week < veLista.getCurrentWeek(), "_week must be less than current week");
         require(veLista.totalSupplyAtWeek(_week) > 0, "no veLista holders");
 
         lastDepositWeek = _week;
@@ -104,7 +104,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
             uint8 tokenIdx = rewardTokenIndexes[_tokens[i].token];
             uint16 tokenWeek = rewardTokens[tokenIdx].startWeek;
             require(tokenIdx > 0, "token not registered");
-            require(_week >= tokenWeek, "deposit week must be greater than or equal to token start week");
+            require(_week >= tokenWeek, "_week must be greater than or equal to token start week");
             require(_tokens[i].amount > 0, "amount must be greater than 0");
             require(weeklyRewards[_week][tokenIdx].amount == 0, "reward already deposited");
 
@@ -119,14 +119,14 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
     }
 
     /**
-      * @dev get claimable rewards for an account
-      * @param _account address of the account to get claimable rewards for
-      * @return array of TokenAmount structs representing claimable rewards
-      * @param toWeek week number to claim rewards to
+      * @dev get user's claimable rewards
+      * @param _account address for receiving rewards
+      * @param toWeek the week no. counting from the user's latest claimable week no.
+      * @return array of claimable rewards including token address and amount
       */
     function getClaimable(address _account, uint16 toWeek) public view returns (TokenAmount[] memory) {
         uint256 currentWeek = veLista.getCurrentWeek();
-        require(toWeek + 1 <= currentWeek, "to week must be less than current week");
+        require(toWeek < currentWeek, "toWeek must be less than the current week");
         TokenAmount[] memory claimableAmount = new TokenAmount[](rewardTokens.length);
 
         uint256 rewardTokensLength = rewardTokens.length;
@@ -141,25 +141,13 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
             if (accountWeek == 0) {
                 accountWeek = rewardTokens[i].startWeek;
             }
-            for (uint16 j = accountWeek; j <= toWeek; ++j) {
-                TokenAmount memory reward = weeklyRewards[j][i];
-                if (reward.amount == 0) {
-                    continue;
-                }
-                uint256 accountWeight = veLista.balanceOfAtWeek(_account, j);
-                uint256 totalWeight = veLista.totalSupplyAtWeek(j);
-                if (totalWeight == 0) {
-                    continue;
-                }
-                uint256 rewardAmount = reward.amount;
-                claimableAmount[i].amount += rewardAmount * accountWeight / totalWeight;
-                claimableAmount[i].token = reward.token;
-            }
-            if (claimableAmount[i].amount > 0) {
+            (uint256 rewardAmount,) = getTokenClaimable(_account, token, toWeek);
+            if (rewardAmount > 0) {
+                claimableAmount[i].amount = rewardAmount;
+                claimableAmount[i].token = token;
                 ++len;
             }
         }
-
 
         TokenAmount[] memory claimable = new TokenAmount[](len);
         uint256 idx;
@@ -173,21 +161,23 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
     }
 
     /**
-      * @dev get claimable rewards for an account for a specific token
-      * @param _account address of the account to get claimable rewards for
-      * @param _token address of the token to get claimable rewards for
-      * @return amount of claimable rewards
-      * @param toWeek week number to claim rewards to
+      * @dev Get user's claimable amount of a token
+      * @param _account address for receiving rewards
+      * @param _token the reward token address
+      * @param toWeek the week no. counting from the user's latest claimable week no.
+      * @return amount of claimable rewards and the last
+      * @return last claimable week and the latest claimable week
       */
-    function getTokenClaimable(address _account, address _token, uint16 toWeek) public view returns (uint256) {
+    function getTokenClaimable(address _account, address _token, uint16 toWeek) public view returns (uint256, uint16) {
         uint256 currentWeek = veLista.getCurrentWeek();
-        require(toWeek < currentWeek, "to week must be less than current week");
+        require(toWeek < currentWeek, "toWeek must be less than the current week");
         uint256 claimableAmount;
 
         uint16 accountWeek = accountClaimedWeek[_account][_token];
+        uint16 lastClaimableWeek = accountWeek;
         uint8 tokenIdx = rewardTokenIndexes[_token];
         if (tokenIdx == 0) {
-            return 0;
+            return (0, 0);
         }
         if (accountWeek == 0) {
             accountWeek = rewardTokens[tokenIdx].startWeek;
@@ -197,21 +187,22 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
             if (reward.amount == 0) {
                 continue;
             }
+            lastClaimableWeek = j+1;
             uint256 accountWeight = veLista.balanceOfAtWeek(_account, j);
             uint256 totalWeight = veLista.totalSupplyAtWeek(j);
             if (totalWeight == 0) {
                 continue;
             }
             uint256 rewardAmount = reward.amount;
-            claimableAmount += rewardAmount * accountWeight / totalWeight;
+            claimableAmount += rewardAmount * accountWeight * 1e18 / totalWeight;
         }
-        return claimableAmount;
+        return (claimableAmount / 1e18, lastClaimableWeek);
     }
 
     /**
       * @dev claim rewards for an account
       * @param tokens addresses of the tokens to claim
-      * @param toWeek week number to claim rewards to
+      * @param toWeek the week no. counting from the user's latest claimable week no.
       */
     function claimAll(address[] memory tokens, uint16 toWeek) external {
         address _account = msg.sender;
@@ -221,9 +212,9 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
         }
     }
     /**
-      * @dev claim rewards for an account for a specific token
-      * @param token address of the token to claim
-      * @param toWeek week number to claim rewards to
+      * @dev Claim rewards for a specific token on behalf of an account
+      * @param token address of the claim
+      * @param toWeek the week no. counting from the user's latest claimable week no.
       */
     function claimWithToken(address token, uint16 toWeek) external {
         _claimWithToken(msg.sender, token, toWeek);
@@ -231,7 +222,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
 
     function _claimWithToken(address _account, address token, uint16 toWeek) private {
         uint16 currentWeek = veLista.getCurrentWeek();
-        require(toWeek < currentWeek, "to week must be less than current week");
+        require(toWeek < currentWeek, "toWeek must be less than the current week");
 
         uint256 tokenIdx = rewardTokenIndexes[token];
         require(tokenIdx > 0, "token not registered");
@@ -242,39 +233,20 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
         }
         require(accountWeek < currentWeek, "no claimable rewards");
 
-        uint256 amount;
 
-        uint16 lastClaimableWeek = accountWeek;
-        for (; accountWeek <= toWeek; ++accountWeek) {
-            TokenAmount memory reward = weeklyRewards[accountWeek][tokenIdx];
-            if (reward.amount == 0) {
-                continue;
-            }
-            uint256 accountWeight = veLista.balanceOfAtWeek(_account, accountWeek);
-            uint256 totalWeight = veLista.totalSupplyAtWeek(accountWeek);
-            if (totalWeight == 0) {
-                continue;
-            }
-            uint256 rewardAmount = reward.amount * 1e18  * accountWeight / totalWeight;
-            if (rewardAmount > 0) {
-                lastClaimableWeek = accountWeek+1;
-            }
+        (uint256 rewardAmount, uint16 lastClaimableWeek) = getTokenClaimable(_account, token, toWeek);
 
-            amount += rewardAmount;
-        }
-
-        amount /= 1e18;
-        if (amount > 0) {
-            accountClaimedWeek[_account][token] = lastClaimableWeek;
-            IERC20(token).safeTransfer(_account, amount);
-            emit Claimed(_account, token, amount);
+        accountClaimedWeek[_account][token] = lastClaimableWeek;
+        if (rewardAmount > 0) {
+            IERC20(token).safeTransfer(_account, rewardAmount);
+            emit Claimed(_account, token, rewardAmount);
         }
     }
 
     /**
-      * @dev get total reward for a specific week
-      * @param _week week number to get total reward for
-      * @return rewards array of TokenAmount structs representing total reward
+      * @dev get total rewards of a specific week
+      * @param _week the week number of total rewards to get
+      * @return rewards array of TokenAmount structs which includes token address and amount
       */
     function getTotalWeeklyRewards(uint16 _week) external view returns (TokenAmount[] memory rewards) {
         TokenAmount[10] memory rewardData = weeklyRewards[_week];
@@ -302,10 +274,10 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
     }
 
     /**
-      * @dev get account reward for a specific week
-      * @param _account address of the account to get rewards for
-      * @param _week week number to get total reward for
-      * @return rewards array of TokenAmount structs representing account reward
+      * @dev get user's total rewards of a specific week
+      * @param _account address to receiving rewards
+      * @param _week the week number of rewards to get per user
+      * @return rewards array of TokenAmount structs which includes token address and amount
       */
     function getAccountWeeklyRewards(address _account, uint16 _week) external view returns (TokenAmount[] memory rewards) {
         uint256 accountWeight = veLista.balanceOfAtWeek(_account, _week);
@@ -320,14 +292,14 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
 
         TokenAmount[10] memory tokenAmounts = weeklyRewards[_week];
         uint8 len;
-        for (uint8 i = 0; i < tokenAmounts.length; ++i) {
+        for (uint8 i = 1; i < tokenAmounts.length; ++i) {
             if (tokenAmounts[i].amount > 0) {
                 ++len;
             }
         }
         rewards = new TokenAmount[](len);
         uint8 idx;
-        for (uint8 i = 0; i < tokenAmounts.length; ++i) {
+        for (uint8 i = 1; i < tokenAmounts.length; ++i) {
             if (tokenAmounts[i].amount > 0) {
                 rewards[idx] = tokenAmounts[i];
                 rewards[idx].amount = tokenAmounts[i].amount * accountWeight / totalWeight;
@@ -346,4 +318,5 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
         IERC20(token).safeTransfer(msg.sender, amount);
         emit RecoveredERC20(token, amount);
     }
+
 }
