@@ -1,0 +1,41 @@
+[
+  {
+    "eid": 30102,
+    "oft": "PENDING_DEPLOY",
+    "network": "bsc",
+    "lz": "0x1a44076050125825900e736c501f859c50fE728c",
+    "contract": "ListaOFTAdapter",
+    "existingTokenAddress": "PENDING_TOKEN_ADDRESS",
+    "multiSig": "MULTI_SIG_WALLET_ADDR",
+    "transferLimits": [
+      {
+        "dstEid": 30101,
+        "maxDailyTransferAmount": "100000000000000000000000",
+        "singleTransferUpperLimit": "10000000000000000000000",
+        "singleTransferLowerLimit": "100000000000000000",
+        "dailyTransferAmountPerAddress": "20000000000000000000000",
+        "dailyTransferAttemptPerAddress": 10
+      }
+    ]
+  },
+  {
+    "eid": 30101,
+    "oft": "PENDING_DEPLOY",
+    "network": "ethereum",
+    "lz": "0x1a44076050125825900e736c501f859c50fE728c",
+    "contract": "ListaOFT",
+    "tokenName": "Lista Staked BNB",
+    "symbol": "slisBNB",
+    "multiSig": "MULTI_SIG_WALLET_ADDR",
+    "transferLimits": [
+      {
+        "dstEid": 30102,
+        "maxDailyTransferAmount": "100000000000000000000000",
+        "singleTransferUpperLimit": "10000000000000000000000",
+        "singleTransferLowerLimit": "100000000000000000",
+        "dailyTransferAmountPerAddress": "20000000000000000000000",
+        "dailyTransferAttemptPerAddress": 10
+      }
+    ]
+  }
+]
