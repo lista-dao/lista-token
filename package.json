@@ -21,7 +21,7 @@
   "license": "ISC",
   "devDependencies": {
     "@ethereum-waffle/mock-contract": "^4.0.4",
-    "@layerzerolabs/lz-evm-oapp-v2": "^2.0.14",
+    "@layerzerolabs/lz-evm-oapp-v2": "^2.3.8",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.10",
     "@nomiclabs/hardhat-ethers": "^2.0.6",
     "@nomiclabs/hardhat-etherscan": "^3.0.4",
@@ -60,5 +60,12 @@
     "ts-node": "^10.8.1",
     "typechain": "^5.2.0",
     "typescript": "^4.7.3"
+  },
+  "dependencies": {
+    "@layerzerolabs/lz-definitions": "^2.3.8",
+    "@layerzerolabs/lz-evm-messagelib-v2": "^2.3.8",
+    "@layerzerolabs/lz-evm-protocol-v2": "^2.3.8",
+    "@layerzerolabs/lz-evm-v1-0.7": "^2.3.19",
+    "@layerzerolabs/toolbox-foundry": "^0.1.5"
   }
 }
