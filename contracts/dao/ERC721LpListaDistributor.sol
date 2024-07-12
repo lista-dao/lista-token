@@ -65,6 +65,7 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
         require(_token0 != address(0), "token0 is the zero address");
         require(_token1 != address(0), "token1 is the zero address");
         __AccessControl_init();
+        __Pausable_init();
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setupRole(MANAGER, _manager);
@@ -86,7 +87,7 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
      * @dev deposit LP token to get rewards
      * @param tokenId tokenId of LP token
      */
-    function deposit(uint256 tokenId) external {
+    function deposit(uint256 tokenId) whenNotPaused external {
         require(IERC721(lpToken).ownerOf(tokenId) == msg.sender, "Not owner of token");
         IERC721(lpToken).safeTransferFrom(msg.sender, address(this), tokenId);
     }
@@ -95,7 +96,7 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
      * @dev withdraw LP token
      * @param tokenId tokenId of LP token
      */
-    function withdraw(uint256 tokenId) nonReentrant external {
+    function withdraw(uint256 tokenId) whenNotPaused external {
         uint256 amount = userNFTs[msg.sender][tokenId].liquidity;
         _removeNFT(msg.sender, tokenId);
         _withdraw(msg.sender, amount);
@@ -148,6 +149,7 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
 
     // save nft
     function _addNFT(address _account, uint256 tokenId, uint256 liquidity) internal {
+        require(liquidity > 0, "invalid nft liquidity");
         require(userNFTs[_account][tokenId].liquidity == 0, "NFT already added");
         userNFTs[_account][tokenId] = NFT({
             liquidity: liquidity,
@@ -182,7 +184,7 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
         address from,
         uint256 tokenId,
         bytes calldata data
-    ) nonReentrant override external returns (bytes4) {
+    ) override external returns (bytes4) {
         (bool isValid, uint256 liquidity) = checkNFT(tokenId);
         require(isValid, "invalid NFT");
 

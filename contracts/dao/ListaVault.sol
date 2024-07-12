@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 import "./interfaces/IDistributor.sol";
 import "../interfaces/IVeLista.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
   * @title ListaVault
@@ -140,7 +141,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @dev batch claim rewards
      * @param _distributors distributor contracts
      */
-    function batchClaimRewards(IDistributor[] memory _distributors) nonReentrant external {
+    function batchClaimRewards(IDistributor[] memory _distributors) external {
         uint256 total;
         for (uint16 i = 0; i < _distributors.length; ++i) {
             uint256 amount = _distributors[i].vaultClaimReward(msg.sender);
@@ -191,7 +192,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         require(distributor == msg.sender, "Distributor not registered");
 
         uint16 week = distributorUpdatedWeek[id];
-        uint256 currentWeek = veLista.getCurrentWeek();
+        uint16 currentWeek = veLista.getCurrentWeek();
         if (week == currentWeek) return 0;
 
         uint256 amount;
@@ -200,7 +201,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
             amount += getDistributorWeeklyEmissions(id, week);
         }
 
-        distributorUpdatedWeek[id] = uint16(currentWeek);
+        distributorUpdatedWeek[id] = currentWeek;
         allocated[msg.sender] += amount;
         emit IncreasedAllocation(msg.sender, amount);
         return amount;
@@ -214,7 +215,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      */
     function getDistributorWeeklyEmissions(uint16 id, uint16 week) public view returns (uint256) {
         uint256 pct = weeklyDistributorPercent[week][id];
-        return (weeklyEmissions[week] * pct) / 1e18;
+        return Math.mulDiv(weeklyEmissions[week], pct, 1e18);
     }
 
     /**
