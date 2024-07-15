@@ -123,7 +123,6 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
 
     // create new lock
     function _createLock(address _account, uint256 _amount, uint16 _week, bool autoLock) private {
-        require(block.timestamp >= startTime, "not started");
         require(_week <= MAX_LOCK_WEEKS, "exceeds MAX_LOCK_WEEKS");
         require(_week > 0, "invalid lock week");
 

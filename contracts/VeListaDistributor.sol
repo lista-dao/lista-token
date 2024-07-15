@@ -190,7 +190,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
             lastClaimableWeek = j+1;
             uint256 accountWeight = veLista.balanceOfAtWeek(_account, j);
             uint256 totalWeight = veLista.totalSupplyAtWeek(j);
-            if (totalWeight == 0) {
+            if (accountWeight == 0) {
                 continue;
             }
             uint256 rewardAmount = reward.amount;
