@@ -12,7 +12,7 @@ import {MockERC20} from "../contracts/mock/MockERC20.sol";
 
 contract VeListaDistributorTest is Test {
     VeLista public veLista = VeLista(0x51075B00313292db08f3450f91fCA53Db6Bd0D11);
-    ListaToken public lista = ListaToken(0x1d6d362f3b2034D9da97F0d1BE9Ff831B7CC71EB);
+    ListaToken public lista = ListaToken(0x90b94D605E069569Adf33C0e73E26a83637c94B1);
     ProxyAdmin public proxyAdmin = ProxyAdmin(0xc78f64Cd367bD7d2922088669463FCEE33f50b7c);
     VeListaDistributor public distributor = VeListaDistributor(0x97976D0A346f6c195Dd41628717f59A3a874B86D);
     MockERC20 public token1;
@@ -25,7 +25,9 @@ contract VeListaDistributorTest is Test {
     address user1 = 0x5a97ba0b0B18a618966303371374EBad4960B7D9;
     address user2 = 0x245b3Ee7fCC57AcAe8c208A563F54d630B5C4eD7;
 
-    address proxyAdminOwner = 0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06;
+    address proxyAdminOwner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
+
+    address listaUser = 0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06;
 
     function setUp() public {
         vm.deal(user1, 100 ether);
@@ -33,9 +35,12 @@ contract VeListaDistributorTest is Test {
         token1 = new MockERC20(manager, "token1", "token1");
         token2 = new MockERC20(manager, "token2", "token2");
 
-        vm.startPrank(manager);
+        vm.startPrank(listaUser);
         lista.transfer(user1, 10000 ether);
         lista.transfer(user2, 20000 ether);
+        vm.stopPrank();
+
+        vm.startPrank(manager);
         token1.mint(manager, 1_000_000_000 ether);
         token2.mint(manager, 1_000_000_000 ether);
         token1.approve(address(distributor), MAX_UINT);
@@ -52,6 +57,7 @@ contract VeListaDistributorTest is Test {
         vm.prank(proxyAdminOwner);
         proxyAdmin.upgrade(ITransparentUpgradeableProxy(address(distributor)), impl);
 
+        skip(100 weeks);
     }
 
     function test_registerNewToken() public {
@@ -60,8 +66,10 @@ contract VeListaDistributorTest is Test {
         distributor.registerNewToken(address(token1));
         distributor.registerNewToken(address(token2));
         vm.stopPrank();
-        (,uint16 token1StartWeek) = distributor.rewardTokens(1);
-        (,uint16 token2StartWeek) = distributor.rewardTokens(2);
+        uint8 token1Idx = distributor.rewardTokenIndexes(address(token1));
+        uint8 token2Idx = distributor.rewardTokenIndexes(address(token2));
+        (,uint16 token1StartWeek) = distributor.rewardTokens(token1Idx);
+        (,uint16 token2StartWeek) = distributor.rewardTokens(token2Idx);
         assertEq(token1StartWeek, currentWeek, "reward token 0 is not token1");
         assertEq(token2StartWeek, currentWeek, "reward token 1 is not token2");
     }
@@ -192,4 +200,5 @@ contract VeListaDistributorTest is Test {
             tokensAmount[1].amount * veLista.balanceOfAtWeek(user2, veLista.getCurrentWeek()-1) / veLista.totalSupplyAtWeek(veLista.getCurrentWeek()-1),
             "user2 has not claimable amount of token2");
     }
+
 }

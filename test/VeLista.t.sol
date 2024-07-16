@@ -9,7 +9,7 @@ import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transp
 
 contract VeListaTest is Test {
     VeLista public veLista = VeLista(0x51075B00313292db08f3450f91fCA53Db6Bd0D11);
-    ListaToken public lista = ListaToken(0x1d6d362f3b2034D9da97F0d1BE9Ff831B7CC71EB);
+    ListaToken public lista = ListaToken(0x90b94D605E069569Adf33C0e73E26a83637c94B1);
     ProxyAdmin public proxyAdmin = ProxyAdmin(0xc78f64Cd367bD7d2922088669463FCEE33f50b7c);
     uint256 MAX_UINT = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
 
@@ -17,13 +17,15 @@ contract VeListaTest is Test {
     address user1 = 0x5a97ba0b0B18a618966303371374EBad4960B7D9;
     address user2 = 0x245b3Ee7fCC57AcAe8c208A563F54d630B5C4eD7;
 
-    address proxyAdminOwner = 0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06;
+    address proxyAdminOwner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
+
+    address listaUser = 0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06;
 
     function setUp() public {
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
 
-        vm.startPrank(manager);
+        vm.startPrank(listaUser);
         lista.transfer(user1, 10000 ether);
         lista.transfer(user2, 20000 ether);
         vm.stopPrank();
@@ -31,10 +33,11 @@ contract VeListaTest is Test {
         address impl = address(new VeLista());
         vm.prank(proxyAdminOwner);
         proxyAdmin.upgrade(ITransparentUpgradeableProxy(address(veLista)), impl);
+        skip(100 weeks);
     }
 
     function test_createLock() public {
-        uint256 lockAmount = 10000 ether;
+        uint256 lockAmount = 1000 ether;
         uint16 lockWeek = 50;
 
         uint256 startTotalSupply = veLista.totalSupply();
@@ -347,5 +350,220 @@ contract VeListaTest is Test {
         user1ListaBalance = lista.balanceOf(user1);
         penalty += 100 ether * lockWeek / veLista.MAX_LOCK_WEEKS();
         assertEq(user1ListaBalance, 10000 ether - penalty, "weeks 10 user1ListaBalance");
+    }
+
+    function test_balanceNotLock() public {
+        assertEq(veLista.balanceOfAtWeek(user1, 0), 0, "weeks 0 balance");
+    }
+
+    function test_balanceLock() public {
+        uint256 lockAmount = 100 ether;
+        uint16 lockWeek = 10;
+
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+        veLista.lock(lockAmount, lockWeek, false);
+        vm.stopPrank();
+
+        uint16 currentWeek = veLista.getCurrentWeek();
+
+        uint256 balance = veLista.balanceOfAtWeek(user1, currentWeek);
+        assertEq(balance, lockAmount*lockWeek, "weeks 0 balance");
+
+        skip(1 weeks);
+
+        currentWeek = veLista.getCurrentWeek();
+        balance = veLista.balanceOfAtWeek(user1, currentWeek);
+        assertEq(balance, lockAmount*(lockWeek - 1), "weeks 1 balance");
+    }
+
+    function test_balanceLockNotFind() public {
+        uint256 lockAmount = 100 ether;
+        uint16 lockWeek = 10;
+
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+        veLista.lock(lockAmount, lockWeek, false);
+        vm.stopPrank();
+
+        uint256 balance = veLista.balanceOfAtWeek(user1, 1);
+        assertEq(balance, 0, "weeks 0 balance");
+
+    }
+
+    function test_balanceLockExpired() public {
+        uint256 lockAmount = 100 ether;
+        uint16 lockWeek = 10;
+
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+        veLista.lock(lockAmount, lockWeek, false);
+        vm.stopPrank();
+
+        uint16 currentWeek = veLista.getCurrentWeek();
+
+        skip(100 weeks);
+
+        uint256 balance = veLista.balanceOfAtWeek(user1, currentWeek+9);
+        assertEq(balance, lockAmount, "weeks 9 balance");
+        balance = veLista.balanceOfAtWeek(user1, currentWeek+10);
+        assertEq(balance, 0, "weeks 10 balance");
+        balance = veLista.balanceOfAtWeek(user1, currentWeek+20);
+        assertEq(balance, 0, "weeks 20 balance");
+        balance = veLista.balanceOfAtWeek(user1, currentWeek+100);
+        assertEq(balance, 0, "weeks 100 balance");
+    }
+
+    function test_balanceAutoLock() public {
+        uint256 lockAmount = 100 ether;
+        uint16 lockWeek = 10;
+
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+        veLista.lock(lockAmount, lockWeek, true);
+        vm.stopPrank();
+
+        uint16 currentWeek = veLista.getCurrentWeek();
+
+        uint256 balance = veLista.balanceOfAtWeek(user1, currentWeek);
+        assertEq(balance, lockAmount*lockWeek, "weeks 0 balance");
+
+        skip(100 weeks);
+
+        balance = veLista.balanceOfAtWeek(user1, currentWeek+10);
+        assertEq(balance, lockAmount*lockWeek, "weeks 10 balance");
+        balance = veLista.balanceOfAtWeek(user1, currentWeek+20);
+        assertEq(balance, lockAmount*lockWeek, "weeks 20 balance");
+        balance = veLista.balanceOfAtWeek(user1, currentWeek+100);
+        assertEq(balance, lockAmount*lockWeek, "weeks 100 balance");
+    }
+
+    function test_balanceManyWeek() public {
+        uint256 lockAmount = 1e16;
+        uint16 lockWeek = 1;
+
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+
+        uint16 firstWeek = veLista.getCurrentWeek();
+        uint16 lastWeek = firstWeek+100;
+
+        for (uint16 i = firstWeek; i <= lastWeek; i++) {
+            veLista.lock(lockAmount, lockWeek, false);
+            skip(1 weeks);
+            veLista.claim();
+        }
+        vm.stopPrank();
+
+        console.log("firstWeek: ", firstWeek);
+        uint256 balance = veLista.balanceOfAtWeek(user1, firstWeek);
+        assertEq(balance, lockAmount*lockWeek, "weeks 0 balance");
+
+        console.log("lastWeek: ", lastWeek);
+        balance = veLista.balanceOfAtWeek(user1, lastWeek);
+        assertEq(balance, lockAmount*lockWeek, "weeks 100 balance");
+    }
+
+    function test_balanceNormal() public {
+        uint256 lockAmount = 1e16;
+        uint16 lockWeek = 1;
+
+        uint16 firstWeek = veLista.getCurrentWeek();
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+
+        veLista.lock(lockAmount, lockWeek, false);
+
+        skip(1 weeks);
+        veLista.claim();
+        veLista.lock(lockAmount, lockWeek, false);
+
+        skip(2 weeks);
+        veLista.claim();
+        veLista.lock(lockAmount, lockWeek, false);
+
+        skip(3 weeks);
+        veLista.claim();
+        veLista.lock(lockAmount, lockWeek, false);
+
+        vm.stopPrank();
+
+        uint256 balance = veLista.balanceOfAtWeek(user1, 0);
+        assertEq(balance, 0, "weeks 0 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek);
+        assertEq(balance, lockAmount*lockWeek, "weeks 1 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek+1);
+        assertEq(balance, lockAmount*lockWeek, "weeks 2 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek+2);
+        assertEq(balance, 0, "weeks 3 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek+3);
+        assertEq(balance, lockAmount*lockWeek, "weeks 4 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek+4);
+        assertEq(balance, 0, "weeks 5 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek+5);
+        assertEq(balance, 0, "weeks 6 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek+6);
+        assertEq(balance, lockAmount*lockWeek, "weeks 7 balance");
+
+    }
+
+    function test_balanceTwoWeek() public {
+        uint256 lockAmount = 1e16;
+        uint16 lockWeek = 1;
+
+        uint16 firstWeek = veLista.getCurrentWeek();
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+
+        veLista.lock(lockAmount, lockWeek, false);
+
+        skip(2 weeks);
+
+        veLista.claim();
+        veLista.lock(lockAmount, lockWeek, false);
+
+        vm.stopPrank();
+
+        uint16 lastWeek = veLista.getCurrentWeek();
+
+        uint256 balance = veLista.balanceOfAtWeek(user1, firstWeek);
+        assertEq(balance, lockAmount*lockWeek, "weeks 1 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek+1);
+        assertEq(balance, 0, "weeks 2 balance");
+        balance = veLista.balanceOfAtWeek(user1, lastWeek);
+        assertEq(balance, lockAmount*lockWeek, "weeks 3 balance");
+    }
+
+    function test_balanceThreeWeek() public {
+        uint256 lockAmount = 1e16;
+        uint16 lockWeek = 1;
+
+        uint16 firstWeek = veLista.getCurrentWeek();
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+
+        veLista.lock(lockAmount, lockWeek, false);
+
+        skip(2 weeks);
+
+        veLista.claim();
+        veLista.lock(lockAmount, lockWeek, false);
+
+        skip(1 weeks);
+        veLista.claim();
+        veLista.lock(lockAmount, lockWeek, false);
+
+        vm.stopPrank();
+
+        uint16 lastWeek = veLista.getCurrentWeek();
+
+        uint256 balance = veLista.balanceOfAtWeek(user1, firstWeek);
+        assertEq(balance, lockAmount*lockWeek, "weeks 1 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek+1);
+        assertEq(balance, 0, "weeks 2 balance");
+        balance = veLista.balanceOfAtWeek(user1, firstWeek+2);
+        assertEq(balance, lockAmount*lockWeek, "weeks 3 balance");
+        balance = veLista.balanceOfAtWeek(user1, lastWeek);
+        assertEq(balance, lockAmount*lockWeek, "weeks 4 balance");
     }
 }
