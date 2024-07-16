@@ -1,0 +1,21 @@
+[profile.default]
+src = 'contracts'
+out = 'out'
+libs = ['lib']
+test = 'test'
+cache_path  = 'cache_forge'
+
+remappings=[
+    "@openzeppelin/contracts=./node_modules/@openzeppelin/contracts",
+    "@openzeppelin/contracts-upgradeable=./node_modules/@openzeppelin/contracts-upgradeable",
+    "@chainlink/contracts=./node_modules/@chainlink/contracts",
+    "@layerzerolabs/lz-evm-protocol-v2/contracts=./node_modules/@layerzerolabs/lz-evm-protocol-v2/contracts",
+    "@layerzerolabs/lz-evm-messagelib-v2/contracts=./node_modules/@layerzerolabs/lz-evm-messagelib-v2/contracts",
+    "@layerzerolabs/lz-evm-oapp-v2/contracts=./node_modules/@layerzerolabs/lz-evm-oapp-v2/contracts",
+    "@layerzerolabs/lz-evm-v1-0.7/contracts=./node_modules/@layerzerolabs/lz-evm-v1-0.7/contracts",
+    "solidity-bytes-utils/contracts=./node_modules/solidity-bytes-utils/contracts",
+]
+
+[rpc_endpoints]
+bsc-test = "https://data-seed-prebsc-1-s1.binance.org:8545/"
+bsc-main = "https://bsc-dataseed.binance.org/"

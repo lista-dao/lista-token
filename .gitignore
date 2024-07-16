@@ -23,6 +23,11 @@ resource_errors.json
 last_conf*
 
 .idea
+
+cache_forge
+
+out
 broadcast
 oftChains.json
-out
+
+typechain-types
