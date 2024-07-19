@@ -27,9 +27,11 @@ async function main() {
       chainConfig.tokenName,
       chainConfig.symbol
     );
-    await listaToken.deployed();
-    listaTokenAddress = listaToken.address;
+    await listaToken.waitForDeployment();
+    listaTokenAddress = await listaToken.getAddress();
     console.log("ListaToken deployed to: ", listaTokenAddress);
+    console.log("Waiting for 5 seconds before verifying contract...");
+    await new Promise((resolve) => setTimeout(resolve, 5000));
     // verify contract
     await hre.run("verify:verify", {
       address: listaTokenAddress,
@@ -62,9 +64,11 @@ async function main() {
     // deploy contract
     const OFTAdapter = await ethers.getContractFactory("ListaOFTAdapter");
     const oftAdapter = await OFTAdapter.deploy(...args);
-    await oftAdapter.deployed();
-    OFTAdapterAddress = oftAdapter.address;
+    await oftAdapter.waitForDeployment();
+    OFTAdapterAddress = await oftAdapter.getAddress();
     console.log("OFTAdapter deployed to: ", OFTAdapterAddress);
+    console.log("Waiting for 5 seconds before verifying contract...");
+    await new Promise((resolve) => setTimeout(resolve, 5000));
     // verify contract
     await hre.run("verify:verify", {
       address: OFTAdapterAddress,
@@ -94,8 +98,8 @@ async function main() {
     // deploy Lista oft
     const ListaOFT = await ethers.getContractFactory("ListaOFT");
     const listaOFT = await ListaOFT.deploy(...args);
-    await listaOFT.deployed();
-    listaOFTAddress = listaOFT.address;
+    await listaOFT.waitForDeployment();
+    listaOFTAddress = await listaOFT.getAddress();
     console.log("Deployed ListaOFT: ", listaOFTAddress);
     console.log("Waiting for 10 seconds before verifying contract...");
     await new Promise((resolve) => setTimeout(resolve, 10000));

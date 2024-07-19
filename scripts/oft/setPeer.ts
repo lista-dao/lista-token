@@ -1,5 +1,5 @@
 import hre, { ethers } from "hardhat";
-import { getChainByEid } from "./utils";
+import { getChainByEid, padAddress } from "./utils";
 
 /**
  * BSC Testnet: 40102 | Sepolia: 40161 | opBNB Testnet: 40202
@@ -15,10 +15,7 @@ async function main() {
   const Contract = await ethers.getContractFactory(chainA.contract);
   const contract = Contract.attach(chainA.oft);
   // set peer
-  const tx = await contract.setPeer(
-    chainB.eid,
-    ethers.utils.arrayify(ethers.utils.hexZeroPad(chainB.oft, 32))
-  );
+  const tx = await contract.setPeer(chainB.eid, padAddress(chainB.oft));
   console.log("tx hash: ", tx.hash);
   await tx.wait(3);
   console.log(
