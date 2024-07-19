@@ -87,6 +87,7 @@ contract SlisBnbDistributor is Initializable, AccessControlUpgradeable {
 
         // Rewards of current week will be exclued from the current epoch because they're not included in the merkle root
         epoch.reward = totalAllocated + unsettledReward - currentWeekReward;
+        require(epoch.reward > 0, "No reward for the epoch");
 
         // Rewards of current week will be included in the next epoch
         unsettledReward = currentWeekReward;
@@ -131,7 +132,7 @@ contract SlisBnbDistributor is Initializable, AccessControlUpgradeable {
         require(!claimed[week][account], "Airdrop already claimed");
 
         bytes32 leaf = keccak256(abi.encode(block.chainid, week, account, weight));
-        Epoch storage epoch = epochs[week];
+        Epoch memory epoch = epochs[week];
         MerkleVerifier._verifyProof(leaf, epoch.merkleRoot, proof);
 
         claimed[week][account] = true;
