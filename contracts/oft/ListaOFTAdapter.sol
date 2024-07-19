@@ -48,9 +48,9 @@ contract ListaOFTAdapter is TransferLimiter, OFTAdapter, PausableAlt {
   function _credit(
     address _to,
     uint256 _amountLD,
-    uint32 /*_srcEid*/
+    uint32 _srcEid
   ) internal virtual override whenNotPaused returns (uint256 amountReceivedLD) {
-    return super._credit(_to, _amountLD, 0);
+    return super._credit(_to, _amountLD, _srcEid);
   }
 
   /**
