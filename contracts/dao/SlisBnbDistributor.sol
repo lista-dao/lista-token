@@ -18,7 +18,7 @@ contract SlisBnbDistributor is Initializable, AccessControlUpgradeable {
     IVault public vault;
 
     // the id of slisBnb distributor
-    uint16 private distributorId;
+    uint16 public distributorId;
 
     // week => (merkleRoot, reward)
     // week is the week of setting merkle root
