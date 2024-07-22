@@ -1,17 +1,20 @@
-import { deployProxy } from "./tasks";
+import { deployProxy, transferProxyAdminOwner } from "./tasks";
 import hre from "hardhat";
 import moment from "moment";
 
-const admin = "0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232";
-const manager = "0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232";
+const multiSig = "0x8d388136d578dCD791D081c6042284CED6d9B0c6";
 
 async function main() {
   // await deployDirect(hre, "ListaToken", owner);
+  const signers = await hre.ethers.getSigners();
+  const deployer = signers[0].address;
+  console.log(deployer);
 
-  const startTime = moment.utc("2024-05-22", "YYYY-MM-DD");
-  console.log(startTime.unix());
-  const listaToken = "0x1d6d362f3b2034D9da97F0d1BE9Ff831B7CC71EB";
-  await deployProxy(hre, "VeLista", admin, manager, startTime.unix(), listaToken, manager);
+  const startTime = moment.utc("2024-07-10", "YYYY-MM-DD");
+  console.log("startTime", startTime.unix());
+  const listaToken = "0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46";
+  await deployProxy(hre, "VeLista", deployer, deployer, startTime.unix(), listaToken, multiSig);
+  console.log("done");
 }
 
 main()
