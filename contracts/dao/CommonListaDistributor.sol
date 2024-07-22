@@ -234,8 +234,7 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
     /**
      * @dev pause the contract
      */
-    function setPause() external onlyRole(PAUSER) {
-        require(!paused(), "contract already paused");
+    function pause() external onlyRole(PAUSER) {
         _pause();
     }
 }
