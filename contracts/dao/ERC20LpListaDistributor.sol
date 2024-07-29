@@ -30,7 +30,9 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
         require(_admin != address(0), "admin is the zero address");
         require(_manager != address(0), "manager is the zero address");
         require(_lpToken != address(0), "lp token is the zero address");
+        require(_vault != address(0), "vault is the zero address");
         __AccessControl_init();
+        __Pausable_init();
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setupRole(MANAGER, _manager);
@@ -45,7 +47,7 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
      * @dev deposit LP token to get rewards
      * @param amount amount of LP token
      */
-    function deposit(uint256 amount) nonReentrant external {
+    function deposit(uint256 amount) whenNotPaused external {
         require(amount > 0, "Cannot deposit zero");
         _deposit(msg.sender, amount);
         IERC20(lpToken).safeTransferFrom(msg.sender, address(this), amount);
@@ -55,7 +57,7 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
      * @dev withdraw LP token
      * @param amount amount of LP token
      */
-    function withdraw(uint256 amount) nonReentrant external {
+    function withdraw(uint256 amount) whenNotPaused external {
         require(amount > 0, "Cannot withdraw zero");
         _withdraw(msg.sender, amount);
         IERC20(lpToken).safeTransfer(msg.sender, amount);

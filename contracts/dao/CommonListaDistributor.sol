@@ -6,12 +6,13 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "./interfaces/IVault.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 /**
   * @title CommonListaDistributor
   * @dev lista token stake and distributor
  */
-abstract contract CommonListaDistributor is Initializable, AccessControlUpgradeable {
+abstract contract CommonListaDistributor is Initializable, AccessControlUpgradeable, PausableUpgradeable {
     using SafeERC20 for IERC20;
 
     event LPTokenDeposited(address indexed lpToken, address indexed receiver, uint256 amount);
@@ -52,6 +53,8 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
     bytes32 public constant MANAGER = keccak256("MANAGER");
     // vault role
     bytes32 public constant VAULT = keccak256("VAULT");
+    // pause role
+    bytes32 public constant PAUSER = keccak256("PAUSER");
     // reward duration is 1 week
     uint256 constant REWARD_DURATION = 1 weeks;
     // decimals
@@ -220,4 +223,18 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
         return vault.getWeek(timestamp);
     }
 
+
+    /**
+     * @dev Flips the pause state
+     */
+    function togglePause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        paused() ? _unpause() : _pause();
+    }
+
+    /**
+     * @dev pause the contract
+     */
+    function pause() external onlyRole(PAUSER) {
+        _pause();
+    }
 }
