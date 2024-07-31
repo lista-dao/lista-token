@@ -1,12 +1,13 @@
 [
   {
     "eid": 30102,
-    "oft": "0x82f5bcD1473BDa5794239D01073797093a413f02",
+    "oft": "0x837CB07f6B8a98731856092457524FF37b25E7B3",
     "network": "bsc",
     "lz": "0x1a44076050125825900e736c501f859c50fE728c",
     "contract": "ListaOFTAdapter",
     "existingTokenAddress": "0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B",
-    "multiSig": "",
+    "multiSig": "0xEEfebb1546d88EA0909435DF6f615084DD3c5Bd8",
+    "delegator": "0x8d388136d578dCD791D081c6042284CED6d9B0c6",
     "transferLimits": [
       {
         "dstEid": 30101,
@@ -20,13 +21,14 @@
   },
   {
     "eid": 30101,
-    "oft": "0x44388Ef3bc730BDE8670a3b4831281dd7E89C584",
+    "oft": "0xf9B24C9364457Ea85792179D285855753549eBAa",
     "network": "ethereum",
     "lz": "0x1a44076050125825900e736c501f859c50fE728c",
     "contract": "ListaOFT",
     "tokenName": "Staked Lista BNB",
     "symbol": "slisBNB",
-    "multiSig": "",
+    "multiSig": "0xEEfebb1546d88EA0909435DF6f615084DD3c5Bd8",
+    "delegator": "0x8d388136d578dCD791D081c6042284CED6d9B0c6",
     "transferLimits": [
       {
         "dstEid": 30102,
