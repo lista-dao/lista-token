@@ -7,6 +7,7 @@
     "contract": "ListaOFTAdapter",
     "existingTokenAddress": "PENDING_TOKEN_ADDRESS",
     "multiSig": "MULTI_SIG_WALLET_ADDR",
+    "owner": "OWNER_ADDRESS",
     "transferLimits": [
       {
         "dstEid": 30101,
@@ -26,6 +27,7 @@
     "contract": "ListaOFT",
     "tokenName": "Lista Staked BNB",
     "symbol": "slisBNB",
+    "owner": "OWNER_ADDRESS",
     "multiSig": "MULTI_SIG_WALLET_ADDR",
     "transferLimits": [
       {

@@ -40,6 +40,20 @@ contract ListaOFTAdapter is TransferLimiter, OFTAdapter, PausableAlt {
   }
 
   /**
+   * @dev Credits user with the token if the contract is not paused.
+   * @param _to The address of the user to be credited.
+   * @param _amountLD The amount of tokens to be transferred.
+   * @return amountReceivedLD The actual amount of tokens received.
+   */
+  function _credit(
+    address _to,
+    uint256 _amountLD,
+    uint32 _srcEid
+  ) internal virtual override whenNotPaused returns (uint256 amountReceivedLD) {
+    return super._credit(_to, _amountLD, _srcEid);
+  }
+
+  /**
    * @dev Checks and updates the rate limit before initiating a token transfer.
    * @param _amountLD The amount of tokens to be transferred.
    * @param _minAmountLD The minimum amount of tokens expected to be received.
