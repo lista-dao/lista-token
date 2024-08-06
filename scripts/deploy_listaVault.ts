@@ -1,12 +1,19 @@
 import { deployProxy } from "./tasks";
 import hre from "hardhat";
 
-const admin = "0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232";
-
 async function main() {
-  const listaToken = "0x1d6d362f3b2034D9da97F0d1BE9Ff831B7CC71EB";
-  const veLista = "0x51075B00313292db08f3450f91fCA53Db6Bd0D11";
-  await deployProxy(hre, "ListaVault", admin, admin, listaToken, veLista);
+  const signers = await hre.ethers.getSigners();
+  const deployer = signers[0].address;
+  console.log("admin", deployer);
+  let listaToken, veLista;
+  if (hre.network.name === "bsc") {
+    listaToken = "0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46";
+    veLista = "0xd0C380D31DB43CD291E2bbE2Da2fD6dc877b87b3";
+  } else if (hre.network.name === "bscTestnet") {
+    listaToken = "0x90b94D605E069569Adf33C0e73E26a83637c94B1";
+    veLista = "0x79B3286c318bdf7511A59dcf9a2E88882064eCbA";
+  }
+  await deployProxy(hre, "ListaVault", deployer, deployer, listaToken, veLista);
 }
 
 main()
