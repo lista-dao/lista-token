@@ -161,8 +161,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      */
     function claimableList(address account, address[] memory distributors) external view returns (uint256[] memory) {
         uint256[] memory claimable = new uint256[](distributors.length);
-        for (uint16 i = 0; i <= distributors.length; ++i) {
-            claimable[i] = IDistributor(idToDistributor[i]).claimableReward(account);
+        for (uint16 i = 0; i < distributors.length; ++i) {
+            claimable[i] = IDistributor(distributors[i]).claimableReward(account);
         }
         return claimable;
     }
