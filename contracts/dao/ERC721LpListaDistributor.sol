@@ -8,6 +8,7 @@ import "./interfaces/INonfungiblePositionManager.sol";
 import "./OracleCenter.sol";
 import "../library/TickMath.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
   * @title ERC721LpListaDistributor
@@ -136,8 +137,20 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
             return (false, liquidity);
         }
 
-        uint256 priceLower = tickToPrice(tickLower);
-        uint256 priceUpper = tickToPrice(tickUpper);
+        uint256 priceLower = tickToPrice(
+            tickLower,
+            IERC20Metadata(_token0).decimals(),
+            IERC20Metadata(_token1).decimals(),
+            _token0,
+            _token1
+        );
+        uint256 priceUpper = tickToPrice(
+            tickUpper,
+            IERC20Metadata(_token0).decimals(),
+            IERC20Metadata(_token1).decimals(),
+            _token0,
+            _token1
+        );
 
         (uint256 priceLowerLimit, uint256 priceUpperLimit) = getPriceLimit(price);
 
@@ -185,6 +198,8 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
         uint256 tokenId,
         bytes calldata data
     ) override external returns (bytes4) {
+        require(msg.sender == lpToken, "invalid NFT contract");
+
         (bool isValid, uint256 liquidity) = checkNFT(tokenId);
         require(isValid, "invalid NFT");
 
@@ -193,11 +208,39 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
         return IERC721Receiver.onERC721Received.selector;
     }
 
+    function getQuoteAtTick(
+        int24 tick,
+        uint128 baseAmount,
+        address baseToken,
+        address quoteToken
+    ) private pure returns (uint256 quoteAmount) {
+        uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
+
+        // Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself
+        if (sqrtRatioX96 <= type(uint128).max) {
+            uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
+            quoteAmount = baseToken < quoteToken
+                ? Math.mulDiv(ratioX192, baseAmount, 1 << 192)
+                : Math.mulDiv(1 << 192, baseAmount, ratioX192);
+        } else {
+            uint256 ratioX128 = Math.mulDiv(sqrtRatioX96, sqrtRatioX96, 1 << 64);
+            quoteAmount = baseToken < quoteToken
+                ? Math.mulDiv(ratioX128, baseAmount, 1 << 128)
+                : Math.mulDiv(1 << 128, baseAmount, ratioX128);
+        }
+    }
+
     // get price by tick
-    function tickToPrice(int24 tick) private pure returns (uint256) {
-        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
-        uint256 sqrtPrice = uint256(sqrtPriceX96)* 1e18 / (1 << 96);
-        return sqrtPrice * sqrtPrice / 1e18;
+    function tickToPrice(
+        int24 tick,
+        uint8 token0Decimals,
+        uint8 token1Decimals,
+        address token0,
+        address token1
+    ) private pure returns (uint256) {
+        uint128 baseAmount = uint128(10 ** token0Decimals);
+        uint256 quoteAmount = getQuoteAtTick(tick, baseAmount, token0, token1);
+        return quoteAmount * 1e18 / 10 ** token1Decimals;
     }
 
     /**

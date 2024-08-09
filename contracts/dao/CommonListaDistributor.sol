@@ -107,7 +107,7 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
             uint256 integralFor = rewardIntegralFor[_account];
             if (rewardIntegral > integralFor) {
 
-                storedPendingReward[_account] += uint128((balance * (rewardIntegral - integralFor)) / 1e18);
+                storedPendingReward[_account] += (balance * (rewardIntegral - integralFor)) / 1e18;
                 rewardIntegralFor[_account] = rewardIntegral;
             }
         }
@@ -237,4 +237,8 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
     function pause() external onlyRole(PAUSER) {
         _pause();
     }
+
+
+    // storage gap
+    uint256[49] __gap;
 }
