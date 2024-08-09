@@ -4,7 +4,7 @@ import hre from "hardhat";
 const admin = "0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232";
 
 async function main() {
-  const oracle = "0x9CCf790F691925fa61b8cB777Cb35a64F5555e53";
+  const oracle = "0x6AEfe49ECDE3EaEeAA15328f11F84C483602B311";
   await deployProxy(hre, "OracleCenter", admin, oracle);
 }
 
