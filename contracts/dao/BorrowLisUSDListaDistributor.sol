@@ -44,6 +44,7 @@ contract BorrowLisUSDListaDistributor is CommonListaDistributor {
     require(_lpToken != address(0), "lp token cannot be a zero address");
     require(_vault != address(0), "vault is the zero address");
     __AccessControl_init();
+    __Pausable_init();
 
     _setupRole(DEFAULT_ADMIN_ROLE, _admin);
     _setupRole(MANAGER, _manager);
