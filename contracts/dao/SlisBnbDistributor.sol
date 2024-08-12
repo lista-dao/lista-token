@@ -156,7 +156,7 @@ contract SlisBnbDistributor is Initializable, AccessControlUpgradeable {
 
     /**
      * @dev Set the claim expire delay
-     * @param _expireDelay Expire delay in seconds
+     * @param _expireDelay Expire delay in weeks
      */
     function setExpireDelay(uint256 _expireDelay) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_expireDelay != expireDelay, "Already set");
