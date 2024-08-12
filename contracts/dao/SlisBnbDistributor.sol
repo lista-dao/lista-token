@@ -85,7 +85,7 @@ contract SlisBnbDistributor is Initializable, AccessControlUpgradeable {
 
         uint256 currentWeekReward = vault.getDistributorWeeklyEmissions(distributorId, _currentWeek);
 
-        // Rewards of current week will be exclued from the current epoch because they're not included in the merkle root
+        // Rewards of current week will be excluded from the current epoch because they're not included in the merkle root
         epoch.reward = totalAllocated + unsettledReward - currentWeekReward;
         require(epoch.reward > 0, "No reward for the epoch");
 
@@ -156,7 +156,7 @@ contract SlisBnbDistributor is Initializable, AccessControlUpgradeable {
 
     /**
      * @dev Set the claim expire delay
-     * @param _expireDelay Expire delay in seconds
+     * @param _expireDelay Expire delay in weeks
      */
     function setExpireDelay(uint256 _expireDelay) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_expireDelay != expireDelay, "Already set");
