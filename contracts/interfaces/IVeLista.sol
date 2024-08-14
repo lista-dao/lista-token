@@ -23,7 +23,7 @@ interface IVeLista {
         uint256 lockTimestamp; // lock timestamp
     }
 
-    function getWeek(uint256 timestamp) external returns (uint16);
+    function getWeek(uint256 timestamp) external view returns (uint16);
 
     function getCurrentWeek() external view returns (uint16);
 
