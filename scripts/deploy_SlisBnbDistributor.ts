@@ -7,8 +7,7 @@ async function main() {
   const deployer = signers[0].address;
   let listaVault;
   if (hre.network.name === "bsc") {
-    // todo
-    listaVault = "";
+    listaVault = "0x307d13267f360f78005f476Fa913F8848F30292A";
   } else if (hre.network.name === "bscTestnet") {
     listaVault = "0x1D70D733401169055002FB4450942F15C2F088d4";
   }

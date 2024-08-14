@@ -103,9 +103,8 @@ async function deployERC721Distributor(
 ) {
   let listaVault, oracleCenter;
   if (hre.network.name === "bsc") {
-    // todo
-    listaVault = "";
-    oracleCenter = "";
+    listaVault = "0x307d13267f360f78005f476Fa913F8848F30292A";
+    oracleCenter = "0x946a68b29149f819FBcE866cED3632e0C9F7C53b";
   } else if (hre.network.name === "bscTestnet") {
     listaVault = "0x1D70D733401169055002FB4450942F15C2F088d4";
     oracleCenter = "0x8A84a7D0f7a9dE22b5B91B6B45D450cf7F057168";

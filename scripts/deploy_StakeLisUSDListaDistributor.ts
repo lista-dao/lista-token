@@ -8,8 +8,7 @@ async function main() {
   const deployer = signers[0].address;
 
   if (hre.network.name === "bsc") {
-    // todo
-    listaVault = "";
+    listaVault = "0x307d13267f360f78005f476Fa913F8848F30292A";
     lpToken = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
     manager = "0x0a1Fd12F73432928C190CAF0810b3B767A59717e";
   } else if (hre.network.name === "bscTestnet") {
