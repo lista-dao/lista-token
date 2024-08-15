@@ -61,7 +61,7 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
     uint8 public constant decimals = 18;
 
     // deposit token and get rewards
-    function _deposit(address _account, uint256 amount) internal {
+    function _deposit(address _account, uint256 amount) whenNotPaused internal {
         require(amount > 0, "cannot deposit zero");
         uint256 balance = balanceOf[_account];
         uint256 supply = totalSupply;
@@ -78,7 +78,7 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
     }
 
     // withdraw token
-    function _withdraw(address _account, uint256 amount) internal {
+    function _withdraw(address _account, uint256 amount) whenNotPaused internal {
         uint256 balance = balanceOf[_account];
         uint256 supply = totalSupply;
         require(balance >= amount, "insufficient balance");
