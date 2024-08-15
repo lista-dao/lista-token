@@ -47,7 +47,7 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
      * @dev deposit LP token to get rewards
      * @param amount amount of LP token
      */
-    function deposit(uint256 amount) whenNotPaused external {
+    function deposit(uint256 amount) external {
         require(amount > 0, "Cannot deposit zero");
         _deposit(msg.sender, amount);
         IERC20(lpToken).safeTransferFrom(msg.sender, address(this), amount);
@@ -57,7 +57,7 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
      * @dev withdraw LP token
      * @param amount amount of LP token
      */
-    function withdraw(uint256 amount) whenNotPaused external {
+    function withdraw(uint256 amount) external {
         require(amount > 0, "Cannot withdraw zero");
         _withdraw(msg.sender, amount);
         IERC20(lpToken).safeTransfer(msg.sender, amount);

@@ -88,7 +88,7 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
      * @dev deposit LP token to get rewards
      * @param tokenId tokenId of LP token
      */
-    function deposit(uint256 tokenId) whenNotPaused external {
+    function deposit(uint256 tokenId) external {
         require(IERC721(lpToken).ownerOf(tokenId) == msg.sender, "Not owner of token");
         IERC721(lpToken).safeTransferFrom(msg.sender, address(this), tokenId);
     }
@@ -97,7 +97,7 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
      * @dev withdraw LP token
      * @param tokenId tokenId of LP token
      */
-    function withdraw(uint256 tokenId) whenNotPaused external {
+    function withdraw(uint256 tokenId) external {
         uint256 amount = userNFTs[msg.sender][tokenId].liquidity;
         _removeNFT(msg.sender, tokenId);
         _withdraw(msg.sender, amount);
