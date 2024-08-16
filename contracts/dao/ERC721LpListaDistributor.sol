@@ -9,6 +9,7 @@ import "./OracleCenter.sol";
 import "../library/TickMath.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "./interfaces/IPool.sol";
 
 /**
   * @title ERC721LpListaDistributor
@@ -19,6 +20,7 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
         uint256 liquidity;
         uint256 tokenId;
     }
+
     /// account -> tokenId -> NFT
     mapping(address => mapping(uint256 => NFT)) public userNFTs;
     // account -> tokenIds
@@ -33,6 +35,10 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
     address public token1;
     // fee
     uint24 public fee;
+
+    // pancake v3 init code hash
+    bytes32 public constant V3_INIT_CODE_HASH = 0x6ce8eb472fa82df5469c6ab6d485f17c3ad13c8cd7af59b3d4a8026c5ce0f7e2;
+
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -132,7 +138,7 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
 
         uint256 liquidity = uint256(_liquidity);
 
-        uint256 price = oracleCenter.getPrice(_token0, _token1);
+        uint256 price = getCurrentPrice();
         if (price == 0) {
             return (false, liquidity);
         }
@@ -270,5 +276,44 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
      */
     function getNFTIds(address _account) external view returns (uint256[] memory) {
         return userNFTIds[_account];
+    }
+
+    function getPoolKey(
+        address tokenA,
+        address tokenB,
+        uint24 fee
+    ) internal pure returns (IPool.PoolKey memory) {
+        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
+        return IPool.PoolKey({token0: tokenA, token1: tokenB, fee: fee});
+    }
+
+    function computeAddress(address deployer, IPool.PoolKey memory key) internal pure returns (address pool) {
+        require(key.token0 < key.token1);
+        pool = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(
+                            hex'ff',
+                            deployer,
+                            keccak256(abi.encode(key.token0, key.token1, key.fee)),
+                            V3_INIT_CODE_HASH
+                        )
+                    )
+                )
+            )
+        );
+    }
+
+    function getCurrentPrice() public view returns (uint256) {
+        address pool = computeAddress(INonfungiblePositionManager(lpToken).deployer(), getPoolKey(token0, token1, fee));
+        IPool.Slot0 memory slot0 = IPool(pool).slot0();
+        return tickToPrice(
+            slot0.tick,
+            IERC20Metadata(token0).decimals(),
+            IERC20Metadata(token1).decimals(),
+            token0,
+            token1
+        );
     }
 }
