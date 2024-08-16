@@ -25,9 +25,9 @@ contract VeListaRewardsCourier is Initializable, AccessControlUpgradeable {
   bool public rewardsDeliveredForWeek;
 
   // --- events
-  event RewardsRecharged(uint16 week, IVeListaDistributor.TokenAmount[] rewards); // rewards has been pre-deposited to VeListaRewardsCourier
-  event RewardsDelivered(); // rewards has been delivered to veListaDistributor
-  event RewardsRevoked(IVeListaDistributor.TokenAmount[] tokens); // reward has been revoked by the admin
+  event RewardsRecharged(uint16, IVeListaDistributor.TokenAmount[]); // rewards has been pre-deposited to VeListaRewardsCourier
+  event RewardsDelivered(uint16, IVeListaDistributor.TokenAmount[]); // rewards has been delivered to veListaDistributor
+  event RewardsRevoked(IVeListaDistributor.TokenAmount[]); // reward has been revoked by the admin
 
   // --- roles
   bytes32 public constant BOT = keccak256("BOT");
@@ -83,7 +83,7 @@ contract VeListaRewardsCourier is Initializable, AccessControlUpgradeable {
     }
     // send to veListaDistributor
     veListaDistributor.depositNewReward(week, tokens);
-    emit RewardsDelivered();
+    emit RewardsDelivered(week, tokens);
   }
 
   /**
