@@ -35,7 +35,8 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
     address public token1;
     // fee
     uint24 public fee;
-
+    // oracle switch
+    bool public oracleSwitch;
     // pancake v3 init code hash
     bytes32 public constant V3_INIT_CODE_HASH = 0x6ce8eb472fa82df5469c6ab6d485f17c3ad13c8cd7af59b3d4a8026c5ce0f7e2;
 
@@ -306,6 +307,9 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
     }
 
     function getCurrentPrice() public view returns (uint256) {
+        if (oracleSwitch) {
+            return oracleCenter.getPrice(token0, token1);
+        }
         address pool = computeAddress(INonfungiblePositionManager(lpToken).deployer(), getPoolKey(token0, token1, fee));
         IPool.Slot0 memory slot0 = IPool(pool).slot0();
         return tickToPrice(
@@ -315,5 +319,9 @@ contract ERC721LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgr
             token0,
             token1
         );
+    }
+
+    function toggleOracleSwitch() external onlyRole(MANAGER) {
+        oracleSwitch = !oracleSwitch;
     }
 }
