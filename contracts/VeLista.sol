@@ -2,10 +2,9 @@
 pragma solidity ^0.8.10;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {IVeLista} from "./interfaces/IVeLista.sol";
+import {IVeLista, IERC20} from "./interfaces/IVeLista.sol";
 
 /**
   * @title VeLista
@@ -36,6 +35,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     string public constant name = "Vote-escrowed Lista"; // name
     string public constant symbol = "veLista"; // symbol
     bytes32 public constant MANAGER = keccak256("MANAGER"); // manager role
+    bytes32 public constant COMPOUNDER = keccak256("COMPOUNDER"); // compounder role
 
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -186,12 +186,26 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
      */
     function increaseAmount(uint256 _amount) external {
         address _account = msg.sender;
+        _increaseAmountFor(_account, _amount, _account);
+    }
+
+    /**
+     * @dev increase lock amount for account; only compounder can call this function
+     * @param _account the account to increase the lock amount
+     * @param _amount amount of token to increase
+     */
+    function increaseAmountForCompound(address _account, uint256 _amount) external onlyRole(COMPOUNDER) {
+        address compounder = msg.sender;
+        _increaseAmountFor(_account, _amount, compounder);
+    }
+
+    function _increaseAmountFor(address _account, uint256 _amount, address _payer) internal {
         uint256 oldWeight = balanceOf(_account);
         require(oldWeight > 0, "no lock data");
         require(_amount > 0, "invalid amount");
 
-        // transfer lista token
-        token.safeTransferFrom(_account, address(this), _amount);
+        // transfer lista token from payer
+        token.safeTransferFrom(_payer, address(this), _amount);
         // write history total weight
         _writeTotalWeight();
         uint16 currentWeek = lastUpdateTotalWeek; // lastUpdateTotalWeek is current week after _writeTotalWeight()
