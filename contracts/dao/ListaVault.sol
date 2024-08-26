@@ -45,6 +45,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     IVeLista public veLista;
     // max distributor id
     uint16 public distributorId;
+    // lp proxy address
+    address public lpProxy;
 
     // manager role
     bytes32 public constant MANAGER = keccak256("MANAGER");
@@ -78,6 +80,11 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         _setupRole(MANAGER, _manager);
         token = IERC20(_token);
         veLista = IVeLista(_veLista);
+    }
+
+    modifier onlyLpProxy() {
+        require(msg.sender == lpProxy, "Only lp proxy can call this function");
+        _;
     }
 
     /**
@@ -141,17 +148,22 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @dev batch claim rewards
      * @param _distributors distributor contracts
      */
-    function batchClaimRewards(IDistributor[] memory _distributors) external {
-        uint256 total;
-        for (uint16 i = 0; i < _distributors.length; ++i) {
-            uint256 amount = _distributors[i].vaultClaimReward(msg.sender);
-            require(allocated[address(_distributors[i])] >= amount, "Insufficient allocated balance");
-            allocated[address(_distributors[i])] -= amount;
-            total += amount;
-        }
-        token.safeTransfer(msg.sender, total);
+    function batchClaimRewards(address[] memory _distributors) external {
+        _batchClaimRewards(msg.sender, _distributors);
     }
 
+    function _batchClaimRewards(address account, address[] memory _distributors) private {
+        uint256 total;
+        for (uint16 i = 0; i < _distributors.length; ++i) {
+            uint256 amount = IDistributor(_distributors[i]).vaultClaimReward(account);
+            require(allocated[_distributors[i]] >= amount, "Insufficient allocated balance");
+            allocated[_distributors[i]] -= amount;
+            total += amount;
+        }
+        if (total > 0) {
+            token.safeTransfer(account, total);
+        }
+    }
 
     /**
      * @dev get claimable list
@@ -239,5 +251,23 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     function emergencyWithdraw(address token, uint256 amount) external onlyRole(MANAGER) {
         IERC20(token).safeTransfer(msg.sender, amount);
         emit EmergencyWithdraw(token, amount);
+    }
+
+    /**
+      * @dev batch claim rewards with proxy
+      * @param account user address
+      * @param _distributors distributor addresses
+      */
+    function batchClaimRewardsWithProxy(address account, address[] memory _distributors) external onlyLpProxy {
+        _batchClaimRewards(account, _distributors);
+    }
+
+    /**
+      * @dev set lp proxy address
+      * @param _lpProxy lp proxy address
+      */
+    function setLpProxy(address _lpProxy) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_lpProxy != address(0), "lpProxy cannot be zero address");
+        lpProxy = _lpProxy;
     }
 }
