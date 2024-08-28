@@ -53,14 +53,15 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     /********************** Events ***********************/
     event VeListaDistributorUpdated(address indexed _veListaDistributor);
     event OracleUpdated(address indexed _oracle);
-    event autoCompoundStatus(address indexed _account, bool _enabled);
+    event AutoCompoundStatus(address indexed _account, bool _enabled);
     event AutoCompounded(
         address indexed _account,
         address _lista,
         uint256 _claimedAmount,
         uint256 _amtToCompound
     );
-    event feeWithdrawn(address indexed _receiver, uint256 _fee);
+    event FeeWithdrawn(address indexed _receiver, uint256 _fee);
+    event FeeReceiverUpdated(address indexed _newReceiver);
 
     function initialize(
         address _lista,
@@ -108,6 +109,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
 
         emit VeListaDistributorUpdated(_veListaDistributor);
         emit OracleUpdated(_oracle);
+        emit FeeReceiverUpdated(_feeReceiver);
     }
 
     /**
@@ -153,7 +155,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
         totalFee = 0;
 
         lista.safeTransfer(feeReceiver, fee);
-        emit feeWithdrawn(feeReceiver, fee);
+        emit FeeWithdrawn(feeReceiver, fee);
     }
 
     /**
@@ -161,7 +163,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
      */
     function toggleAutoCompound() external {
         autoCompoundEnabled[msg.sender] = !autoCompoundEnabled[msg.sender];
-        emit autoCompoundStatus(msg.sender, autoCompoundEnabled[msg.sender]);
+        emit AutoCompoundStatus(msg.sender, autoCompoundEnabled[msg.sender]);
     }
 
     /**
@@ -263,6 +265,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
         } else if (what == "feeReceiver") {
             require(data != feeReceiver, "feeReceiver already set");
             feeReceiver = data;
+            emit FeeReceiverUpdated(data);
         } else {
             revert("Unrecognized variable");
         }
