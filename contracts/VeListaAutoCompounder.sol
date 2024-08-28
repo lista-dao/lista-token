@@ -159,11 +159,21 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @notice Toggle a users auto compound status
+     * @notice Enable auto-compound for the caller
      */
-    function toggleAutoCompound() external {
-        autoCompoundEnabled[msg.sender] = !autoCompoundEnabled[msg.sender];
-        emit AutoCompoundStatus(msg.sender, autoCompoundEnabled[msg.sender]);
+    function enableAutoCompound() external {
+        require(!autoCompoundEnabled[msg.sender], "Auto compound already enabled");
+        autoCompoundEnabled[msg.sender] = true;
+        emit AutoCompoundStatus(msg.sender, true);
+    }
+
+    /**
+     * @notice Disable auto-compound for the caller
+     */
+    function disableAutoCompound() external {
+        require(autoCompoundEnabled[msg.sender], "Auto compound already disabled");
+        autoCompoundEnabled[msg.sender] = false;
+        emit AutoCompoundStatus(msg.sender, false);
     }
 
     /**

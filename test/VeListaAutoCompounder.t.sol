@@ -75,14 +75,34 @@ contract VeListaAutoCompounderTest is Test {
         assertEq(compounder.totalFee(), 0);
     }
 
-    function test_toggleAutoCompound() public {
+    function test_enableAutoCompound() public {
         assertEq(compounder.autoCompoundEnabled(user1), false);
 
         vm.startPrank(user1);
-        compounder.toggleAutoCompound();
+        compounder.enableAutoCompound();
         vm.stopPrank();
 
         assertEq(compounder.autoCompoundEnabled(user1), true);
+
+        vm.expectRevert("Auto compound already enabled");
+        vm.startPrank(user1);
+        compounder.enableAutoCompound();
+        vm.stopPrank();
+    }
+
+    function test_disableAutoCompound() public {
+        vm.expectRevert("Auto compound already disabled");
+        vm.startPrank(user1);
+        compounder.disableAutoCompound();
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        compounder.enableAutoCompound();
+        assertEq(compounder.autoCompoundEnabled(user1), true);
+
+        compounder.disableAutoCompound();
+        assertEq(compounder.autoCompoundEnabled(user1), false);
+        vm.stopPrank();
     }
 
     function test_isEligibleForAutoCompound() public {
@@ -184,7 +204,7 @@ contract VeListaAutoCompounderTest is Test {
         vm.stopPrank();
 
         vm.startPrank(user1);
-        compounder.toggleAutoCompound();
+        compounder.enableAutoCompound();
         compounder.claimAndIncreaseAmount(1);
         vm.stopPrank();
 

@@ -180,7 +180,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev increase locked amount for msg.sender
+     * @dev increase locked amount for the caller
      * @param _amount amount of token to increase
      */
     function increaseAmount(uint256 _amount) external {
@@ -188,7 +188,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev increase locked amount for an account, Lista token will be paid by msg.sender
+     * @dev increase locked amount for an account, Lista token will be paid by the caller
      * @param _account the account to increase the lock amount
      * @param _amount amount of token to increase
      */
