@@ -35,7 +35,6 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     string public constant name = "Vote-escrowed Lista"; // name
     string public constant symbol = "veLista"; // symbol
     bytes32 public constant MANAGER = keccak256("MANAGER"); // manager role
-    bytes32 public constant COMPOUNDER = keccak256("COMPOUNDER"); // compounder role
 
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -181,31 +180,25 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev increase lock amount
+     * @dev increase locked amount for msg.sender
      * @param _amount amount of token to increase
      */
     function increaseAmount(uint256 _amount) external {
-        address _account = msg.sender;
-        _increaseAmountFor(_account, _amount, _account);
+        increaseAmountFor(msg.sender, _amount);
     }
 
     /**
-     * @dev increase lock amount for account; only compounder can call this function
+     * @dev increase locked amount for an account, Lista token will be paid by msg.sender
      * @param _account the account to increase the lock amount
      * @param _amount amount of token to increase
      */
-    function increaseAmountForCompound(address _account, uint256 _amount) external onlyRole(COMPOUNDER) {
-        address compounder = msg.sender;
-        _increaseAmountFor(_account, _amount, compounder);
-    }
-
-    function _increaseAmountFor(address _account, uint256 _amount, address _payer) internal {
+    function increaseAmountFor(address _account, uint256 _amount) public {
         uint256 oldWeight = balanceOf(_account);
         require(oldWeight > 0, "no lock data");
         require(_amount > 0, "invalid amount");
 
         // transfer lista token from payer
-        token.safeTransferFrom(_payer, address(this), _amount);
+        token.safeTransferFrom(msg.sender, address(this), _amount);
         // write history total weight
         _writeTotalWeight();
         uint16 currentWeek = lastUpdateTotalWeek; // lastUpdateTotalWeek is current week after _writeTotalWeight()

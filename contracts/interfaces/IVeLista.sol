@@ -37,7 +37,7 @@ interface IVeLista {
 
     function increaseAmount(uint256 _amount) external;
 
-    function increaseAmountForCompound(address _account, uint256 _amount) external;
+    function increaseAmountFor(address _account, uint256 _amount) external;
 
     function extendWeek(uint16 _week) external;
 

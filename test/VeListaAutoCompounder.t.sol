@@ -171,7 +171,7 @@ contract VeListaAutoCompounderTest is Test {
         vm.mockCall(
             address(veLista),
             abi.encodeWithSelector(
-                VeLista.increaseAmountForCompound.selector,
+                VeLista.increaseAmountFor.selector,
                 user1,
                 uint256(97e18)
             ),
