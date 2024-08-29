@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
   * @dev all tokens balance of ListaAutoBuyBack will be swapped to Lista Token using 1inch router
   * @dev result of swap will be sent to receiver address to distribute to users
   */
-contract ListaAutoBuyBack is Initializable, AccessControlUpgradeable {
+contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
 
     using SafeERC20 for IERC20;
 
@@ -26,6 +26,14 @@ contract ListaAutoBuyBack is Initializable, AccessControlUpgradeable {
     bytes32 public constant MANAGER = keccak256("MANAGER");
 
     bytes32 public constant BOT = keccak256("BOT");
+
+    bytes4 public constant SWAP_FUNCTION_SELECTOR = bytes4(keccak256("swap(address,(address,address,address,address,uint256,uint256,uint256),bytes)"));
+
+    // The offset of the dstReceiver in the call data
+    // 4 bytes for the function selector + 32 bytes for executor + 32 bytes for srcToken +
+    // 32 bytes for dstToken + 32 bytes for srcReceiver = 132 bytes offset
+    // @dev see SWAP_FUNCTION_SELECTOR
+    uint256 public constant SWAP_DST_RECEIVER_OFFSET = 132;
 
     uint256 internal constant DAY = 1 days;
 
@@ -65,16 +73,18 @@ contract ListaAutoBuyBack is Initializable, AccessControlUpgradeable {
      * @dev swap tokenIn for Lista using 1inch router, swap data are encoded by off-chain bot task using 1inch api
      * @param _tokenIn, token to swap
      * @param _amountIn, amount of tokenIn to swap
-     * @param _1inchRouterV5, 1inch router contract address
+     * @param _1inchRouter, 1inch router contract address
      * @param _data, actual call data to _1inchRouterV5 from 1inch api
      */
-    function buyBack(address _tokenIn, uint256 _amountIn, address _1inchRouter, bytes calldata _data)
+    function buyback(address _tokenIn, uint256 _amountIn, address _1inchRouter, bytes calldata _data)
         external
         onlyRole(BOT)
     {
-        require(_amountIn > 0, 'amountIn is zero');
-        require(default1inchRouter == _1inchRouter, 'router not configured');
-        require(IERC20(_tokenIn).balanceOf(address(this)) >= _amountIn, 'insufficient balance');
+        require(_amountIn > 0, "amountIn is zero");
+        require(default1inchRouter == _1inchRouter, "router not configured");
+        require(_getFunctionSelector(_data) == SWAP_FUNCTION_SELECTOR, "invalid function selector of _data");
+        require(_extractDstReceiver(_data) == defaultReceiver, "invalid dst receiver of _data");
+        require(IERC20(_tokenIn).balanceOf(address(this)) >= _amountIn, "insufficient balance");
         // Approves the 1inch router contract to spend the specified amount of _tokenIn
         IERC20(_tokenIn).approve(_1inchRouter, _amountIn);
 
@@ -91,7 +101,7 @@ contract ListaAutoBuyBack is Initializable, AccessControlUpgradeable {
     }
 
     function managerTransfer(address _token, uint256 _amount) external onlyRole(MANAGER) {
-        IERC20(_token).safeTransfer(defaultReceiver, _amount);
+        IERC20(_token).safeTransfer(msg.sender, _amount);
     }
 
     function changeDefaultReceiver(address _receiver) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -108,5 +118,17 @@ contract ListaAutoBuyBack is Initializable, AccessControlUpgradeable {
 
         default1inchRouter = _router;
         emit RouterChanged(default1inchRouter);
+    }
+
+    function _getFunctionSelector(bytes calldata _data) private pure returns (bytes4) {
+        return bytes4(_data[0:4]);
+    }
+
+    // Function to extract dstReceiver from the raw call data
+    function _extractDstReceiver(bytes calldata _data) private pure returns (address dstReceiver) {
+        // Read the 32 bytes located at dstReceiverOffset and cast to address
+        assembly {
+            dstReceiver := calldataload(add(_data.offset, SWAP_DST_RECEIVER_OFFSET))
+        }
     }
 }
