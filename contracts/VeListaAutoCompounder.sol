@@ -37,7 +37,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     uint256 public maxFeeRate;
 
     // The maximum fee for auto-compounding
-    // $10 by default
+    // $100M by default
     uint256 public maxFee;
 
     // The minimum USD value required to lock for auto compounding
@@ -118,7 +118,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
         );
 
         autoCompoundThreshold = 5 * 1e18; // $5
-        maxFee = 10 * 1e18; // $10
+        maxFee = 1000000 * 1e18; // $100M
         require(
             (feeRate * autoCompoundThreshold) / 10000 <= maxFee,
             "Invalid fee"

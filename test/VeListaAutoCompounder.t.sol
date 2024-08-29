@@ -75,7 +75,7 @@ contract VeListaAutoCompounderTest is Test {
 
         assertEq(compounder.feeRate(), 300);
         assertEq(compounder.maxFeeRate(), 1000);
-        assertEq(compounder.maxFee(), 10 * 10 ** 18);
+        assertEq(compounder.maxFee(), 1000000 * 10 ** 18); // $100M
         assertEq(compounder.autoCompoundThreshold(), 5 * 10 ** 18);
 
         assertEq(compounder.totalFee(), 0);
