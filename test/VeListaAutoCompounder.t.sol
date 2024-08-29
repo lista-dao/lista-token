@@ -248,6 +248,17 @@ contract VeListaAutoCompounderTest is Test {
         vm.startPrank(bot);
         compounder.claimAndIncreaseAmount(user1, 1);
         vm.stopPrank();
+
+        vm.expectRevert("AccessControl: account 0xaa10a84ce7d9ae517a52c6d5ca153b369af99ecf is missing role 0x902cbe3a02736af9827fb6a90bada39e955c0941e08f0c63b3a662a7b17a4e2b");
+        vm.startPrank(admin);
+        compounder.withdrawFee();
+        vm.stopPrank();
+
+        vm.startPrank(bot);
+        deal(address(lista), address(compounder), 3e18);
+        compounder.withdrawFee();
+        vm.stopPrank();
+        assertEq(compounder.totalFee(), 0);
     }
 
     function test_file_uint() public {

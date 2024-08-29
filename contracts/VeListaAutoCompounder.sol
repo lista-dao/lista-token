@@ -169,7 +169,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
         emit AutoCompounded(account, address(lista), claimedAmount, amtToCompound);
     }
 
-    function withdrawFee() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function withdrawFee() external onlyRole(BOT) {
         require(totalFee > 0, "No fee to withdraw");
 
         uint256 fee = totalFee;
