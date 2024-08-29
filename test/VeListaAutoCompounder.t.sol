@@ -24,6 +24,7 @@ contract VeListaAutoCompounderTest is Test {
 
     address feeReceiver = makeAddr("feeReceiver");
     address admin = makeAddr("admin");
+    address bot = makeAddr("bot");
     address user1 = makeAddr("user1");
 
     function setUp() public {
@@ -51,10 +52,15 @@ contract VeListaAutoCompounderTest is Test {
             address(veListaDistributor),
             address(oracle),
             feeReceiver,
-            admin
+            admin,
+            bot
         );
         assertEq(
             compounder.hasRole(compounder.DEFAULT_ADMIN_ROLE(), admin),
+            true
+        );
+        assertEq(
+            compounder.hasRole(compounder.BOT(), bot),
             true
         );
 
@@ -198,14 +204,22 @@ contract VeListaAutoCompounderTest is Test {
             abi.encode()
         );
 
-        vm.expectRevert("Auto compound not enabled");
+        vm.expectRevert("AccessControl: account 0x29e3b139f4393adda86303fcdaa35f60bb7092bf is missing role 0x902cbe3a02736af9827fb6a90bada39e955c0941e08f0c63b3a662a7b17a4e2b");
         vm.startPrank(user1);
-        compounder.claimAndIncreaseAmount(1);
+        compounder.claimAndIncreaseAmount(user1, 1);
+        vm.stopPrank();
+
+        vm.expectRevert("Auto compound not enabled");
+        vm.startPrank(bot);
+        compounder.claimAndIncreaseAmount(user1, 1);
         vm.stopPrank();
 
         vm.startPrank(user1);
         compounder.enableAutoCompound();
-        compounder.claimAndIncreaseAmount(1);
+        vm.stopPrank();
+
+        vm.startPrank(bot);
+        compounder.claimAndIncreaseAmount(user1, 1);
         vm.stopPrank();
 
         assertEq(compounder.totalFee(), 3e18);

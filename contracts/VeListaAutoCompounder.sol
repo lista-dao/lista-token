@@ -50,6 +50,8 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     // The total auto-compounding fee collected (in LISTA)
     uint256 public totalFee;
 
+    bytes32 public constant BOT = keccak256("BOT");
+
     /********************** Events ***********************/
     event VeListaDistributorUpdated(address indexed _veListaDistributor);
     event OracleUpdated(address indexed _oracle);
@@ -69,7 +71,8 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
         address _veListaDistributor,
         address _oracle,
         address _feeReceiver,
-        address _admin
+        address _admin,
+        address _bot
     ) public initializer {
         require(
             _lista != address(0) &&
@@ -77,11 +80,13 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
                 _veListaDistributor != address(0) &&
                 _feeReceiver != address(0) &&
                 _admin != address(0) &&
+                _bot != address(0) &&
                 _oracle != address(0),
             "Zero address provided"
         );
         __AccessControl_init();
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
+        _setupRole(BOT, _bot);
 
         lista = IERC20(_lista);
         veLista = IVeLista(_velista);
@@ -113,12 +118,11 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev Auto-compound the veLista rewards.
+     * @dev Auto-compound the veLista rewards for an account; only callable by Bot
      *      Claim LISTA from veListaDistributor and then compound LISTA by doing `increaseAmountFor`.
      *
      */
-    function claimAndIncreaseAmount(uint16 toWeek) public {
-        address account = msg.sender;
+    function claimAndIncreaseAmount(address account, uint16 toWeek) public onlyRole(BOT) {
         require(autoCompoundEnabled[account], "Auto compound not enabled");
 
         IVeLista.AccountData memory data = veLista.getLockedData(account);
