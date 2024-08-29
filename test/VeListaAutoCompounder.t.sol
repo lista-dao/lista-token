@@ -79,36 +79,61 @@ contract VeListaAutoCompounderTest is Test {
         assertEq(compounder.autoCompoundThreshold(), 5 * 10 ** 18);
 
         assertEq(compounder.totalFee(), 0);
+        assertEq(compounder.enableByDefault(), true);
     }
 
     function test_enableAutoCompound() public {
-        assertEq(compounder.autoCompoundEnabled(user1), false);
-
+        assertEq(compounder.isAutoCompoundEnabled(user1), true);
         vm.startPrank(user1);
         compounder.enableAutoCompound();
         vm.stopPrank();
-
-        assertEq(compounder.autoCompoundEnabled(user1), true);
 
         vm.expectRevert("Auto compound already enabled");
         vm.startPrank(user1);
         compounder.enableAutoCompound();
         vm.stopPrank();
+
+        assertEq(compounder.enableByDefault(), true);
+        vm.startPrank(admin);
+        compounder.toggleDefaultStatus();
+        vm.stopPrank();
+
+        // auto compound should be enabled for user1, no matter the default status
+        assertEq(compounder.isAutoCompoundEnabled(user1), true);
+
+        assertEq(compounder.enableByDefault(), false);
+        vm.startPrank(admin);
+        compounder.toggleDefaultStatus();
+        vm.stopPrank();
+        // auto compound should be enabled for user1, no matter the default status
+        assertEq(compounder.isAutoCompoundEnabled(user1), true);
     }
 
     function test_disableAutoCompound() public {
+        assertEq(compounder.isAutoCompoundEnabled(user1), true);
+        vm.startPrank(user1);
+        compounder.disableAutoCompound();
+        vm.stopPrank();
+        assertEq(compounder.isAutoCompoundEnabled(user1), false);
+
         vm.expectRevert("Auto compound already disabled");
         vm.startPrank(user1);
         compounder.disableAutoCompound();
         vm.stopPrank();
+        assertEq(compounder.isAutoCompoundEnabled(user1), false);
 
-        vm.startPrank(user1);
-        compounder.enableAutoCompound();
-        assertEq(compounder.autoCompoundEnabled(user1), true);
 
-        compounder.disableAutoCompound();
-        assertEq(compounder.autoCompoundEnabled(user1), false);
+        vm.startPrank(admin);
+        compounder.toggleDefaultStatus();
         vm.stopPrank();
+        // auto compound should be enabled for user1, no matter the default status
+        assertEq(compounder.isAutoCompoundEnabled(user1), false);
+
+        vm.startPrank(admin);
+        compounder.toggleDefaultStatus();
+        vm.stopPrank();
+        // auto compound should be enabled for user1, no matter the default status
+        assertEq(compounder.isAutoCompoundEnabled(user1), false);
     }
 
     function test_isEligibleForAutoCompound() public {
@@ -209,20 +234,20 @@ contract VeListaAutoCompounderTest is Test {
         compounder.claimAndIncreaseAmount(user1, 1);
         vm.stopPrank();
 
-        vm.expectRevert("Auto compound not enabled");
-        vm.startPrank(bot);
-        compounder.claimAndIncreaseAmount(user1, 1);
-        vm.stopPrank();
-
-        vm.startPrank(user1);
-        compounder.enableAutoCompound();
-        vm.stopPrank();
-
         vm.startPrank(bot);
         compounder.claimAndIncreaseAmount(user1, 1);
         vm.stopPrank();
 
         assertEq(compounder.totalFee(), 3e18);
+
+        vm.startPrank(user1);
+        compounder.disableAutoCompound();
+        vm.stopPrank();
+
+        vm.expectRevert("Auto compound not enabled");
+        vm.startPrank(bot);
+        compounder.claimAndIncreaseAmount(user1, 1);
+        vm.stopPrank();
     }
 
     function test_file_uint() public {
@@ -293,5 +318,58 @@ contract VeListaAutoCompounderTest is Test {
         assertEq(compounder.feeReceiver(), user1);
 
         vm.stopPrank();
+    }
+
+    function test_toggleDefaultStatus() public {
+        assertEq(compounder.enableByDefault(), true);
+
+        vm.expectRevert(
+            "AccessControl: account 0x7fa9385be102ac3eac297483dd6233d62b3e1496 is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
+        );
+        compounder.toggleDefaultStatus();
+
+        vm.startPrank(admin);
+        compounder.toggleDefaultStatus();
+        assertEq(compounder.enableByDefault(), false);
+        compounder.toggleDefaultStatus();
+        assertEq(compounder.enableByDefault(), true);
+        vm.stopPrank();
+    }
+
+
+    function test_isAutoCompoundEnabled() public {
+        assertEq(compounder.isAutoCompoundEnabled(user1), true);
+
+        vm.startPrank(admin);
+        compounder.toggleDefaultStatus();
+        vm.stopPrank();
+
+        assertEq(compounder.isAutoCompoundEnabled(user1), false);
+
+        vm.startPrank(user1);
+        compounder.enableAutoCompound();
+        vm.stopPrank();
+        assertEq(compounder.isAutoCompoundEnabled(user1), true);
+
+        vm.startPrank(admin);
+        compounder.toggleDefaultStatus();
+        vm.stopPrank();
+
+        assertEq(compounder.isAutoCompoundEnabled(user1), true);
+
+        vm.startPrank(user1);
+        compounder.disableAutoCompound();
+        vm.stopPrank();
+        assertEq(compounder.isAutoCompoundEnabled(user1), false);
+
+        vm.startPrank(admin);
+        compounder.toggleDefaultStatus();
+        vm.stopPrank();
+        assertEq(compounder.isAutoCompoundEnabled(user1), false);
+
+        vm.startPrank(admin);
+        compounder.toggleDefaultStatus();
+        vm.stopPrank();
+        assertEq(compounder.isAutoCompoundEnabled(user1), false);
     }
 }

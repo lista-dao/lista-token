@@ -44,13 +44,25 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     // $5 by default
     uint256 public autoCompoundThreshold;
 
-    // user => auto compound enabled or not
-    mapping(address => bool) public autoCompoundEnabled;
+    // user => auto compound status (default / enabled / disabled)
+    mapping(address => Status) private autoCompoundStatus;
+
+    // Flag to indicate the meaning of Status.Default;
+    // If true, auto-compound is enabled for users whose status is `Default`
+    // If false, auto-compound is disabled for users whose status is `Default`
+    // Set to true initially
+    bool public enableByDefault;
 
     // The total auto-compounding fee collected (in LISTA)
     uint256 public totalFee;
 
     bytes32 public constant BOT = keccak256("BOT");
+
+    enum Status {
+        Default,
+        Enabled,
+        Disabled
+    }
 
     /********************** Events ***********************/
     event VeListaDistributorUpdated(address indexed _veListaDistributor);
@@ -112,6 +124,8 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
             "Invalid fee"
         );
 
+        enableByDefault = true;
+
         emit VeListaDistributorUpdated(_veListaDistributor);
         emit OracleUpdated(_oracle);
         emit FeeReceiverUpdated(_feeReceiver);
@@ -122,8 +136,11 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
      *      Claim LISTA from veListaDistributor and then compound LISTA by doing `increaseAmountFor`.
      *
      */
-    function claimAndIncreaseAmount(address account, uint16 toWeek) public onlyRole(BOT) {
-        require(autoCompoundEnabled[account], "Auto compound not enabled");
+    function claimAndIncreaseAmount(
+        address account,
+        uint16 toWeek
+    ) public onlyRole(BOT) {
+        require(isAutoCompoundEnabled(account), "Auto compound not enabled");
 
         IVeLista.AccountData memory data = veLista.getLockedData(account);
         require(data.locked > 0, "No locked amount");
@@ -166,8 +183,11 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
      * @notice Enable auto-compound for the caller
      */
     function enableAutoCompound() external {
-        require(!autoCompoundEnabled[msg.sender], "Auto compound already enabled");
-        autoCompoundEnabled[msg.sender] = true;
+        require(
+            autoCompoundStatus[msg.sender] != Status.Enabled,
+            "Auto compound already enabled"
+        );
+        autoCompoundStatus[msg.sender] = Status.Enabled;
         emit AutoCompoundStatus(msg.sender, true);
     }
 
@@ -175,9 +195,19 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
      * @notice Disable auto-compound for the caller
      */
     function disableAutoCompound() external {
-        require(autoCompoundEnabled[msg.sender], "Auto compound already disabled");
-        autoCompoundEnabled[msg.sender] = false;
+        require(
+            autoCompoundStatus[msg.sender] != Status.Disabled,
+            "Auto compound already disabled"
+        );
+        autoCompoundStatus[msg.sender] = Status.Disabled;
         emit AutoCompoundStatus(msg.sender, false);
+    }
+
+    /**
+     * @notice Toggle the status for Status.Default
+     */
+    function toggleDefaultStatus() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        enableByDefault = !enableByDefault;
     }
 
     /**
@@ -210,6 +240,19 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
         } else {
             _amtToCompound = _rewardAmount - feeAmount;
         }
+    }
+
+    /**
+     * @dev Check if auto-compound is enabled for an account
+     * @param account The account address to check
+     */
+    function isAutoCompoundEnabled(address account) public view returns (bool) {
+        if (autoCompoundStatus[account] == Status.Enabled) {
+            return true;
+        } else if (autoCompoundStatus[account] == Status.Default) {
+            return enableByDefault;
+        }
+        return false;
     }
 
     /**
