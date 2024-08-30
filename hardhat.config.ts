@@ -4,7 +4,6 @@ import "@nomicfoundation/hardhat-verify";
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-chai-matchers";
-import "@nomicfoundation/hardhat-foundry";
 import "@typechain/hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { HardhatUserConfig, task } from "hardhat/config";
@@ -57,6 +56,10 @@ const config: HardhatUserConfig = {
     },
     opBnbTestnet: {
       url: process.env.OPBNB_TESTNET_RPC || "",
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
+    },
+    bscLocal: {
+      url: "http://127.0.0.1:8545",
       accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
     },
   },
