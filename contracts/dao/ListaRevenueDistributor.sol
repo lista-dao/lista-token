@@ -10,8 +10,9 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 /**
   * @title ListaRevenueDistributor
   * @dev lista revenue tokens distributor
-  * @dev all tokens revenue (except Lista Token) from Lista project contracts will be sent to ListaRevenueDistributor
-  * @dev in ListaRevenueDistributor, revenue will be distributed to autoBuybackAddress and revenueWalletAddress according to distributeRate
+  * @dev all tokens revenue (including Lista Token) from Lista project contracts will be sent to ListaRevenueDistributor
+  * @dev in ListaRevenueDistributor, non-ListaToken revenue will be distributed to autoBuybackAddress and revenueWalletAddress according to distributeRate
+  * @dev the distributeRate part of ListaToken revenue will be sent to listaDistributeToAddress instead of autoBuybackAddress
   */
 contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
 
@@ -23,12 +24,17 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
 
     uint128 public constant RATE_DENOMINATOR = 1e18;
 
-    // distribute rate of revenue to autoBuybackAddress
+    // distribute rate of revenue to autoBuybackAddress/listaDistributeToAddress
     uint128 public distributeRate;
+
+    address public listaTokenAddress;
 
     address public autoBuybackAddress;
 
     address public revenueWalletAddress;
+
+    // distributeRate part of lista token revenue will be sent to this address instead of autoBuybackAddress
+    address public listaDistributeToAddress;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -38,22 +44,28 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
     function initialize(
         address _admin,
         address _manager,
+        address _listaTokenAddress,
         address _autoBuybackAddress,
         address _revenueWalletAddress,
+        address _listaDistributeToAddress,
         uint128 _distributeRate
     ) public initializer {
         require(_admin != address(0), "admin is the zero address");
         require(_manager != address(0), "manager is the zero address");
+        require(_listaTokenAddress != address(0), "listaTokenAddress is the zero address");
         require(_autoBuybackAddress != address(0), "autoBuybackAddress is the zero address");
         require(_revenueWalletAddress != address(0), "revenueWalletAddress is the zero address");
+        require(_listaDistributeToAddress != address(0), "listaDistributeToAddress is the zero address");
         require(_distributeRate <= 1e18, "too big rate number");
 
         __AccessControl_init();
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setupRole(MANAGER, _manager);
 
+        listaTokenAddress = _listaTokenAddress;
         autoBuybackAddress = _autoBuybackAddress;
         revenueWalletAddress = _revenueWalletAddress;
+        listaDistributeToAddress = _listaDistributeToAddress;
         distributeRate = _distributeRate;
     }
 
@@ -76,7 +88,12 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         uint256 amount0 = balance * distributeRate / RATE_DENOMINATOR;
         uint256 amount1 = balance - amount0;
         if (amount0 > 0) {
-            IERC20(token).safeTransfer(autoBuybackAddress, amount0);
+            if (token == listaTokenAddress) {
+                // lista should skip autoBuyback process
+                IERC20(token).safeTransfer(listaDistributeToAddress, amount0);
+            } else {
+                IERC20(token).safeTransfer(autoBuybackAddress, amount0);
+            }
         }
         if (amount1 > 0) {
             IERC20(token).safeTransfer(revenueWalletAddress, amount1);
@@ -95,6 +112,12 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         require(_revenueWalletAddress != address(0), "revenueWalletAddress is the zero address");
         require(_revenueWalletAddress != revenueWalletAddress, "revenueWalletAddress is the same");
         revenueWalletAddress = _revenueWalletAddress;
+    }
+
+    function changeListaDistributeToAddress(address _listaDistributeToAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_listaDistributeToAddress != address(0), "listaDistributeToAddress is the zero address");
+        require(_listaDistributeToAddress != listaDistributeToAddress, "listaDistributeToAddress is the same");
+        listaDistributeToAddress = _listaDistributeToAddress;
     }
 
     function changeDistributeRate(uint128 _distributeRate) external onlyRole(DEFAULT_ADMIN_ROLE) {
