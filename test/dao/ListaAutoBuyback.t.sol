@@ -42,7 +42,7 @@ contract ListaAutoBuyBackTest is Test {
     }
 
     function test_autoBuyBack_setUp() public {
-        assertEq(oneInchRouter, listaAutoBuyBack.default1inchRouter());
+        assertEq(true, listaAutoBuyBack.oneInchRouterWhitelist(oneInchRouter));
     }
 
     function test_autoBuyBack_buyback_acl() public {
@@ -67,7 +67,7 @@ contract ListaAutoBuyBackTest is Test {
         bytes memory data = hex"07ed2379000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd090000000000000000000000000782b6d8c4551b9760e74c0545a9bcd90bdc41e5000000000000000000000000fceb31a79f71ac9cbdcf853519c1b12d379edc46000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd0900000000000000000000000078ab74c7ec3592b5298cb912f31bd8fb80a57dc0000000000000000000000000000000000000000000000000016345785d8a000000000000000000000000000000000000000000000000000003f06640a9221e160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000001c30000000000000000000000000000000000000000000000000001a500017700a007e5c0d20000000000000000000000000000000000000000000000000001530000f051200520451b19ad0bb00ed35ef391086a692cfc74b20782b6d8c4551b9760e74c0545a9bcd90bdc41e500449908fc8b0000000000000000000000000782b6d8c4551b9760e74c0545a9bcd90bdc41e500000000000000000000000055d398326f99059ff775485246999027b319795500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd090000000000000000000000000000000000000000000000000000000066d57bb802a000000000000000000000000000000000000000000000000003f06640a9221e16ee63c1e5812c533e2c2b4fd1172b5a0a0178805be1526a15a755d398326f99059ff775485246999027b3197955111111125421ca6dc452d289314280a0f8842a650020d6bdbf78fceb31a79f71ac9cbdcf853519c1b12d379edc46111111125421ca6dc452d289314280a0f8842a65000000000000000000000000000000000000000000000000000000000098dd6ed1";
 
         vm.startPrank(bot);
-        vm.expectRevert("router not configured");
+        vm.expectRevert("router not whitelisted");
         listaAutoBuyBack.buyback(address(lisUSD), 1e18, proxyAdminOwner, data);
         vm.stopPrank();
     }
@@ -103,5 +103,32 @@ contract ListaAutoBuyBackTest is Test {
         vm.expectRevert("invalid function selector of _data");
         listaAutoBuyBack.buyback(address(lisUSD), 1e18, oneInchRouter, data);
         vm.stopPrank();
+    }
+
+    function test_autoBuyBack_add1InchRouterWhitelist() public {
+        assertEq(false, listaAutoBuyBack.oneInchRouterWhitelist(address(0x1A11FF)));
+
+        vm.startPrank(admin);
+        listaAutoBuyBack.add1InchRouterWhitelist(address(0x1A11FF));
+        vm.stopPrank();
+        assertEq(true, listaAutoBuyBack.oneInchRouterWhitelist(address(0x1A11FF)));
+    }
+
+    function test_autoBuyBack_add1InchRouterWhitelist_already() public {
+        test_autoBuyBack_add1InchRouterWhitelist();
+
+        vm.startPrank(admin);
+        vm.expectRevert("router already whitelisted");
+        listaAutoBuyBack.add1InchRouterWhitelist(address(0x1A11FF));
+        vm.stopPrank();
+    }
+
+    function test_autoBuyBack_remove1InchRouterWhitelist() public {
+        test_autoBuyBack_add1InchRouterWhitelist();
+
+        vm.startPrank(admin);
+        listaAutoBuyBack.remove1InchRouterWhitelist(address(0x1A11FF));
+        vm.stopPrank();
+        assertEq(false, listaAutoBuyBack.oneInchRouterWhitelist(address(0x1A11FF)));
     }
 }

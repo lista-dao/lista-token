@@ -21,7 +21,7 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
 
     event ReceiverChanged(address indexed receiver);
 
-    event RouterChanged(address indexed router);
+    event RouterChanged(address indexed router, bool added);
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
 
@@ -39,7 +39,7 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
 
     address public defaultReceiver;
 
-    address public default1inchRouter;
+    mapping(address => bool) public oneInchRouterWhitelist;
 
     mapping(uint256 => uint256) public dailyBought;
 
@@ -66,7 +66,7 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         _setupRole(BOT, _bot);
 
         defaultReceiver = _initReceiver;
-        default1inchRouter = _initRouter;
+        oneInchRouterWhitelist[_initRouter] = true;
     }
 
     /**
@@ -81,7 +81,7 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         onlyRole(BOT)
     {
         require(_amountIn > 0, "amountIn is zero");
-        require(default1inchRouter == _1inchRouter, "router not configured");
+        require(oneInchRouterWhitelist[_1inchRouter], "router not whitelisted");
         require(_getFunctionSelector(_data) == SWAP_FUNCTION_SELECTOR, "invalid function selector of _data");
         require(_extractDstReceiver(_data) == defaultReceiver, "invalid dst receiver of _data");
         require(IERC20(_tokenIn).balanceOf(address(this)) >= _amountIn, "insufficient balance");
@@ -112,12 +112,18 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         emit ReceiverChanged(defaultReceiver);
     }
 
-    function changeDefault1inchRouter(address _router) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_router != address(0), "_router is the zero address");
-        require(_router != default1inchRouter, "_router is the same");
+    function add1InchRouterWhitelist(address _router) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(!oneInchRouterWhitelist[_router], "router already whitelisted");
 
-        default1inchRouter = _router;
-        emit RouterChanged(default1inchRouter);
+        oneInchRouterWhitelist[_router] = true;
+        emit RouterChanged(_router, true);
+    }
+
+    function remove1InchRouterWhitelist(address _router) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(oneInchRouterWhitelist[_router], "router not whitelisted");
+
+        delete oneInchRouterWhitelist[_router];
+        emit RouterChanged(_router, false);
     }
 
     function _getFunctionSelector(bytes calldata _data) private pure returns (bytes4) {
