@@ -20,6 +20,10 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
 
     event RevenueDistributed(address indexed token, uint256 amount0, uint256 amount1);
 
+    event AddressChanged(uint128 addressType, address newAddress);
+
+    event RateChanged(uint128 rate);
+
     bytes32 public constant MANAGER = keccak256("MANAGER");
 
     uint128 public constant RATE_DENOMINATOR = 1e18;
@@ -106,22 +110,30 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         require(_autoBuybackAddress != address(0), "autoBuybackAddress is the zero address");
         require(_autoBuybackAddress != autoBuybackAddress, "autoBuybackAddress is the same");
         autoBuybackAddress = _autoBuybackAddress;
+
+        emit AddressChanged(1, autoBuybackAddress);
     }
 
     function changeRevenueWalletAddress(address _revenueWalletAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_revenueWalletAddress != address(0), "revenueWalletAddress is the zero address");
         require(_revenueWalletAddress != revenueWalletAddress, "revenueWalletAddress is the same");
         revenueWalletAddress = _revenueWalletAddress;
+
+        emit AddressChanged(2, autoBuybackAddress);
     }
 
     function changeListaDistributeToAddress(address _listaDistributeToAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_listaDistributeToAddress != address(0), "listaDistributeToAddress is the zero address");
         require(_listaDistributeToAddress != listaDistributeToAddress, "listaDistributeToAddress is the same");
         listaDistributeToAddress = _listaDistributeToAddress;
+
+        emit AddressChanged(3, autoBuybackAddress);
     }
 
     function changeDistributeRate(uint128 _distributeRate) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_distributeRate <= 1e18, "too big rate number");
         distributeRate = _distributeRate;
+
+        emit RateChanged(distributeRate);
     }
 }
