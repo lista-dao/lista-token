@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "../library/RevertReasonParser.sol";
 
 /**
   * @title ListaAutoBuyBack
@@ -91,9 +92,11 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         // Calls the 1inch router contract to execute the trade, using the swap function call data provided in '_data'
         // receiver address should already be defined in data
         (bool success, bytes memory result) = _1inchRouter.call(_data);
-        require(success, "1inch call failed");
-        (uint256 amountOut,) = abi.decode(result, (uint256, uint256));
+        if (!success) {
+            revert(RevertReasonParser.parse(result, "1inch call failed: "));
+        }
 
+        (uint256 amountOut,) = abi.decode(result, (uint256, uint256));
         uint256 today = block.timestamp / DAY * DAY;
         dailyBought[today] = dailyBought[today] + amountOut;
 
