@@ -91,13 +91,30 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         // Calls the 1inch router contract to execute the trade, using the swap function call data provided in '_data'
         // receiver address should already be defined in data
         (bool success, bytes memory result) = _1inchRouter.call(_data);
-        require(success, "1inch call failed");
-        (uint256 amountOut,) = abi.decode(result, (uint256, uint256));
+        if (success) {
+            (uint256 amountOut,) = abi.decode(result, (uint256, uint256));
 
-        uint256 today = block.timestamp / DAY * DAY;
-        dailyBought[today] = dailyBought[today] + amountOut;
+            uint256 today = block.timestamp / DAY * DAY;
+            dailyBought[today] = dailyBought[today] + amountOut;
 
-        emit BoughtBack(_tokenIn, _amountIn, amountOut);
+            emit BoughtBack(_tokenIn, _amountIn, amountOut);
+        } else {
+            if (result.length > 0) {
+                assembly {
+                    let returndata_size := mload(result)
+                    revert(add(32, result), returndata_size)
+                }
+            } else {
+                revert("1inch call failed, empty error message");
+            }
+        }
+//        require(success, "1inch call failed");
+//        (uint256 amountOut,) = abi.decode(result, (uint256, uint256));
+//
+//        uint256 today = block.timestamp / DAY * DAY;
+//        dailyBought[today] = dailyBought[today] + amountOut;
+//
+//        emit BoughtBack(_tokenIn, _amountIn, amountOut);
     }
 
     function managerTransfer(address _token, uint256 _amount) external onlyRole(MANAGER) {
