@@ -9,6 +9,7 @@ import "./interfaces/IDistributor.sol";
 import "../interfaces/IVeLista.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "./interfaces/IEmissionVoting.sol";
 
 /**
   * @title ListaVault
@@ -23,6 +24,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     event Withdraw(address indexed account, uint256 amount);
     event NewDistributorRegistered(address distributor, uint256 id);
     event EmergencyWithdraw(address token, uint256 amount);
+    event EmissionVotingSet(address emissionVoting);
 
     // lista token address
     IERC20 public token;
@@ -45,6 +47,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     IVeLista public veLista;
     // max distributor id
     uint16 public distributorId;
+    // emission voting address
+    IEmissionVoting public emissionVoting;
 
     // manager role
     bytes32 public constant MANAGER = keccak256("MANAGER");
@@ -109,32 +113,12 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @dev set weekly distributor percent
-     * @param week week number
-     * @param ids distributor ids
-     * @param percent distributor percent
+     * @dev set emission voting contract address
+     * @param _emissionVoting emission voting contract address
      */
-    function setWeeklyDistributorPercent(uint16 week, uint16[] memory ids, uint256[] memory percent) onlyRole(MANAGER) external {
-        require(week > veLista.getCurrentWeek(), "week must be greater than current week");
-        require(ids.length > 0 && ids.length == percent.length, "ids and percent length mismatch");
-        uint256 totalPercent;
-
-        if (weeklyDistributorPercent[week][0] == 1) {
-            // this week has set, reset last distributor percent
-            for (uint16 i = 1; i <= distributorId; ++i) {
-                weeklyDistributorPercent[week][i] = 0;
-            }
-        }
-        for (uint16 i = 0; i < ids.length; ++i) {
-            require(idToDistributor[ids[i]] != address(0), "distributor not registered");
-            require(weeklyDistributorPercent[week][ids[i]] == 0, "distributor percent already set");
-            weeklyDistributorPercent[week][ids[i]] = percent[i];
-            totalPercent += percent[i];
-        }
-
-        // mark this week set flag
-        weeklyDistributorPercent[week][0] = 1;
-        require(totalPercent <= 1e18, "Total percent must be less than or equal to 1e18");
+    function setEmissionVoting(address _emissionVoting) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        emissionVoting = IEmissionVoting(_emissionVoting);
+        emit EmissionVotingSet(_emissionVoting);
     }
 
     /**
@@ -215,8 +199,18 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @return emissions
      */
     function getDistributorWeeklyEmissions(uint16 id, uint16 week) public view returns (uint256) {
-        uint256 pct = weeklyDistributorPercent[week][id];
-        return Math.mulDiv(weeklyEmissions[week], pct, 1e18);
+        if (emissionVoting == IEmissionVoting(address(0))) {
+            revert("EmissionVoting is not set");
+        }
+        if (emissionVoting.getWeeklyTotalWeight(week) == 0) {
+            return 0;
+        }
+        // @dev emission = weeklyEmissions[week] * distributorWeight / totalWeight
+        return Math.mulDiv(
+            weeklyEmissions[week],
+            emissionVoting.getDistributorWeeklyTotalWeight(id, week),
+            emissionVoting.getWeeklyTotalWeight(week)
+        );
     }
 
     /**

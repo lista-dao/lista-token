@@ -2,16 +2,13 @@
 pragma solidity ^0.8.10;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "../interfaces/IVeLista.sol";
 import "./interfaces/IVault.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-
 
 /**
- *  @title Lista Incentive Voting
+ *  @title Lista Emission Voting
  *  @notice Users with LISTA balances locked in `veLista` may register their
  *          veLista weights in this contract, and use this weight to vote on where
  *          new LISTA emissions will be released in the following week.
@@ -34,18 +31,18 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
 
     // @dev weekly total weight
     //      week -> total voted veLista weight
-    mapping(uint256 => uint256) public weeklyTotalWeight;
+    mapping(uint16 => uint256) public weeklyTotalWeight;
     // @dev distributorId -> week -> total voted veLista weight
-    mapping(uint16 => mapping(uint256 => uint256)) public distributorWeeklyTotalWeight;
+    mapping(uint16 => mapping(uint16 => uint256)) public distributorWeeklyTotalWeight;
     // @dev user -> week -> weight
-    mapping(address => mapping(uint256 => uint256)) public userWeeklyVotedWeight;
+    mapping(address => mapping(uint16 => uint256)) public userWeeklyVotedWeight;
     // @dev user -> week -> Vote[]
-    mapping(address => mapping(uint256 => Vote[])) public userVotedDistributors;
+    mapping(address => mapping(uint16 => Vote[])) public userVotedDistributors;
     // @dev disabled distributors
     mapping(uint16 => bool) public disabledDistributors;
 
     // @dev the role can vote within ADMIN_VOTE_PERIOD
-    bytes32 public constant ADMIN_VOTER = keccak256("MANAGER");
+    bytes32 public constant ADMIN_VOTER = keccak256("ADMIN_VOTER");
     // @dev responsible to halt the contract
     bytes32 public constant PAUSER = keccak256("PAUSER");
     // @dev only user has the ADMIN_VOTER role can vote within ADMIN_VOTE_PERIOD
@@ -94,101 +91,168 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
     // ------------------------------------- //
     //                Voting                 //
     // ------------------------------------- //
+
+    /**
+     * @dev Admin vote for the next week
+     * @param distributorIds distributor ids
+     * @param weights weights
+     */
     function adminVote(uint16[] calldata distributorIds, uint256[] calldata weights) public whenNotPaused onlyRole(ADMIN_VOTER) {
-        _vote(distributorIds, weights);
+        _vote(distributorIds, weights, false);
     }
 
+    /**
+     * @dev User vote for the next week
+     * @param distributorIds distributor ids
+     * @param weights weights
+     */
     function vote(uint16[] calldata distributorIds, uint256[] calldata weights) public whenNotPaused {
-        require(block.timestamp < (veLista.getCurrentWeek() + 1) * WEEK - ADMIN_VOTE_PERIOD, "only admin voter can vote now");
-        _vote(distributorIds, weights);
+        require(
+            block.timestamp < veLista.startTime() + (veLista.getCurrentWeek() + 1) * WEEK - ADMIN_VOTE_PERIOD,
+            "only admin voter can vote now"
+        );
+        _vote(distributorIds, weights, true);
     }
 
 
     // ------------------------------------- //
     //            View Functions             //
     // ------------------------------------- //
-    function getDistributorWeight(uint16 distributorId) external view returns (uint256 weight) {
-        // get latest week
-        uint256 _week = veLista.getCurrentWeek();
-        // get distributor weight
-        weight = distributorWeeklyTotalWeight[distributorId][_week];
+
+    /**
+     * @dev Get total weight of the week
+     * @param week week number
+     */
+    function getWeeklyTotalWeight(uint16 week) external view returns (uint256) {
+        return weeklyTotalWeight[week];
     }
 
+    /**
+     * @dev Get distributor total weight of the week
+     * @param distributorId distributor id
+     * @param week week number
+     */
+    function getDistributorWeeklyTotalWeight(uint16 distributorId, uint16 week) external view returns (uint256) {
+        return distributorWeeklyTotalWeight[distributorId][week];
+    }
 
     // ------------------------------------- //
     //            Admin Functions            //
     // ------------------------------------- //
+
+    /**
+     * @dev Set admin vote period,
+            when (block.timestamp < right before next week - adminVotePeriod), only admin voter can vote
+     * @param _adminVotePeriod admin vote period (in seconds)
+     */
     function setAdminVotePeriod(uint256 _adminVotePeriod) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_adminVotePeriod > 0 && _adminVotePeriod < WEEK, "admin vote period should be greater than 0 and less than 1 week");
         ADMIN_VOTE_PERIOD = _adminVotePeriod;
         emit AdminVotePeriodChanged(_adminVotePeriod);
     }
 
+    /**
+     * @dev Toggle distributor (when distributor is disabled, user/admin cannot vote for it)
+     * @param distributorId distributor id
+     */
     function toggleDistributor(uint16 distributorId) external onlyRole(DEFAULT_ADMIN_ROLE) {
         disabledDistributors[distributorId] = !disabledDistributors[distributorId];
         emit DistributorToggled(distributorId, disabledDistributors[distributorId]);
     }
 
-    // @dev Flips the pause state
+    /**
+     * @dev Flips the pause state
+     */
     function togglePause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         paused() ? _unpause() : _pause();
     }
 
-    // @dev pause the contract
+    /**
+     * @dev pause the contract
+     */
     function pause() external onlyRole(PAUSER) {
         _pause();
     }
 
+
     // ------------------------------------- //
     //          Internal Functions           //
     // ------------------------------------- //
-    function _vote(uint16[] calldata distributorIds, uint256[] calldata weights) internal {
+
+    /**
+     * @dev Vote for the next week
+     * @param distributorIds distributor ids
+     * @param weights weights
+     * @param needBalanceCheck need to check veLista balance
+     */
+    function _vote(uint16[] calldata distributorIds, uint256[] calldata weights, bool needBalanceCheck) internal {
 
         require(distributorIds.length == weights.length, "distributorIds and weights length mismatch");
         require(distributorIds.length > 0, "distributorIds and weights should not be empty");
 
         // get current veLista balance of user
         uint256 userLatestWeight = veLista.balanceOf(msg.sender);
-        require(userLatestWeight > 0, "veLista balance must be greater than 0");
+        // only user needs to check balance
+        if (needBalanceCheck) {
+            require(userLatestWeight > 0, "veLista balance must be greater than 0");
+        }
         // the next week user voting for
-        uint256 votingWeek = veLista.getCurrentWeek() + 1;
+        uint16 votingWeek = veLista.getCurrentWeek() + 1;
         // get user current votes
         Vote[] storage userVotes = userVotedDistributors[msg.sender][votingWeek];
+        // save user old weight of this week
+        uint256 oldUserVotedWeight = userWeeklyVotedWeight[msg.sender][votingWeek];
+        uint256 newUserVotedWeight = oldUserVotedWeight;
 
-        uint256 weightDelta = 0;
         // process each vote
         for (uint256 i = 0 ; i < distributorIds.length; ++i) {
             uint16 distributorId = distributorIds[i];
             uint256 weight = weights[i];
             require(!disabledDistributors[distributorId], "distributor is disabled");
             require(weight >= 0, "weight should be equals to or greater than 0");
-            require(distributorId <= vault.distributorId(), "distributor not exists");
-
-            uint256 subWeightDelta = 0;
-            // check if user already voted for this distributor
+            require(distributorId <= vault.distributorId(), "distributor does not exists");
+            // assume the distributor not voted before
+            bool votedBefore = false;
             for (uint256 j = 0; j < userVotes.length; ++j) {
+                // user voted for this distributor before
                 if (userVotes[j].distributorId == distributorId) {
-                    // calculate weight delta
-                    subWeightDelta = weight - userVotes[j].weight;
+                    // mark as voted already
+                    votedBefore = true;
+                    // diff. between old and new weight
+                    int256 delta = int256(weight) - int256(userVotes[j].weight);
+                    // increase vote
+                    if (delta > 0) {
+                        newUserVotedWeight += uint256(delta);
+                        distributorWeeklyTotalWeight[distributorId][votingWeek] += uint256(delta);
+                    } else {
+                        newUserVotedWeight -= uint256(delta*-1);
+                        distributorWeeklyTotalWeight[distributorId][votingWeek] -= uint256(delta*-1);
+                    }
                     // updates user's vote record of this distributor
                     userVotes[j].weight = weight;
                 }
             }
-            // if user has not voted for this distributor
-            if (subWeightDelta == 0) {
-                // add new vote record
+            // first time vote and weight is not 0
+            if (!votedBefore && weight > 0) {
                 userVotes.push(Vote(distributorId, weight));
-                subWeightDelta = weight;
+                newUserVotedWeight += weight;
+                distributorWeeklyTotalWeight[distributorId][votingWeek] += weight;
             }
-            weightDelta += subWeightDelta;
-            // update distributor weekly weight
-            distributorWeeklyTotalWeight[distributorId][votingWeek] += subWeightDelta;
         }
-        // update user weight usage
-        userWeeklyVotedWeight[msg.sender][votingWeek] += weightDelta;
-        // update total weight
-        weeklyTotalWeight[votingWeek] += weightDelta;
-        require(userLatestWeight >= userWeeklyVotedWeight[msg.sender][votingWeek], "veLista balance is not enough to vote");
+
+        int256 weightDelta = int256(newUserVotedWeight) - int256(oldUserVotedWeight);
+        // update user weight usage and total weight
+        if (weightDelta > 0) {
+            userWeeklyVotedWeight[msg.sender][votingWeek] += uint256(weightDelta);
+            weeklyTotalWeight[votingWeek] += uint256(weightDelta);
+        } else {
+            userWeeklyVotedWeight[msg.sender][votingWeek] -= uint256(weightDelta*-1);
+            weeklyTotalWeight[votingWeek] -= uint256(weightDelta*-1);
+        }
+
+        if (needBalanceCheck) {
+            require(userLatestWeight >= userWeeklyVotedWeight[msg.sender][votingWeek], "veLista balance is not enough to vote");
+        }
 
         emit UserVoted(msg.sender, distributorIds, weights);
     }
