@@ -199,9 +199,13 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @return emissions
      */
     function getDistributorWeeklyEmissions(uint16 id, uint16 week) public view returns (uint256) {
+        // for transition period
         if (emissionVoting == IEmissionVoting(address(0))) {
-            revert("EmissionVoting is not set");
+            uint256 pct = weeklyDistributorPercent[week][id];
+            return Math.mulDiv(weeklyEmissions[week], pct, 1e18);
         }
+
+        // emission voting set
         if (emissionVoting.getWeeklyTotalWeight(week) == 0) {
             return 0;
         }

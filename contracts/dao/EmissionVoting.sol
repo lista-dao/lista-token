@@ -36,8 +36,12 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
     mapping(uint16 => mapping(uint16 => uint256)) public distributorWeeklyTotalWeight;
     // @dev user -> week -> weight
     mapping(address => mapping(uint16 => uint256)) public userWeeklyVotedWeight;
+
     // @dev user -> week -> Vote[]
     mapping(address => mapping(uint16 => Vote[])) public userVotedDistributors;
+    // @dev user -> week -> distributorId -> index
+    mapping(address => mapping(uint16 => mapping(uint16 => uint256))) public userVotedDistributorIndex;
+
     // @dev disabled distributors
     mapping(uint16 => bool) public disabledDistributors;
 
@@ -178,7 +182,6 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
     // ------------------------------------- //
     //          Internal Functions           //
     // ------------------------------------- //
-
     /**
      * @dev Vote for the next week
      * @param distributorIds distributor ids
@@ -198,7 +201,7 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
         }
         // the next week user voting for
         uint16 votingWeek = veLista.getCurrentWeek() + 1;
-        // get user current votes
+        // get user all votes of this week
         Vote[] storage userVotes = userVotedDistributors[msg.sender][votingWeek];
         // save user old weight of this week
         uint256 oldUserVotedWeight = userWeeklyVotedWeight[msg.sender][votingWeek];
@@ -211,45 +214,32 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
             require(!disabledDistributors[distributorId], "distributor is disabled");
             require(weight >= 0, "weight should be equals to or greater than 0");
             require(distributorId <= vault.distributorId(), "distributor does not exists");
-            // assume the distributor not voted before
-            bool votedBefore = false;
-            for (uint256 j = 0; j < userVotes.length; ++j) {
-                // user voted for this distributor before
-                if (userVotes[j].distributorId == distributorId) {
-                    // mark as voted already
-                    votedBefore = true;
-                    // diff. between old and new weight
-                    int256 delta = int256(weight) - int256(userVotes[j].weight);
-                    // increase vote
-                    if (delta > 0) {
-                        newUserVotedWeight += uint256(delta);
-                        distributorWeeklyTotalWeight[distributorId][votingWeek] += uint256(delta);
-                    } else {
-                        newUserVotedWeight -= uint256(delta*-1);
-                        distributorWeeklyTotalWeight[distributorId][votingWeek] -= uint256(delta*-1);
-                    }
-                    // updates user's vote record of this distributor
-                    userVotes[j].weight = weight;
-                }
-            }
+
+            int256 idx = int256(userVotedDistributorIndex[msg.sender][votingWeek][distributorId]) - 1;
+            bool voted = idx >= 0;
+
             // first time vote and weight is not 0
-            if (!votedBefore && weight > 0) {
+            if (!voted) {
                 userVotes.push(Vote(distributorId, weight));
+                userVotedDistributorIndex[msg.sender][votingWeek][distributorId] = userVotes.length;
                 newUserVotedWeight += weight;
                 distributorWeeklyTotalWeight[distributorId][votingWeek] += weight;
+            } else {
+                // updates user's vote record of this distributor
+                distributorWeeklyTotalWeight[distributorId][votingWeek] =
+                    distributorWeeklyTotalWeight[distributorId][votingWeek] - userVotes[uint256(idx)].weight + weight;
+                newUserVotedWeight = newUserVotedWeight - userVotes[uint256(idx)].weight + weight;
+                userVotes[uint256(idx)].weight = weight;
             }
         }
+        // update user's consumed weight of this week
+        userWeeklyVotedWeight[msg.sender][votingWeek] =
+            userWeeklyVotedWeight[msg.sender][votingWeek] - oldUserVotedWeight + newUserVotedWeight;
+        // all user's weight of this week
+        weeklyTotalWeight[votingWeek] =
+            weeklyTotalWeight[votingWeek] - oldUserVotedWeight + newUserVotedWeight;
 
-        int256 weightDelta = int256(newUserVotedWeight) - int256(oldUserVotedWeight);
-        // update user weight usage and total weight
-        if (weightDelta > 0) {
-            userWeeklyVotedWeight[msg.sender][votingWeek] += uint256(weightDelta);
-            weeklyTotalWeight[votingWeek] += uint256(weightDelta);
-        } else {
-            userWeeklyVotedWeight[msg.sender][votingWeek] -= uint256(weightDelta*-1);
-            weeklyTotalWeight[votingWeek] -= uint256(weightDelta*-1);
-        }
-
+        // check balance is enough to vote
         if (needBalanceCheck) {
             require(userLatestWeight >= userWeeklyVotedWeight[msg.sender][votingWeek], "veLista balance is not enough to vote");
         }
