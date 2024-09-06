@@ -27,6 +27,7 @@ contract EmissionVotingTest is Test {
     address multiSig = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
     address vaultAdmin = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
     address adminVoter = makeAddr("admin_voter");
+    address pauser = makeAddr("pauser");
     address user1 = makeAddr("user1");
     address user2 = makeAddr("user2");
 
@@ -36,7 +37,8 @@ contract EmissionVotingTest is Test {
         mainnet = vm.createSelectFork("https://bsc-dataseed.binance.org");
 
         vm.startPrank(multiSig);
-        // deploy EmissionVoting contract
+
+        // ---- (1) deploy EmissionVoting contract
         EmissionVoting evImpl = new EmissionVoting();
         TransparentUpgradeableProxy emissionVotingProxy = new TransparentUpgradeableProxy(
             address(evImpl),
@@ -45,15 +47,21 @@ contract EmissionVotingTest is Test {
         );
         emissionVoting = EmissionVoting(address(emissionVotingProxy));
         console.logString("EmissionVoting deployed");
-        // grant admin voter role to emissing voting
+
+        // ---- (2) set AdminVoter and Pauser
+        // grant admin voter role to emission voting
         emissionVoting.grantRole(emissionVoting.ADMIN_VOTER(), adminVoter);
+        // grant pauser role
+        emissionVoting.grantRole(emissionVoting.PAUSER(), pauser);
         console.logString("admin voter role granted.");
-        // upgrade ListaVault
+
+        // ---- (3) upgrade ListaVault
         ListaVault impl = new ListaVault();
         vaultProxyAdmin.upgradeAndCall{value:0}(ITransparentUpgradeableProxy(address(vault)), address(impl), bytes(""));
         console.logString("ListaVault upgraded");
         vm.stopPrank();
 
+        // ---- (4) set
         vm.startPrank(vaultAdmin);
         // set emission voting to vault
         vault.setEmissionVoting(address(emissionVoting));
@@ -205,7 +213,6 @@ contract EmissionVotingTest is Test {
     }
 
     function test_disable_distributor() public {
-
         vm.prank(multiSig);
         // disable distributor 1
         emissionVoting.toggleDistributor(1);
@@ -225,8 +232,8 @@ contract EmissionVotingTest is Test {
         d1[0] = 1;
         d1[1] = 2;
 
-        w1[0] = 10000;
-        w1[1] = 23000;
+        w1[0] = 11111;
+        w1[1] = 22222;
         vm.prank(user1); // user 1 vote
         vm.expectRevert(bytes("distributor is disabled"));
         emissionVoting.vote(d1, w1);
@@ -238,6 +245,27 @@ contract EmissionVotingTest is Test {
         vm.prank(adminVoter);
         vm.expectRevert(bytes("distributor is disabled"));
         emissionVoting.adminVote(d1, w1);
+    }
+
+    function test_pause_voting() public {
+        // pause voting
+        vm.prank(pauser);
+        emissionVoting.pause();
+
+        uint16[] memory d = new uint16[](2);
+        uint256[] memory w = new uint256[](2);
+        d[0] = 1;
+        w[0] = 11111;
+        vm.prank(adminVoter);
+        vm.expectRevert(bytes("Pausable: paused"));
+        emissionVoting.adminVote(d, w);
+
+        // resume vote
+        vm.prank(multiSig);
+        emissionVoting.togglePause();
+        // should be able to vote
+        vm.prank(adminVoter);
+        emissionVoting.adminVote(d, w);
     }
 
 }
