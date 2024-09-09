@@ -72,7 +72,8 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
         address indexed _account,
         address _lista,
         uint256 _claimedAmount,
-        uint256 _amtToCompound
+        uint256 _amtToCompound,
+        uint16 _toWeek
     );
     event FeeWithdrawn(address indexed _receiver, uint256 _fee);
     event FeeReceiverUpdated(address indexed _newReceiver);
@@ -166,7 +167,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
 
         totalFee += claimedAmount - amtToCompound;
 
-        emit AutoCompounded(account, address(lista), claimedAmount, amtToCompound);
+        emit AutoCompounded(account, address(lista), claimedAmount, amtToCompound, toWeek);
     }
 
     function withdrawFee() external onlyRole(BOT) {
