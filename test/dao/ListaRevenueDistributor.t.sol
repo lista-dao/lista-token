@@ -45,8 +45,20 @@ contract ListaRevenueDistributorTest is Test {
             )
         );
         listaRevenueDistributor = ListaRevenueDistributor(address(listaRevenueDistributorProxy));
-
         assertEq(7e17, listaRevenueDistributor.distributeRate());
+
+        address[] memory tokens = new address[](4);
+        tokens[0] = address(slisBNB);
+        tokens[1] = address(lisUSD);
+        tokens[2] = address(ETH);
+        tokens[3] = address(lista);
+
+        vm.startPrank(admin);
+        listaRevenueDistributor.addTokensToWhitelist(tokens);
+        vm.stopPrank();
+
+        assertTrue(listaRevenueDistributor.tokenWhitelist(address(slisBNB)));
+        assertTrue(listaRevenueDistributor.tokenWhitelist(address(lisUSD)));
     }
 
     function test_revenueDistributor_setUp() public {
@@ -123,6 +135,22 @@ contract ListaRevenueDistributorTest is Test {
         assertEq(0, lista.balanceOf(autoBuybackAddress));
         assertEq(123e18 * 7e17 / 1e18, lista.balanceOf(listaToWalletAddress));
         assertEq(123e18 - (123e18 * 7e17 / 1e18), lista.balanceOf(revenueWalletAddress));
+    }
+
+    function test_revenueDistributor_distributeTokens_not_whitelist() public {
+        IERC20 usdc = IERC20(0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d);
+        deal(address(usdc), address(listaRevenueDistributor), 123e18);
+
+        assertEq(0, usdc.balanceOf(autoBuybackAddress));
+        assertEq(0, usdc.balanceOf(revenueWalletAddress));
+        assertEq(0, usdc.balanceOf(listaToWalletAddress));
+
+        vm.startPrank(manager);
+        vm.expectRevert("token not whitelisted");
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(usdc);
+        listaRevenueDistributor.distributeTokens(tokens);
+        vm.stopPrank();
     }
 
     function test_revenueDistributor_changeAutoBuybackAddress_acl() public {

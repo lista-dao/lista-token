@@ -103,7 +103,7 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         emit BoughtBack(_tokenIn, _amountIn, amountOut);
     }
 
-    function managerTransfer(address _token, uint256 _amount) external onlyRole(MANAGER) {
+    function adminTransfer(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         IERC20(_token).safeTransfer(msg.sender, _amount);
     }
 

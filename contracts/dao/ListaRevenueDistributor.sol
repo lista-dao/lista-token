@@ -24,9 +24,13 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
 
     event RateChanged(uint128 rate);
 
+    event TokenChanged(address token, bool isAdd);
+
     bytes32 public constant MANAGER = keccak256("MANAGER");
 
     uint128 public constant RATE_DENOMINATOR = 1e18;
+
+    mapping(address => bool) public tokenWhitelist;
 
     // distribute rate of revenue to autoBuybackAddress/listaDistributeToAddress
     uint128 public distributeRate;
@@ -84,6 +88,8 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
     }
 
     function _distributeToken(address token) private {
+        require(tokenWhitelist[token], "token not whitelisted");
+
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance == 0) {
             return;
@@ -135,5 +141,27 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         distributeRate = _distributeRate;
 
         emit RateChanged(distributeRate);
+    }
+
+    function addTokensToWhitelist(address[] memory _tokens) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_tokens.length > 0, "invalid tokens length");
+
+        for (uint idx = 0; idx < _tokens.length; idx++) {
+            address _token = _tokens[idx];
+            tokenWhitelist[_token] = true;
+
+            emit TokenChanged(_token, true);
+        }
+    }
+
+    function removeTokensFromWhitelist(address[] memory _tokens) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_tokens.length > 0, "invalid tokens length");
+
+        for (uint idx = 0; idx < _tokens.length; idx++) {
+            address _token = _tokens[idx];
+            delete tokenWhitelist[_token];
+
+            emit TokenChanged(_token, false);
+        }
     }
 }
