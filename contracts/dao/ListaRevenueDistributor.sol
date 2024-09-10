@@ -125,7 +125,7 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         require(_revenueWalletAddress != revenueWalletAddress, "revenueWalletAddress is the same");
         revenueWalletAddress = _revenueWalletAddress;
 
-        emit AddressChanged(2, autoBuybackAddress);
+        emit AddressChanged(2, revenueWalletAddress);
     }
 
     function changeListaDistributeToAddress(address _listaDistributeToAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -133,7 +133,7 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         require(_listaDistributeToAddress != listaDistributeToAddress, "listaDistributeToAddress is the same");
         listaDistributeToAddress = _listaDistributeToAddress;
 
-        emit AddressChanged(3, autoBuybackAddress);
+        emit AddressChanged(3, listaDistributeToAddress);
     }
 
     function changeDistributeRate(uint128 _distributeRate) external onlyRole(DEFAULT_ADMIN_ROLE) {
