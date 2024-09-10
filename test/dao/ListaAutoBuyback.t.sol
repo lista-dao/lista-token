@@ -32,8 +32,8 @@ contract ListaAutoBuyBackTest is Test {
             address(autoPaybackImpl),
             proxyAdminOwner,
             abi.encodeWithSignature(
-                "initialize(address,address,address,address,address)",
-                admin, manager, bot, defaultReceiver, oneInchRouter
+                "initialize(address,address,address,address)",
+                admin, bot, defaultReceiver, oneInchRouter
             )
         );
         listaAutoBuyBack = ListaAutoBuyback(address(listaAutoBuyBackProxy));

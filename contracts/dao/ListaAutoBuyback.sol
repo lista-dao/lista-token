@@ -49,13 +49,11 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
 
     function initialize(
         address _admin,
-        address _manager,
         address _bot,
         address _initReceiver,
         address _initRouter
     ) public initializer {
         require(_admin != address(0), "admin is the zero address");
-        require(_manager != address(0), "manager is the zero address");
         require(_initReceiver != address(0), "receiver is the zero address");
         require(_initRouter != address(0), "router is the zero address");
 
