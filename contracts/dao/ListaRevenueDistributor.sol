@@ -67,6 +67,7 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         require(_distributeRate <= 1e18, "too big rate number");
 
         __AccessControl_init();
+        _setRoleAdmin(MANAGER, DEFAULT_ADMIN_ROLE);
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setupRole(MANAGER, _manager);
 
