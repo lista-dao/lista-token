@@ -5,8 +5,9 @@ import "./interfaces/IStakingVault.sol";
 import "./interfaces/IV2Wrapper.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-contract PancakeStaking is OwnableUpgradeable {
+contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     struct Pool {
@@ -59,7 +60,7 @@ contract PancakeStaking is OwnableUpgradeable {
       * @param pool lp token address
       * @param amount lp token amount
       */
-    function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) {
+    function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) nonReentrant {
         Pool memory poolInfo = pools[pool];
         IERC20(poolInfo.lpToken).safeTransferFrom(poolInfo.distributor, address(this), amount);
         IERC20(poolInfo.lpToken).safeApprove(poolInfo.poolAddress, amount);
@@ -84,7 +85,7 @@ contract PancakeStaking is OwnableUpgradeable {
       * @dev harvest rewards
       * @param pool lp token address
       */
-    function harvest(address pool) external returns (uint256) {
+    function harvest(address pool) external nonReentrant returns (uint256) {
         Pool memory poolInfo = pools[pool];
 
         // claim rewards
@@ -108,10 +109,10 @@ contract PancakeStaking is OwnableUpgradeable {
       * @param pool lp token address
       * @param amount lp token amount
       */
-    function withdraw(address to, address pool, uint256 amount) external onlyDistributor(pool) {
+    function withdraw(address to, address pool, uint256 amount) external onlyDistributor(pool) nonReentrant {
         Pool memory poolInfo = pools[pool];
         // withdraw lp token and claim rewards
-        uint256 beforeBalance = IERC20(poolInfo.lpToken).balanceOf(address(this));
+        uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
         IV2Wrapper(poolInfo.poolAddress).withdraw(amount, false);
         uint256 claimed = IERC20(poolInfo.rewardToken).balanceOf(address(this)) - beforeBalance;
 

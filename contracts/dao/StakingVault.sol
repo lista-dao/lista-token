@@ -7,8 +7,10 @@ import "./interfaces/IDistributor.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
-contract StakingVault is OwnableUpgradeable {
+contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable {
     using SafeERC20 for IERC20;
 
     // staking address
@@ -22,11 +24,15 @@ contract StakingVault is OwnableUpgradeable {
     // fee rate
     uint256 public feeRate;
     // max fee rate
-    uint256 public constant MAX_FEE = 10000;
+    uint256 public constant MAX_FEE = 7000;
+    // fee precision
+    uint256 public constant FEE_PRECISION = 10000;
     // fee receiver
     address public feeReceiver;
     // lp proxy address
     address public lpProxy;
+    // pauser address
+    address public pauser;
 
     event AddRewards(address distributor, uint256 amount, uint256 fee);
 
@@ -56,6 +62,11 @@ contract StakingVault is OwnableUpgradeable {
         feeReceiver = _feeReceiver;
     }
 
+    modifier onlyPauser() {
+        require(msg.sender == pauser, "Only pauser can call this function");
+        _;
+    }
+
     modifier onlyStaking() {
         require(msg.sender == staking, "Only staking contract can call this function");
         _;
@@ -67,7 +78,7 @@ contract StakingVault is OwnableUpgradeable {
     }
 
     /**
-      * @dev send rewards to distributor
+      * @dev update rewards for distributor
       * @param distributor distributor address
       * @param amount reward amount
       */
@@ -77,7 +88,7 @@ contract StakingVault is OwnableUpgradeable {
         uint256 rewardAmount = amount;
         uint256 fee;
         if (feeRate > 0) {
-            fee = Math.mulDiv(amount, feeRate, MAX_FEE);
+            fee = Math.mulDiv(amount, feeRate, FEE_PRECISION);
 
             fees += fee;
             rewardAmount -= fee;
@@ -94,7 +105,7 @@ contract StakingVault is OwnableUpgradeable {
     /**
       * @dev harvest fees
       */
-    function harvest() external {
+    function harvest() external nonReentrant {
         if (fees > 0) {
             uint256 harvestFee = fees;
             fees = 0;
@@ -106,7 +117,7 @@ contract StakingVault is OwnableUpgradeable {
       * @dev batch claim rewards
       * @param _distributors distributor addresses
       */
-    function batchClaimRewards(address[] memory _distributors) external {
+    function batchClaimRewards(address[] memory _distributors) external whenNotPaused nonReentrant {
         _batchClaimRewards(msg.sender, _distributors);
     }
 
@@ -155,7 +166,7 @@ contract StakingVault is OwnableUpgradeable {
      * @param account account address
      * @param amount amount of token
      */
-    function transferAllocatedTokens(address account, uint256 amount) external {
+    function transferAllocatedTokens(address account, uint256 amount) external nonReentrant {
         require(amount > 0, "amount must be greater than 0");
         address distributor = msg.sender;
         require(allocated[distributor] >= amount, "insufficient allocated balance");
@@ -169,8 +180,29 @@ contract StakingVault is OwnableUpgradeable {
       * @param account user address
       * @param _distributors distributor addresses
       */
-    function batchClaimRewardsWithProxy(address account, address[] memory _distributors) external onlyLpProxy {
+    function batchClaimRewardsWithProxy(address account, address[] memory _distributors) external onlyLpProxy whenNotPaused nonReentrant {
         _batchClaimRewards(account, _distributors);
     }
 
+    /**
+      * @dev _pause pauser address
+      */
+    function setPauser(address _pauser) external onlyOwner {
+        require(_pauser != address(0), "pauser cannot be zero address");
+        pauser = _pauser;
+    }
+
+    /**
+      * @dev pause contract
+      */
+    function pause() external onlyPauser {
+        _pause();
+    }
+
+    /**
+      * @dev toggle pause contract
+      */
+    function togglePause() external onlyOwner {
+        paused() ? _unpause() : _pause();
+    }
 }

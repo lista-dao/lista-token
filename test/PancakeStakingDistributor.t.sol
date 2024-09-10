@@ -127,6 +127,18 @@ contract PancakeStakingDistributorTest is Test {
         vm.stopPrank();
     }
 
+    function test_pancakeDepositAndWithdraw() public {
+        uint256 user1Lp = addLiquidity(user1);
+        console.log("user1 lp", lpToken.balanceOf(user1));
+
+        vm.startPrank(user1);
+        IERC20(lpToken).approve(poolAddress, MAX_UINT256);
+        IV2Wrapper(poolAddress).deposit(user1Lp, false);
+        skip(1 days);
+        IV2Wrapper(poolAddress).withdraw(user1Lp, false);
+        vm.stopPrank();
+    }
+
     function addLiquidity(address user) public returns (uint256) {
         vm.startPrank(user);
         token0.approve(address(pancakeStableSwapTwoPool), MAX_UINT256);

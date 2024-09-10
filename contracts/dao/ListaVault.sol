@@ -23,6 +23,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     event Withdraw(address indexed account, uint256 amount);
     event NewDistributorRegistered(address distributor, uint256 id);
     event EmergencyWithdraw(address token, uint256 amount);
+    event Paused(address account);
+    event Unpaused(address account);
 
     // lista token address
     IERC20 public token;
@@ -50,6 +52,10 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
 
     // manager role
     bytes32 public constant MANAGER = keccak256("MANAGER");
+    bytes32 public constant PAUSER = keccak256("PAUSER");
+
+    // paused flag
+    bool private _paused;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -84,6 +90,16 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
 
     modifier onlyLpProxy() {
         require(msg.sender == lpProxy, "Only lp proxy can call this function");
+        _;
+    }
+
+    modifier whenNotPaused() {
+        _requireNotPaused();
+        _;
+    }
+
+    modifier whenPaused() {
+        _requirePaused();
         _;
     }
 
@@ -148,7 +164,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @dev batch claim rewards
      * @param _distributors distributor contracts
      */
-    function batchClaimRewards(address[] memory _distributors) external {
+    function batchClaimRewards(address[] memory _distributors) whenNotPaused external {
         _batchClaimRewards(msg.sender, _distributors);
     }
 
@@ -185,7 +201,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @param account account address
      * @param amount amount of token
      */
-    function transferAllocatedTokens(uint16 _distributorId, address account, uint256 amount) external {
+    function transferAllocatedTokens(uint16 _distributorId, address account, uint256 amount) whenNotPaused external {
         require(amount > 0, "amount must be greater than 0");
         address distributor = idToDistributor[_distributorId];
         require(distributor == msg.sender, "distributor not registered");
@@ -258,7 +274,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
       * @param account user address
       * @param _distributors distributor addresses
       */
-    function batchClaimRewardsWithProxy(address account, address[] memory _distributors) external onlyLpProxy {
+    function batchClaimRewardsWithProxy(address account, address[] memory _distributors) external onlyLpProxy whenNotPaused {
         _batchClaimRewards(account, _distributors);
     }
 
@@ -269,5 +285,41 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     function setLpProxy(address _lpProxy) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_lpProxy != address(0), "lpProxy cannot be zero address");
         lpProxy = _lpProxy;
+    }
+
+    function _pause() private whenNotPaused {
+        _paused = true;
+        emit Paused(_msgSender());
+    }
+
+    function _unpause() private whenPaused {
+        _paused = false;
+        emit Unpaused(_msgSender());
+    }
+
+    function _requireNotPaused() private {
+        require(!paused(), "Pausable: paused");
+    }
+
+    function _requirePaused() private {
+        require(paused(), "Pausable: not paused");
+    }
+
+    function paused() public view virtual returns (bool) {
+        return _paused;
+    }
+
+    /**
+     * @dev Pause the contract
+     */
+    function pause() external onlyRole(PAUSER) {
+        _pause();
+    }
+
+    /**
+     * @dev Flips the pause state
+     */
+    function togglePause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        paused() ? _unpause() : _pause();
     }
 }

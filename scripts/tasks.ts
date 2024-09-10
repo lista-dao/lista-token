@@ -19,6 +19,10 @@ export async function deployDirect(
   const address = await contract.getAddress();
 
   console.log(`${contractName} deployed to:`, address);
+  await hre.run("verify:verify", {
+    address: address,
+    constructorArguments: args,
+  });
 }
 
 export async function deployProxy(
@@ -42,6 +46,13 @@ export async function deployProxy(
 
   console.log(`Proxy ${contractName} deployed to:`, proxyAddress);
   console.log(`Impl ${contractName} deployed to:`, contractImplAddress);
+
+  await hre.run("verify:verify", {
+    address: proxyAddress,
+  });
+  await hre.run("verify:verify", {
+    address: contractImplAddress,
+  });
   return proxyAddress;
 }
 

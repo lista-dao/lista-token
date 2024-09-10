@@ -150,7 +150,12 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
         }
     }
 
+    /**
+     * @dev notify staking reward, only staking vault can call this function
+     * @param amount reward amount
+     */
     function notifyStakingReward(uint256 amount) external onlyRole(STAKING_VAULT) {
+        _updateStakeReward(address(0), 0, lpTotalSupply);
         uint256 _periodFinish = stakePeriodFinish;
         if (block.timestamp < _periodFinish) {
             uint256 remaining = _periodFinish - block.timestamp;
@@ -211,6 +216,27 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
     }
 
     /**
+     * @dev get stake claimable reward amount
+     * @param account account address
+     * @return reward amount
+     */
+    function getStakeClaimableReward(address account) external view returns (uint256) {
+        uint256 balance = lpBalanceOf[account];
+        uint256 supply = lpTotalSupply;
+        uint256 updated = stakePeriodFinish;
+        if (updated > block.timestamp) updated = block.timestamp;
+        uint256 duration = updated - stakeLastUpdate;
+        if (duration > 0 && supply > 0) {
+            uint256 rewardIntegral = stakeRewardIntegral + (duration * stakeRewardRate * 1e18) / supply;
+            uint256 integralFor = stakeRewardIntegralFor[account];
+            if (rewardIntegral > integralFor) {
+                return (balance * (rewardIntegral - integralFor)) / 1e18;
+            }
+        }
+        return 0;
+    }
+
+    /**
      * @dev set stake vault address
      * @param _stakeVault stake vault address
      */
@@ -219,6 +245,9 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
          stakeVault = _stakeVault;
     }
 
+    /**
+     * @dev harvest stake reward from third-party staking pool
+     */
     function harvest() external {
         IStaking(staking).harvest(lpToken);
     }

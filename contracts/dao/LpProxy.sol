@@ -77,11 +77,17 @@ contract LpProxy is OwnableUpgradeable {
 
         address[] memory cakeDistributors = new address[](cakeLength);
         address[] memory thenaDistributors = new address[](thenaLength);
-        for (uint256 i = 0; i < distributors.length; i++) {
-            if (distributorToVault[distributors[i]] == cakeVault) {
-                cakeDistributors[i] = distributors[i];
-            } else if (distributorToVault[distributors[i]] == thenaVault) {
-                thenaDistributors[i] = distributors[i];
+        uint256 cakeIdx;
+        uint256 thenaIdx;
+        if (cakeLength > 0 || thenaLength > 0) {
+            for (uint256 i = 0; i < distributors.length; i++) {
+                if (distributorToVault[distributors[i]] == cakeVault) {
+                    cakeDistributors[cakeIdx] = distributors[i];
+                    ++cakeIdx;
+                } else if (distributorToVault[distributors[i]] == thenaVault) {
+                    thenaDistributors[thenaIdx] = distributors[i];
+                    ++thenaIdx;
+                }
             }
         }
 
