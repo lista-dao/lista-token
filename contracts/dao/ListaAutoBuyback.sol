@@ -24,8 +24,6 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
 
     event RouterChanged(address indexed router, bool added);
 
-    bytes32 public constant MANAGER = keccak256("MANAGER");
-
     bytes32 public constant BOT = keccak256("BOT");
 
     bytes4 public constant SWAP_FUNCTION_SELECTOR = bytes4(keccak256("swap(address,(address,address,address,address,uint256,uint256,uint256),bytes)"));
@@ -63,7 +61,6 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
 
         __AccessControl_init();
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
-        _setupRole(MANAGER, _manager);
         _setupRole(BOT, _bot);
 
         defaultReceiver = _initReceiver;
