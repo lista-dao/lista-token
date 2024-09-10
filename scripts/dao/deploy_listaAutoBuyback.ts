@@ -8,8 +8,8 @@ async function main() {
   let bot, receiver, router;
 
   if (hre.network.name === "bsc") {
-    bot = '';
-    receiver = '';
+    bot = '0x44CA74923aA2036697a3fA7463CD0BA68AB7F677';
+    receiver = '0x8d388136d578dCD791D081c6042284CED6d9B0c6';
     router = '0x111111125421cA6dc452d289314280a0f8842A65';
   } else if (hre.network.name === "bscTestnet") {
     bot = '0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232';
