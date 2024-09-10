@@ -62,8 +62,6 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         require(_initRouter != address(0), "router is the zero address");
 
         __AccessControl_init();
-        _setRoleAdmin(MANAGER, DEFAULT_ADMIN_ROLE);
-        _setRoleAdmin(BOT, DEFAULT_ADMIN_ROLE);
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setupRole(MANAGER, _manager);
         _setupRole(BOT, _bot);
