@@ -49,6 +49,9 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
     // epochId => userAddress => claimed
     mapping(uint64 => mapping(address => bool)) public claimed;
 
+    // auto increment id for epoch
+    uint64 public nextEpochId;
+
     // reward token
     address public token;
 
@@ -113,7 +116,7 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
 
     /**
      * @dev Set merkle root for rewards epoch.
-     * @param _epochId Id of the reward epoch
+     * @param _epochId Epoch Id of the reward epoch
      * @param _merkleRoot Merkle root of the reward epoch
      * @param _startTime Start time of the reward epoch
      * @param _endTime End time of the reward epoch
@@ -122,12 +125,14 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
     function setEpochMerkleRoot(uint64 _epochId, bytes32 _merkleRoot, uint256 _startTime, uint256 _endTime, uint256 _totalAmount)
         external onlyRole(DEFAULT_ADMIN_ROLE)
     {
+        require(_epochId == nextEpochId, "Invalid epochId");
         require(_merkleRoot != bytes32(0), "Invalid merkle root");
         require(_startTime > 0, "Invalid start time");
         require(_endTime > 0, "Invalid end time");
         require(_totalAmount > 0, "Invalid total amount");
 
-        Epoch storage epoch = epochs[_epochId];
+        uint64 currentEpochId = nextEpochId++;
+        Epoch storage epoch = epochs[currentEpochId];
         epoch.merkleRoot = _merkleRoot;
         epoch.startTime = _startTime;
         epoch.endTime = _endTime;
@@ -135,7 +140,7 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
         epoch.unclaimedAmount = _totalAmount;
         totalUnclaimedAmount += _totalAmount;
 
-        emit UpdateEpoch(_epochId, epoch.merkleRoot, epoch.startTime, epoch.endTime, epoch.totalAmount);
+        emit UpdateEpoch(currentEpochId, epoch.merkleRoot, epoch.startTime, epoch.endTime, epoch.totalAmount);
     }
 
     /**
@@ -158,6 +163,10 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
         emit RevokeEpoch(_epochId, epochTotalAmount, epochUnclaimedAmount);
     }
 
+    /**
+     * @dev Collect unclaimed rewards amount of the given ended epoch
+     * @param _epochId Id of epoch
+     */
     function collectUnclaimed(uint64 _epochId) external onlyRole(MANAGER) {
         Epoch storage epoch = epochs[_epochId];
         require(epoch.totalAmount > 0, "Invalid epochId");
@@ -182,5 +191,13 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
 
     function getTokenBalance() external view returns (uint256) {
         return IERC20(token).balanceOf(address(this));
+    }
+
+    function getEpochs(uint64[] memory _epochIds) external view returns (Epoch[] memory) {
+        Epoch[] memory _epochs = new Epoch[](_epochIds.length);
+        for (uint256 i = 0; i < _epochIds.length; i++) {
+            _epochs[i] = epochs[_epochIds[i]];
+        }
+        return _epochs;
     }
 }
