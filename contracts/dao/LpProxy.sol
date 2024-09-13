@@ -89,17 +89,17 @@ contract LpProxy is OwnableUpgradeable {
                     ++thenaIdx;
                 }
             }
+            // claim cake rewards
+            if (cakeLength > 0) {
+                IStakingVault(cakeVault).batchClaimRewardsWithProxy(account, cakeDistributors);
+            }
+
+            // claim thena rewards
+            if (thenaLength > 0) {
+                IStakingVault(thenaVault).batchClaimRewardsWithProxy(account, thenaDistributors);
+            }
         }
 
-        // claim cake rewards
-        if (cakeLength > 0) {
-            IStakingVault(cakeVault).batchClaimRewardsWithProxy(account, cakeDistributors);
-        }
-
-        // claim thena rewards
-        if (thenaLength > 0) {
-            IStakingVault(thenaVault).batchClaimRewardsWithProxy(account, thenaDistributors);
-        }
     }
 
     /**

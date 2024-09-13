@@ -55,7 +55,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     bytes32 public constant PAUSER = keccak256("PAUSER");
 
     // paused flag
-    bool private _paused;
+    bool public paused;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -94,12 +94,12 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     }
 
     modifier whenNotPaused() {
-        _requireNotPaused();
+        require(!paused, "Pausable: paused");
         _;
     }
 
     modifier whenPaused() {
-        _requirePaused();
+        require(paused, "Pausable: not paused");
         _;
     }
 
@@ -288,25 +288,13 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     }
 
     function _pause() private whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
+        paused = true;
+        emit Paused(msg.sender);
     }
 
     function _unpause() private whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
-    }
-
-    function _requireNotPaused() private {
-        require(!paused(), "Pausable: paused");
-    }
-
-    function _requirePaused() private {
-        require(paused(), "Pausable: not paused");
-    }
-
-    function paused() public view virtual returns (bool) {
-        return _paused;
+        paused = false;
+        emit Unpaused(msg.sender);
     }
 
     /**
@@ -320,6 +308,6 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @dev Flips the pause state
      */
     function togglePause() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        paused() ? _unpause() : _pause();
+        paused ? _unpause() : _pause();
     }
 }

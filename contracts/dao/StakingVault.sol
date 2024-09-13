@@ -166,7 +166,7 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
      * @param account account address
      * @param amount amount of token
      */
-    function transferAllocatedTokens(address account, uint256 amount) external nonReentrant {
+    function transferAllocatedTokens(address account, uint256 amount) external whenNotPaused nonReentrant {
         require(amount > 0, "amount must be greater than 0");
         address distributor = msg.sender;
         require(allocated[distributor] >= amount, "insufficient allocated balance");
