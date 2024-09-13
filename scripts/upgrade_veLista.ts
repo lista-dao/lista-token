@@ -1,12 +1,18 @@
-import { upgradeProxy } from "./tasks";
+import { upgradeProxy, validateUpgrade } from "./tasks";
 import hre from "hardhat";
+
+const proxyAddress = "0x79B3286c318bdf7511A59dcf9a2E88882064eCbA";
 
 async function main() {
   // await deployDirect(hre, "ListaToken", owner);
+  validateUpgrade(hre, "contracts/old/VeLista.sol:VeLista", "contracts/VeLista.sol:VeLista");
+  const oldVeLista = await hre.ethers.getContractFactory("contracts/old/VeLista.sol:VeLista");
+  await hre.upgrades.forceImport(proxyAddress, oldVeLista);
+
   await upgradeProxy(
     hre,
-    "VeLista",
-    "0x51075B00313292db08f3450f91fCA53Db6Bd0D11"
+    "contracts/VeLista.sol:VeLista",
+    proxyAddress
   );
 }
 

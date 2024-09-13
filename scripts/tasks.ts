@@ -66,12 +66,12 @@ export async function upgradeProxy(
   console.log(`Upgrading ${contractName} with proxy at: ${proxyAddress}`);
 
   const contract = await hre.upgrades.upgradeProxy(proxyAddress, Contract);
-  await contract.deployed();
+  await contract.waitForDeployment();
 
   const contractImplAddress =
     await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
 
-  console.log(`Proxy ${contractName} deployed to:`, contract.address);
+  console.log(`Proxy ${contractName} deployed to:`, contract.target);
   console.log(`Impl ${contractName} deployed to:`, contractImplAddress);
 }
 
