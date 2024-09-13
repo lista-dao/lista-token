@@ -699,6 +699,17 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
+     * @dev set penalty receiver, only admin can call this function
+     */
+    function setPenaltyReceiver(address _penaltyReceiver) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_penaltyReceiver != address(0), "zero address provided");
+        require(_penaltyReceiver != penaltyReceiver, "already set");
+
+        penaltyReceiver = _penaltyReceiver;
+        emit PenaltyReceiverChanged(_penaltyReceiver);
+    }
+
+    /**
      * @dev get penalty of the account
      * @param _account account address
      * @return penalty of account

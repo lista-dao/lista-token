@@ -77,4 +77,5 @@ interface IVeLista {
     event DisableAutoLock(address indexed account);
     event EnableAutoLock(address indexed account);
     event PenaltyClaimed(address indexed account, uint256 amount);
+    event PenaltyReceiverChanged(address indexed newReceiver);
 }
