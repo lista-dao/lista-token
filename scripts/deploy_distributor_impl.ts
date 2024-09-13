@@ -2,7 +2,7 @@ import { deployDirect } from "./tasks";
 import hre from "hardhat";
 
 async function main() {
-  await deployDirect(hre, "VeListaDistributor");
+  await deployDirect(hre, "contracts/VeListaDistributor.sol:VeListaDistributor");
 }
 
 main()
