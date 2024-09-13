@@ -102,6 +102,10 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
      * @param weights weights
      */
     function adminVote(uint16[] calldata distributorIds, uint256[] calldata weights) public whenNotPaused onlyRole(ADMIN_VOTER) {
+        require(
+            block.timestamp >= veLista.startTime() + (veLista.getCurrentWeek() + 1) * WEEK - ADMIN_VOTE_PERIOD,
+            "non admin voting period"
+        );
         _vote(distributorIds, weights, false);
     }
 
@@ -150,7 +154,7 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
      * @param _adminVotePeriod admin vote period (in seconds)
      */
     function setAdminVotePeriod(uint256 _adminVotePeriod) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_adminVotePeriod > 0 && _adminVotePeriod < WEEK, "admin vote period should be greater than 0 and less than 1 week");
+        require(_adminVotePeriod >= 0 && _adminVotePeriod <= WEEK, "admin vote period should within 0 to 1 week");
         ADMIN_VOTE_PERIOD = _adminVotePeriod;
         emit AdminVotePeriodChanged(_adminVotePeriod);
     }
@@ -213,7 +217,7 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
             uint256 weight = weights[i];
             require(!disabledDistributors[distributorId], "distributor is disabled");
             require(weight >= 0, "weight should be equals to or greater than 0");
-            require(distributorId <= vault.distributorId(), "distributor does not exists");
+            require(distributorId > 0 && distributorId <= vault.distributorId(), "distributor does not exists");
 
             int256 idx = int256(userVotedDistributorIndex[msg.sender][votingWeek][distributorId]) - 1;
             bool voted = idx >= 0;

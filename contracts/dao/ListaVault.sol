@@ -117,6 +117,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @param _emissionVoting emission voting contract address
      */
     function setEmissionVoting(address _emissionVoting) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_emissionVoting != address(0) && _emissionVoting != address(emissionVoting), "emission voting is invalid");
         emissionVoting = IEmissionVoting(_emissionVoting);
         emit EmissionVotingSet(_emissionVoting);
     }
