@@ -64,8 +64,8 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
             address(clisBNBLPDistributor),
             proxyAdminOwner,
             abi.encodeWithSignature(
-                "initialize(address,address,address)",
-                admin, bot, address(lista)
+                "initialize(address)",
+                admin
             )
         );
 
@@ -73,7 +73,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
     }
 
     function test_setUp() public {
-        assertEq(address(lista), cliBNBLaunchPoolDistributor.token());
+        assertEq(0, cliBNBLaunchPoolDistributor.nextEpochId());
     }
 
     function test_verifyProof() public {
@@ -92,27 +92,46 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
         assertEq(0, before[0].startTime);
 
         vm.startPrank(admin);
-        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, block.timestamp, block.timestamp + 100, 1737e18);
+        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1737e18);
         vm.stopPrank();
 
         ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
         assertEq(root, actual[0].merkleRoot);
-        assertEq(block.timestamp, actual[0].startTime);
-        assertEq(block.timestamp + 100, actual[0].endTime);
+        assertEq(address(lista), actual[0].token);
+        assertEq(block.timestamp + 10, actual[0].startTime);
+        assertEq(block.timestamp + 1000, actual[0].endTime);
+        assertEq(1737e18, actual[0].totalAmount);
+    }
+
+    function test_setEpochMerkleRoot_bnb_ok() public {
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory before = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(0, before[0].startTime);
+
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, address(0), block.timestamp + 10, block.timestamp + 1000, 1737e18);
+        vm.stopPrank();
+
+        ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(root, actual[0].merkleRoot);
+        assertEq(address(0), actual[0].token);
+        assertEq(block.timestamp + 10, actual[0].startTime);
+        assertEq(block.timestamp + 1000, actual[0].endTime);
         assertEq(1737e18, actual[0].totalAmount);
     }
 
     function test_setEpochMerkleRoot_invalid_epochId() public {
         vm.startPrank(admin);
         vm.expectRevert("Invalid epochId");
-        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(1, root, block.timestamp, block.timestamp + 100, 1737e18);
+        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(1, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1737e18);
         vm.stopPrank();
     }
 
     function test_setEpochMerkleRoot_acl() public {
         vm.startPrank(bot);
         vm.expectRevert("AccessControl: account 0x00000000000000000000000000000000003a11aa is missing role 0x0000000000000000000000000000000000000000000000000000000000000000");
-        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, block.timestamp, block.timestamp + 100, 1737e18);
+        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1737e18);
         vm.stopPrank();
     }
 
@@ -137,34 +156,72 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
         test_setEpochMerkleRoot_ok();
 
         deal(address(lista), address(cliBNBLaunchPoolDistributor), 123e18);
-
         assertEq(0, lista.balanceOf(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2));
 
         bytes32[] memory proof = new bytes32[](2);
         proof[0] = leafs[1];
         proof[1] = l2[1];
 
+        skip(11);
         cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, proof);
 
         assertEq(0, lista.balanceOf(address(cliBNBLaunchPoolDistributor)));
         assertEq(123e18, lista.balanceOf(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2));
+
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory before = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(1737e18 - 123e18, before[0].unclaimedAmount);
+    }
+
+    function test_claim_bnb_ok() public {
+        test_setEpochMerkleRoot_bnb_ok();
+
+        deal(address(cliBNBLaunchPoolDistributor), 123e18);
+        deal(address(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2), 0);
+
+        bytes32[] memory proof = new bytes32[](2);
+        proof[0] = leafs[1];
+        proof[1] = l2[1];
+
+        skip(11);
+        cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, proof);
+
+        assertEq(0, address(cliBNBLaunchPoolDistributor).balance);
+        assertEq(123e18, address(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2).balance);
+
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory before = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(1737e18 - 123e18, before[0].unclaimedAmount);
     }
 
     function test_claim_invalid_amount() public {
         test_setEpochMerkleRoot_ok();
 
         deal(address(lista), address(cliBNBLaunchPoolDistributor), 123e18);
-
         assertEq(0, lista.balanceOf(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2));
 
         bytes32[] memory proof = new bytes32[](2);
         proof[0] = leafs[1];
         proof[1] = l2[1];
 
+        skip(11);
         vm.expectRevert(0x09bde339);
         cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 12e18, proof);
 
         assertEq(123e18, lista.balanceOf(address(cliBNBLaunchPoolDistributor)));
         assertEq(0, lista.balanceOf(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2));
+    }
+
+    function test_claim_duplicate() public {
+        test_claim_ok();
+
+        bytes32[] memory proof = new bytes32[](2);
+        proof[0] = leafs[1];
+        proof[1] = l2[1];
+
+        vm.expectRevert("User already claimed");
+        cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, proof);
     }
 }
