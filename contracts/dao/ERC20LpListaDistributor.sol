@@ -226,14 +226,12 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
         uint256 updated = stakePeriodFinish;
         if (updated > block.timestamp) updated = block.timestamp;
         uint256 duration = updated - stakeLastUpdate;
-        if (duration > 0 && supply > 0) {
-            uint256 rewardIntegral = stakeRewardIntegral + (duration * stakeRewardRate * 1e18) / supply;
-            uint256 integralFor = stakeRewardIntegralFor[account];
-            if (rewardIntegral > integralFor) {
-                return (balance * (rewardIntegral - integralFor)) / 1e18;
-            }
+        uint256 integral = stakeRewardIntegral;
+        if (supply > 0) {
+            integral += (duration * stakeRewardRate * 1e18) / supply;
         }
-        return 0;
+        uint256 integralFor = stakeRewardIntegralFor[account];
+        return stakeStoredPendingReward[account] + (balance * (integral - integralFor)) / 1e18;
     }
 
     /**
