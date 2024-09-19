@@ -144,6 +144,15 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
         return distributorWeeklyTotalWeight[distributorId][week];
     }
 
+    /**
+      * @dev Get user voted distributors of the week
+      * @param user user address
+      * @param week week number
+      */
+    function getUserVotedDistributors(address user, uint16 week) external view returns (Vote[] memory) {
+        return userVotedDistributors[user][week];
+    }
+
     // ------------------------------------- //
     //            Admin Functions            //
     // ------------------------------------- //
