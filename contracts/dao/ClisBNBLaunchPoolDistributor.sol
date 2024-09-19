@@ -196,4 +196,6 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
 
         return _epochs;
     }
+
+    receive() external payable {}
 }
