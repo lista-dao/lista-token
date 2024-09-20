@@ -16,11 +16,14 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         address poolAddress;
         address distributor;
         bool isActive;
+        uint256 lastHarvestTime;
     }
     // staking vault address
     address public vault;
     // lp token address -> pool info
     mapping(address => Pool) public pools;
+
+    uint256 public harvestTimeGap;
 
     event Harvest(address pool, address distributor, uint256 amount);
     event DepositLp(address pool, address distributor, uint256 amount);
@@ -61,13 +64,18 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @param amount lp token amount
       */
     function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) nonReentrant {
-        Pool memory poolInfo = pools[pool];
+        Pool storage poolInfo = pools[pool];
         IERC20(poolInfo.lpToken).safeTransferFrom(poolInfo.distributor, address(this), amount);
         IERC20(poolInfo.lpToken).safeApprove(poolInfo.poolAddress, amount);
 
         // deposit lp token and claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
-        IV2Wrapper(poolInfo.poolAddress).deposit(amount, false);
+        if (poolInfo.lastHarvestTime + harvestTimeGap > block.timestamp) {
+            IV2Wrapper(poolInfo.poolAddress).deposit(amount, true);
+        } else {
+            poolInfo.lastHarvestTime = block.timestamp;
+            IV2Wrapper(poolInfo.poolAddress).deposit(amount, false);
+        }
 
         uint256 claimed = IERC20(poolInfo.rewardToken).balanceOf(address(this)) - beforeBalance;
 
@@ -86,12 +94,16 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @param pool lp token address
       */
     function harvest(address pool) external nonReentrant returns (uint256) {
-        Pool memory poolInfo = pools[pool];
+        Pool storage poolInfo = pools[pool];
+        if (poolInfo.lastHarvestTime + harvestTimeGap > block.timestamp) {
+            return 0;
+        }
 
         // claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
         IV2Wrapper(poolInfo.poolAddress).deposit(0, false);
         uint256 claimed = IERC20(poolInfo.rewardToken).balanceOf(address(this)) - beforeBalance;
+        poolInfo.lastHarvestTime = block.timestamp;
 
         if (claimed > 0) {
             // send rewards to vault
@@ -110,10 +122,15 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @param amount lp token amount
       */
     function withdraw(address to, address pool, uint256 amount) external onlyDistributor(pool) nonReentrant {
-        Pool memory poolInfo = pools[pool];
+        Pool storage poolInfo = pools[pool];
         // withdraw lp token and claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
-        IV2Wrapper(poolInfo.poolAddress).withdraw(amount, false);
+        if (poolInfo.lastHarvestTime + harvestTimeGap > block.timestamp) {
+            IV2Wrapper(poolInfo.poolAddress).withdraw(amount, true);
+        } else {
+            poolInfo.lastHarvestTime = block.timestamp;
+            IV2Wrapper(poolInfo.poolAddress).withdraw(amount, false);
+        }
         uint256 claimed = IERC20(poolInfo.rewardToken).balanceOf(address(this)) - beforeBalance;
 
         if (claimed > 0) {
@@ -143,7 +160,8 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
             rewardToken: rewardToken,
             poolAddress: poolAddress,
             distributor: distributor,
-            isActive: true
+            isActive: true,
+            lastHarvestTime: 0
         });
     }
 
@@ -155,5 +173,13 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         require(pools[lpToken].isActive, "Pool is not active");
 
         pools[lpToken].isActive = false;
+    }
+
+    /**
+      * @dev set harvest time gap
+      * @param _harvestTimeGap harvest time gap
+      */
+    function setHarvestTimeGap(uint256 _harvestTimeGap) external onlyOwner {
+        harvestTimeGap = _harvestTimeGap;
     }
 }
