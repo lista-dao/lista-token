@@ -1,6 +1,7 @@
 pragma solidity ^0.8.10;
 import "forge-std/Test.sol";
 import "../contracts/VeListaRewardsCourier.sol";
+import "../contracts/VeLista.sol";
 
 // CMD
 // forge test -vvv --match-contract VeListaRewardsCourierTest --via-ir
@@ -17,6 +18,7 @@ contract VeListaRewardsCourierTest is Test {
   address multiSig = address(0x8d388136d578dCD791D081c6042284CED6d9B0c6);
   address bot = makeAddr("bot");
   address veListaDistributor = address(0x45aAc046Bc656991c52cf25E783c6942425ce40C);
+  VeLista veLista = VeLista(0xd0C380D31DB43CD291E2bbE2Da2fD6dc877b87b3);
   IERC20 lista = IERC20(address(0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46));
   IERC20 slisBNB = IERC20(address(0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B));
   IERC20 lisUSD = IERC20(address(0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5));
@@ -66,7 +68,7 @@ contract VeListaRewardsCourierTest is Test {
 
   function test_rechargeRewards() public {
     // mock timestamp ahead one week
-    vm.warp(1723939200 + week * 604800);
+    vm.warp(veLista.startTime() + week * 1 weeks);
     // @dev Simulate the recharge
     vm.prank(multiSig);
     veListaRewardsCourier.rechargeRewards(week, tokens);
@@ -88,7 +90,7 @@ contract VeListaRewardsCourierTest is Test {
 
   function test_deliverRewards() public {
     // mock timestamp ahead one week
-    vm.warp(1723939200 + week * 604800);
+    vm.warp(veLista.startTime() + (week + 1) * 1 weeks);
 
     // recharge rewards first
     vm.prank(multiSig);
@@ -127,7 +129,7 @@ contract VeListaRewardsCourierTest is Test {
 
   function test_revoke_rewards() public {
     // mock timestamp ahead one week
-    vm.warp(1723939200 + week * 604800);
+    vm.warp(veLista.startTime() + week * 1 weeks);
     vm.startPrank(multiSig);
     // @dev token recharged to VeListaRewardsCourier
     veListaRewardsCourier.rechargeRewards(week, tokens);
