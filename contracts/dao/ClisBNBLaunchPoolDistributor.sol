@@ -166,7 +166,7 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
         totalUnclaimedAmount[token] -= epochUnclaimedAmount;
         epoch.unclaimedAmount = 0;
 
-        IERC20(token).safeTransfer(msg.sender, epochUnclaimedAmount);
+        _transferTo(msg.sender, token, epochUnclaimedAmount);
         emit CollectUnclaimed(_epochId, token, epoch.totalAmount, epochUnclaimedAmount);
     }
 
