@@ -43,6 +43,7 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         require(_owner != address(0), "owner cannot be zero address");
         require(_vault != address(0), "vault cannot be zero address");
         __Ownable_init();
+        __ReentrancyGuard_init();
         transferOwnership(_owner);
 
         vault = _vault;
@@ -147,16 +148,15 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /**
       * @dev register staking pool
       * @param lpToken lp token address
-      * @param rewardToken reward token address
       * @param poolAddress staking pool address
       * @param distributor distributor address
       */
-    function registerPool(address lpToken, address rewardToken, address poolAddress, address distributor) external onlyOwner {
+    function registerPool(address lpToken, address poolAddress, address distributor) external onlyOwner {
         require(!pools[lpToken].isActive, "Pool is active");
 
         pools[lpToken] = Pool({
             lpToken: lpToken,
-            rewardToken: rewardToken,
+            rewardToken: IStakingVault(vault).rewardToken(),
             poolAddress: poolAddress,
             distributor: distributor,
             isActive: true,

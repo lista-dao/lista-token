@@ -13,8 +13,6 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
-    // stake token address
-    address public stakeRewardToken;
     // staking address
     address public staking;
     // stake vault address
@@ -184,15 +182,6 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
 
         emit StakeRewardClaimed(_account, amount);
         return amount;
-    }
-
-    /**
-     * @dev set stake reward token address
-     * @param _stakeRewardToken token address
-     */
-    function setStakeRewardToken(address _stakeRewardToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_stakeRewardToken != address(0), "stake reward token is zero address");
-        stakeRewardToken = _stakeRewardToken;
     }
 
     /**
