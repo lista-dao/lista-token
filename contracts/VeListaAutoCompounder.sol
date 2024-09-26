@@ -163,6 +163,9 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
         );
         uint256 amtToCompound = getAmountToCompound(claimedAmount);
 
+        // Approve veLista to spend the amount to compound
+        lista.approve(address(veLista), amtToCompound);
+
         IVeLista(veLista).increaseAmountFor(account, amtToCompound);
 
         totalFee += claimedAmount - amtToCompound;
