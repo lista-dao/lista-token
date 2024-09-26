@@ -98,6 +98,35 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
+     * @dev set weekly distributor percent
+     * @param week week number
+     * @param ids distributor ids
+     * @param percent distributor percent
+     */
+    function setWeeklyDistributorPercent(uint16 week, uint16[] memory ids, uint256[] memory percent) onlyRole(MANAGER) external {
+        require(week > veLista.getCurrentWeek(), "week must be greater than current week");
+        require(ids.length > 0 && ids.length == percent.length, "ids and percent length mismatch");
+        uint256 totalPercent;
+
+        if (weeklyDistributorPercent[week][0] == 1) {
+            // this week has set, reset last distributor percent
+            for (uint16 i = 1; i <= distributorId; ++i) {
+                weeklyDistributorPercent[week][i] = 0;
+            }
+        }
+        for (uint16 i = 0; i < ids.length; ++i) {
+            require(idToDistributor[ids[i]] != address(0), "distributor not registered");
+            require(weeklyDistributorPercent[week][ids[i]] == 0, "distributor percent already set");
+            weeklyDistributorPercent[week][ids[i]] = percent[i];
+            totalPercent += percent[i];
+        }
+
+        // mark this week set flag
+        weeklyDistributorPercent[week][0] = 1;
+        require(totalPercent <= 1e18, "Total percent must be less than or equal to 1e18");
+    }
+
+    /**
      * @dev register distributor which can claim rewards
      * @param distributor distributor address
      * @return distributor id
@@ -200,13 +229,12 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @return emissions
      */
     function getDistributorWeeklyEmissions(uint16 id, uint16 week) public view returns (uint256) {
-        // for transition period
-        if (emissionVoting == IEmissionVoting(address(0))) {
+        // emission voting contract not set OR override voting result
+        if (emissionVoting == IEmissionVoting(address(0)) || weeklyDistributorPercent[week][0] == 1) {
             uint256 pct = weeklyDistributorPercent[week][id];
             return Math.mulDiv(weeklyEmissions[week], pct, 1e18);
         }
-
-        // emission voting set
+        // no one votes
         if (emissionVoting.getWeeklyTotalWeight(week) == 0) {
             return 0;
         }
