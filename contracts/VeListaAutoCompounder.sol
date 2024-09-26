@@ -77,6 +77,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     );
     event FeeWithdrawn(address indexed _receiver, uint256 _fee);
     event FeeReceiverUpdated(address indexed _newReceiver);
+    event DefaultStatusToggled(bool _defaultStatus);
 
     function initialize(
         address _lista,
@@ -208,6 +209,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
      */
     function toggleDefaultStatus() external onlyRole(DEFAULT_ADMIN_ROLE) {
         enableByDefault = !enableByDefault;
+        emit DefaultStatusToggled(enableByDefault);
     }
 
     /**
