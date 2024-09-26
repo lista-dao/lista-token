@@ -69,7 +69,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
             )
         );
 
-        cliBNBLaunchPoolDistributor = ClisBNBLaunchPoolDistributor(address(clisBNBLPDistributorProxy));
+        cliBNBLaunchPoolDistributor = ClisBNBLaunchPoolDistributor(payable(address(clisBNBLPDistributorProxy)));
     }
 
     function test_setUp() public {
