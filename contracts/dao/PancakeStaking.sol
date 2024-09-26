@@ -28,6 +28,8 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     event Harvest(address pool, address distributor, uint256 amount);
     event DepositLp(address pool, address distributor, uint256 amount);
     event WithdrawLp(address pool, address distributor, address account, uint256 amount);
+    event RegisterPool(address lpToken, address pool, address distributor);
+    event UnRegisterPool(address lpToken);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -163,6 +165,8 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
             isActive: true,
             lastHarvestTime: 0
         });
+
+        emit RegisterPool(lpToken, poolAddress, distributor);
     }
 
     /**
@@ -173,6 +177,8 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         require(pools[lpToken].isActive, "Pool is not active");
 
         pools[lpToken].isActive = false;
+
+        emit UnRegisterPool(lpToken);
     }
 
     /**

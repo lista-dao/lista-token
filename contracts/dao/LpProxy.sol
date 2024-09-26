@@ -2,7 +2,6 @@ pragma solidity ^0.8.10;
 
 import "./interfaces/IStaking.sol";
 import "./interfaces/IStakingVault.sol";
-import "./interfaces/IV2Wrapper.sol";
 import "./interfaces/IStakingVault.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
