@@ -113,10 +113,6 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
 
         feeRate = 300; // 3%
         maxFeeRate = 1000; // 10%
-        require(
-            feeRate <= maxFeeRate && maxFeeRate <= 10000,
-            "Invalid fee rate"
-        );
 
         autoCompoundThreshold = 5 * 1e18; // $5
         maxFee = 1000000 * 1e18; // $1M
