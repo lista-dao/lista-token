@@ -13,8 +13,6 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
-    // stake token address
-    address public stakeRewardToken;
     // staking address
     address public staking;
     // stake vault address
@@ -187,15 +185,6 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
     }
 
     /**
-     * @dev set stake reward token address
-     * @param _stakeRewardToken token address
-     */
-    function setStakeRewardToken(address _stakeRewardToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_stakeRewardToken != address(0), "stake reward token is zero address");
-        stakeRewardToken = _stakeRewardToken;
-    }
-
-    /**
      * @dev set staking contract address
      * @param _staking staking contract address
      */
@@ -226,14 +215,12 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
         uint256 updated = stakePeriodFinish;
         if (updated > block.timestamp) updated = block.timestamp;
         uint256 duration = updated - stakeLastUpdate;
-        if (duration > 0 && supply > 0) {
-            uint256 rewardIntegral = stakeRewardIntegral + (duration * stakeRewardRate * 1e18) / supply;
-            uint256 integralFor = stakeRewardIntegralFor[account];
-            if (rewardIntegral > integralFor) {
-                return (balance * (rewardIntegral - integralFor)) / 1e18;
-            }
+        uint256 integral = stakeRewardIntegral;
+        if (supply > 0) {
+            integral += (duration * stakeRewardRate * 1e18) / supply;
         }
-        return 0;
+        uint256 integralFor = stakeRewardIntegralFor[account];
+        return stakeStoredPendingReward[account] + (balance * (integral - integralFor)) / 1e18;
     }
 
     /**

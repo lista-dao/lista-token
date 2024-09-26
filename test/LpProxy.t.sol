@@ -99,14 +99,12 @@ contract LpProxyTest is Test {
         vm.stopPrank();
 
         vm.startPrank(owner);
-        // set stake reward token
-        lisUSDUSDTPancakeStablePoolDistributor.setStakeRewardToken(address(rewardToken));
         // set staking address
         lisUSDUSDTPancakeStablePoolDistributor.setStaking(address(pancakeStaking));
         // set vault
         lisUSDUSDTPancakeStablePoolDistributor.grantRole(lisUSDUSDTPancakeStablePoolDistributor.STAKING_VAULT(), address(stakingVault));
         // register pool
-        pancakeStaking.registerPool(address(lpToken), address(rewardToken), poolAddress, address(lisUSDUSDTPancakeStablePoolDistributor));
+        pancakeStaking.registerPool(address(lpToken), poolAddress, address(lisUSDUSDTPancakeStablePoolDistributor));
         // set listaVault
         lpProxy.setListaVault(address(listaVault));
         // set cakeVault

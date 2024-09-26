@@ -114,6 +114,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
 
         weeklyEmissions[week] += amount;
         token.safeTransferFrom(msg.sender, address(this), amount);
+
+        emit Deposit(msg.sender, amount);
     }
 
     /**

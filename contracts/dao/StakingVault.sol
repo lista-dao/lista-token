@@ -56,6 +56,8 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
         require(_rewardToken != address(0), "rewardToken cannot be zero address");
         require(_feeReceiver != address(0), "feeReceiver cannot be zero address");
         __Ownable_init();
+        __ReentrancyGuard_init();
+        __Pausable_init();
         transferOwnership(_owner);
 
         rewardToken = _rewardToken;

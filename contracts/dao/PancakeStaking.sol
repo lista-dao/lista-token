@@ -16,15 +16,20 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         address poolAddress;
         address distributor;
         bool isActive;
+        uint256 lastHarvestTime;
     }
     // staking vault address
     address public vault;
     // lp token address -> pool info
     mapping(address => Pool) public pools;
 
+    uint256 public harvestTimeGap;
+
     event Harvest(address pool, address distributor, uint256 amount);
     event DepositLp(address pool, address distributor, uint256 amount);
     event WithdrawLp(address pool, address distributor, address account, uint256 amount);
+    event RegisterPool(address lpToken, address pool, address distributor);
+    event UnRegisterPool(address lpToken);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -40,6 +45,7 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         require(_owner != address(0), "owner cannot be zero address");
         require(_vault != address(0), "vault cannot be zero address");
         __Ownable_init();
+        __ReentrancyGuard_init();
         transferOwnership(_owner);
 
         vault = _vault;
@@ -61,13 +67,18 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @param amount lp token amount
       */
     function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) nonReentrant {
-        Pool memory poolInfo = pools[pool];
+        Pool storage poolInfo = pools[pool];
         IERC20(poolInfo.lpToken).safeTransferFrom(poolInfo.distributor, address(this), amount);
         IERC20(poolInfo.lpToken).safeApprove(poolInfo.poolAddress, amount);
 
         // deposit lp token and claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
-        IV2Wrapper(poolInfo.poolAddress).deposit(amount, false);
+        if (poolInfo.lastHarvestTime + harvestTimeGap > block.timestamp) {
+            IV2Wrapper(poolInfo.poolAddress).deposit(amount, true);
+        } else {
+            poolInfo.lastHarvestTime = block.timestamp;
+            IV2Wrapper(poolInfo.poolAddress).deposit(amount, false);
+        }
 
         uint256 claimed = IERC20(poolInfo.rewardToken).balanceOf(address(this)) - beforeBalance;
 
@@ -86,12 +97,16 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @param pool lp token address
       */
     function harvest(address pool) external nonReentrant returns (uint256) {
-        Pool memory poolInfo = pools[pool];
+        Pool storage poolInfo = pools[pool];
+        if (poolInfo.lastHarvestTime + harvestTimeGap > block.timestamp) {
+            return 0;
+        }
 
         // claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
         IV2Wrapper(poolInfo.poolAddress).deposit(0, false);
         uint256 claimed = IERC20(poolInfo.rewardToken).balanceOf(address(this)) - beforeBalance;
+        poolInfo.lastHarvestTime = block.timestamp;
 
         if (claimed > 0) {
             // send rewards to vault
@@ -110,10 +125,15 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @param amount lp token amount
       */
     function withdraw(address to, address pool, uint256 amount) external onlyDistributor(pool) nonReentrant {
-        Pool memory poolInfo = pools[pool];
+        Pool storage poolInfo = pools[pool];
         // withdraw lp token and claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
-        IV2Wrapper(poolInfo.poolAddress).withdraw(amount, false);
+        if (poolInfo.lastHarvestTime + harvestTimeGap > block.timestamp) {
+            IV2Wrapper(poolInfo.poolAddress).withdraw(amount, true);
+        } else {
+            poolInfo.lastHarvestTime = block.timestamp;
+            IV2Wrapper(poolInfo.poolAddress).withdraw(amount, false);
+        }
         uint256 claimed = IERC20(poolInfo.rewardToken).balanceOf(address(this)) - beforeBalance;
 
         if (claimed > 0) {
@@ -131,20 +151,22 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /**
       * @dev register staking pool
       * @param lpToken lp token address
-      * @param rewardToken reward token address
       * @param poolAddress staking pool address
       * @param distributor distributor address
       */
-    function registerPool(address lpToken, address rewardToken, address poolAddress, address distributor) external onlyOwner {
+    function registerPool(address lpToken, address poolAddress, address distributor) external onlyOwner {
         require(!pools[lpToken].isActive, "Pool is active");
 
         pools[lpToken] = Pool({
             lpToken: lpToken,
-            rewardToken: rewardToken,
+            rewardToken: IStakingVault(vault).rewardToken(),
             poolAddress: poolAddress,
             distributor: distributor,
-            isActive: true
+            isActive: true,
+            lastHarvestTime: 0
         });
+
+        emit RegisterPool(lpToken, poolAddress, distributor);
     }
 
     /**
@@ -155,5 +177,15 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         require(pools[lpToken].isActive, "Pool is not active");
 
         pools[lpToken].isActive = false;
+
+        emit UnRegisterPool(lpToken);
+    }
+
+    /**
+      * @dev set harvest time gap
+      * @param _harvestTimeGap harvest time gap
+      */
+    function setHarvestTimeGap(uint256 _harvestTimeGap) external onlyOwner {
+        harvestTimeGap = _harvestTimeGap;
     }
 }
