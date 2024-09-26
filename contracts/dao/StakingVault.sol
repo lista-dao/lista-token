@@ -116,6 +116,15 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
     }
 
     /**
+      * @dev set fee receiver
+      * @param _feeReceiver fee receiver address
+      */
+    function setFeeReceiver(address _feeReceiver) external onlyOwner {
+        require(_feeReceiver != address(0), "feeReceiver cannot be zero address");
+        feeReceiver = _feeReceiver;
+    }
+
+    /**
       * @dev batch claim rewards
       * @param _distributors distributor addresses
       */
