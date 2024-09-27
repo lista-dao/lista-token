@@ -86,7 +86,7 @@ contract ThenaStakingDistributorTest is Test {
         // set staking address
         slisBNBBNBThenaCorrelatedDistributor.setStaking(address(thenaStaking));
         // set vault
-        slisBNBBNBThenaCorrelatedDistributor.grantRole(slisBNBBNBThenaCorrelatedDistributor.STAKING_VAULT(), address(stakingVault));
+        slisBNBBNBThenaCorrelatedDistributor.setStakeVault(address(stakingVault));
         // register pool
         thenaStaking.registerPool(address(lpToken), poolAddress, address(slisBNBBNBThenaCorrelatedDistributor));
         vm.stopPrank();

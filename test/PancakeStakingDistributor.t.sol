@@ -86,7 +86,7 @@ contract PancakeStakingDistributorTest is Test {
         // set staking address
         lisUSDUSDTPancakeStablePoolDistributor.setStaking(address(pancakeStaking));
         // set vault
-        lisUSDUSDTPancakeStablePoolDistributor.grantRole(lisUSDUSDTPancakeStablePoolDistributor.STAKING_VAULT(), address(stakingVault));
+        lisUSDUSDTPancakeStablePoolDistributor.setStakeVault(address(stakingVault));
         // register pool
         pancakeStaking.registerPool(address(lpToken), poolAddress, address(lisUSDUSDTPancakeStablePoolDistributor));
         vm.stopPrank();
