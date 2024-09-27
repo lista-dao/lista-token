@@ -36,8 +36,6 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
     // stake token pending reward for each account
     // account -> pending reward
     mapping(address => uint256) private stakeStoredPendingReward;
-    // staking vault role
-    bytes32 public constant STAKING_VAULT = keccak256("STAKING_VAULT");
 
     event StakeRewardClaimed(address indexed receiver, uint256 amount);
 
@@ -72,6 +70,11 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
         vault = IVault(_vault);
         name = string.concat("Lista-", IERC20Metadata(_lpToken).name());
         symbol = string.concat("Lista LP ", IERC20Metadata(_lpToken).symbol(), " Distributor");
+    }
+
+    modifier onlyStakeVault() {
+        require(msg.sender == stakeVault, "only stake vault can call this function");
+        _;
     }
 
     /**
@@ -152,7 +155,7 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
      * @dev notify staking reward, only staking vault can call this function
      * @param amount reward amount
      */
-    function notifyStakingReward(uint256 amount) external onlyRole(STAKING_VAULT) {
+    function notifyStakingReward(uint256 amount) external onlyStakeVault {
         _updateStakeReward(address(0), 0, lpTotalSupply);
         uint256 _periodFinish = stakePeriodFinish;
         if (block.timestamp < _periodFinish) {
@@ -171,7 +174,7 @@ contract ERC20LpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgra
       * @param _account account address
       * @return reward amount
       */
-    function vaultClaimStakingReward(address _account) onlyRole(STAKING_VAULT) external returns (uint256) {
+    function vaultClaimStakingReward(address _account) onlyStakeVault external returns (uint256) {
         return _claimStakingReward(_account);
     }
 

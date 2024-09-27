@@ -47,12 +47,16 @@ export async function deployProxy(
   console.log(`Proxy ${contractName} deployed to:`, proxyAddress);
   console.log(`Impl ${contractName} deployed to:`, contractImplAddress);
 
-  await hre.run("verify:verify", {
-    address: proxyAddress,
-  });
-  await hre.run("verify:verify", {
-    address: contractImplAddress,
-  });
+  try {
+    await hre.run("verify:verify", {
+      address: proxyAddress,
+    });
+    await hre.run("verify:verify", {
+      address: contractImplAddress,
+    });
+  } catch (e) {
+    console.log("Error verifying contract:", e);
+  }
   return proxyAddress;
 }
 
