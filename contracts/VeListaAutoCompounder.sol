@@ -77,6 +77,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     );
     event FeeWithdrawn(address indexed _receiver, uint256 _fee);
     event FeeReceiverUpdated(address indexed _newReceiver);
+    event DefaultStatusToggled(bool _defaultStatus);
 
     function initialize(
         address _lista,
@@ -113,10 +114,6 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
 
         feeRate = 300; // 3%
         maxFeeRate = 1000; // 10%
-        require(
-            feeRate <= maxFeeRate && maxFeeRate <= 10000,
-            "Invalid fee rate"
-        );
 
         autoCompoundThreshold = 5 * 1e18; // $5
         maxFee = 1000000 * 1e18; // $1M
@@ -162,6 +159,9 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
             toWeek
         );
         uint256 amtToCompound = getAmountToCompound(claimedAmount);
+
+        // Approve veLista to spend the amount to compound
+        lista.approve(address(veLista), amtToCompound);
 
         IVeLista(veLista).increaseAmountFor(account, amtToCompound);
 
@@ -209,6 +209,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
      */
     function toggleDefaultStatus() external onlyRole(DEFAULT_ADMIN_ROLE) {
         enableByDefault = !enableByDefault;
+        emit DefaultStatusToggled(enableByDefault);
     }
 
     /**
