@@ -24,9 +24,9 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     event Withdraw(address indexed account, uint256 amount);
     event NewDistributorRegistered(address distributor, uint256 id);
     event EmergencyWithdraw(address token, uint256 amount);
-    event EmissionVotingSet(address emissionVoting);
     event Paused(address account);
     event Unpaused(address account);
+    event EmissionVotingSet(address emissionVoting);
 
     // lista token address
     IERC20 public token;
@@ -49,10 +49,10 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     IVeLista public veLista;
     // max distributor id
     uint16 public distributorId;
-    // emission voting address
-    IEmissionVoting public emissionVoting;
     // lp proxy address
     address public lpProxy;
+    // emission voting address
+    IEmissionVoting public emissionVoting;
 
     // manager role
     bytes32 public constant MANAGER = keccak256("MANAGER");
