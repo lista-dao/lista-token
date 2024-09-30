@@ -26,9 +26,12 @@ async function main() {
   const address = await deployProxy(
     hre,
     contractName,
+    listaToken,
     admin,
     bot,
-    veListaDistributor
+    distributor,
+    veLista,
+    veListaDistributor,
   );
   console.log(`veListaRewardsCourierV2 deployed to: ${address}`);
   // verify contract

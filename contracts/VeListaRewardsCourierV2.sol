@@ -89,10 +89,8 @@ contract VeListaRewardsCourierV2 is Initializable, AccessControlUpgradeable {
         //      Finally, week N's rewards will be delivered and distributed at week N+1
         uint16 rewardWeek = veLista.getCurrentWeek();
         uint256 rewardWeekTimestamp = veLista.startTime() + uint256(rewardWeek) * WEEK;
-        uint256 now = block.timestamp;
-
-        // actual rewards belongs to rewardWeek - 1
-        if (now > rewardWeekTimestamp + 5 * DAY) {
+        // actual rewards belongs to rewardWeek + 1
+        if (block.timestamp >= rewardWeekTimestamp + 5 * DAY) {
             rewardWeek += 1;
         }
         require(!rewardsDeliveredForWeek[rewardWeek], "Rewards already delivered for the week");
