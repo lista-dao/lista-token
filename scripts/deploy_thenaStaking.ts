@@ -7,20 +7,21 @@ async function main() {
   const deployer = signers[0].address;
 
   // todo
-  const thenaVault = "";
+  // const thenaVault = "";
 
-  const address = await deployProxy(hre, "ThenaStaking", deployer, thenaVault);
+  // const address = await deployProxy(hre, "ThenaStaking", deployer, thenaVault);
 
+  const address = "0xFA5B482882F9e025facCcE558c2F72c6c50AC719";
   const thenaStakingContract = await hre.ethers.getContractAt(
     "ThenaStaking",
     address
   );
-  const thenaVaultContract = await hre.ethers.getContractAt(
-    "StakingVault",
-    thenaVault
-  );
+  // const thenaVaultContract = await hre.ethers.getContractAt(
+  //   "StakingVault",
+  //   thenaVault
+  // );
 
-  await thenaVaultContract.setStaking(address);
+  // await thenaVaultContract.setStaking(address);
 
   await Promise.delay(3000);
 
