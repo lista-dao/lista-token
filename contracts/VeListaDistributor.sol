@@ -38,6 +38,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
     mapping(address => mapping(address => uint16)) public accountClaimedWeek;
     IVeLista public veLista; // veLista contract
     bytes32 public constant MANAGER = keccak256("MANAGER"); // manager role
+    bytes32 public constant COMPOUNDER = keccak256("COMPOUNDER"); // compounder role
     uint16 public lastDepositWeek; // last deposit week
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -211,6 +212,19 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
             _claimWithToken(_account, tokens[i], toWeek);
         }
     }
+
+    /**
+      * @dev Claim rewards on behalf of an account; only Compounder can call this function;
+      *      rewards will be transferred to Compounder for auto-compounding
+      * @param _account address for receiving rewards
+      * @param _lista addresses of the lista token
+      * @param _toWeek the week no. counting from the user's latest claimable week no.
+      */
+    function claimForCompound(address _account, address _lista, uint16 _toWeek) onlyRole(COMPOUNDER) external returns (uint256 _claimedAmount) {
+        address compounder = msg.sender;
+        _claimedAmount = _claimTo(_account, _lista, _toWeek, compounder);
+    }
+
     /**
       * @dev Claim rewards for a specific token on behalf of an account
       * @param token address of the claim
@@ -220,7 +234,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
         _claimWithToken(msg.sender, token, toWeek);
     }
 
-    function _claimWithToken(address _account, address token, uint16 toWeek) private {
+    function _claimTo(address _account, address token, uint16 toWeek, address _dest) private returns (uint256 _claimedAmount) {
         uint16 currentWeek = veLista.getCurrentWeek();
         require(toWeek < currentWeek, "toWeek must be less than the current week");
 
@@ -233,14 +247,18 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
         }
         require(accountWeek < currentWeek, "no claimable rewards");
 
-
         (uint256 rewardAmount, uint16 lastClaimableWeek) = getTokenClaimable(_account, token, toWeek);
+        _claimedAmount = rewardAmount;
 
         accountClaimedWeek[_account][token] = lastClaimableWeek;
-        if (rewardAmount > 0) {
-            IERC20(token).safeTransfer(_account, rewardAmount);
-            emit Claimed(_account, token, rewardAmount);
+        if (_claimedAmount > 0) {
+            IERC20(token).safeTransfer(_dest, _claimedAmount);
+            emit Claimed(_dest, token, _claimedAmount);
         }
+    }
+
+    function _claimWithToken(address _account, address token, uint16 toWeek) private {
+        _claimTo(_account, token, toWeek, _account);
     }
 
     /**

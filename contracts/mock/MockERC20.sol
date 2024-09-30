@@ -8,16 +8,29 @@ import "@openzeppelin/contracts/access/Ownable.sol";
     @title Mock ERC20 Token
  */
 contract MockERC20 is ERC20, Ownable {
+    address public minter;
+
     constructor(address owner, string memory _name, string memory _symbol) ERC20(_name, _symbol) {
         require(owner != address(0), "owner is the zero address");
         _transferOwnership(owner);
     }
 
-    function mint(address to, uint256 amount) external onlyOwner {
-        _mint(to, amount);
+    modifier onlyMinter() {
+        require(msg.sender == minter, "only minter");
+        _;
     }
 
-    function burn(address from, uint256 amount) external onlyOwner {
+    function mint(address to, uint256 amount) external onlyMinter returns (bool) {
+        _mint(to, amount);
+        return true;
+    }
+
+    function burn(address from, uint256 amount) external onlyMinter {
         _burn(from, amount);
     }
+
+    function setMinter(address _minter) external onlyOwner {
+        minter = _minter;
+    }
+
 }

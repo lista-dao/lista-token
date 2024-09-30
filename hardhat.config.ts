@@ -58,6 +58,10 @@ const config: HardhatUserConfig = {
       url: process.env.OPBNB_TESTNET_RPC || "",
       accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
     },
+    bscLocal: {
+      url: "http://127.0.0.1:8545",
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
+    },
   },
   etherscan: {
     // Your API key for Etherscan

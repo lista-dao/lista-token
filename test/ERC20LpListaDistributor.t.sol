@@ -192,8 +192,8 @@ contract ERC20LpListaDistributorTest is Test {
         skip(1 weeks);
         erc20Distributor.fetchRewards();
 
-        IDistributor[] memory distributors = new IDistributor[](1);
-        distributors[0] = IDistributor(address(erc20Distributor));
+        address[] memory distributors = new address[](1);
+        distributors[0] = address(erc20Distributor);
 
 
         vm.stopPrank();

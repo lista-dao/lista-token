@@ -19,6 +19,10 @@ export async function deployDirect(
   const address = await contract.getAddress();
 
   console.log(`${contractName} deployed to:`, address);
+  await hre.run("verify:verify", {
+    address: address,
+    constructorArguments: args,
+  });
 }
 
 export async function deployProxy(
@@ -42,6 +46,17 @@ export async function deployProxy(
 
   console.log(`Proxy ${contractName} deployed to:`, proxyAddress);
   console.log(`Impl ${contractName} deployed to:`, contractImplAddress);
+
+  try {
+    await hre.run("verify:verify", {
+      address: proxyAddress,
+    });
+    await hre.run("verify:verify", {
+      address: contractImplAddress,
+    });
+  } catch (e) {
+    console.log("Error verifying contract:", e);
+  }
   return proxyAddress;
 }
 
@@ -55,12 +70,12 @@ export async function upgradeProxy(
   console.log(`Upgrading ${contractName} with proxy at: ${proxyAddress}`);
 
   const contract = await hre.upgrades.upgradeProxy(proxyAddress, Contract);
-  await contract.deployed();
+  await contract.waitForDeployment();
 
   const contractImplAddress =
     await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
 
-  console.log(`Proxy ${contractName} deployed to:`, contract.address);
+  console.log(`Proxy ${contractName} deployed to:`, contract.target);
   console.log(`Impl ${contractName} deployed to:`, contractImplAddress);
 }
 
