@@ -2,7 +2,10 @@ import { deployDirect } from "./tasks";
 import hre from "hardhat";
 
 async function main() {
-  await deployDirect(hre, "contracts/VeListaDistributor.sol:VeListaDistributor");
+  const signers = await hre.ethers.getSigners();
+  const deployer = signers[0].address;
+
+  await deployDirect(hre, "MockERC20", deployer, "USDT", "USDT");
 }
 
 main()

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 interface IVeLista {
 
     struct LockedData {
@@ -37,8 +35,6 @@ interface IVeLista {
 
     function increaseAmount(uint256 _amount) external;
 
-    function increaseAmountFor(address _account, uint256 _amount) external;
-
     function extendWeek(uint16 _week) external;
 
     function balanceOf(address account) external view returns (uint256);
@@ -67,8 +63,6 @@ interface IVeLista {
 
     function getPenalty(address _account) external view returns (uint256);
 
-    function token() external view returns (IERC20);
-
     event LockCreated(address indexed account, uint256 amount, uint16 week, bool autoLock);
     event LockAmountIncreased(address indexed account, uint256 amount);
     event LockWeekExtended(address indexed account, uint16 week);
@@ -77,5 +71,4 @@ interface IVeLista {
     event DisableAutoLock(address indexed account);
     event EnableAutoLock(address indexed account);
     event PenaltyClaimed(address indexed account, uint256 amount);
-    event PenaltyReceiverChanged(address indexed newReceiver);
 }

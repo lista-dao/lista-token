@@ -1,8 +1,8 @@
-import { deployDirect } from "./tasks";
+import { deployDirect } from "../tasks";
 import hre from "hardhat";
 
 async function main() {
-  await deployDirect(hre, "contracts/VeListaDistributor.sol:VeListaDistributor");
+  await deployDirect(hre, "ListaAutoBuyback");
 }
 
 main()
