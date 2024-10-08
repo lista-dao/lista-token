@@ -88,6 +88,19 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
     }
 
     /**
+     * @dev take snapshot of user's activity, to make router compatible with existing borrowLisUSDListaDistributor
+     * only the Interaction contract(Manager Role) can call this function
+     * @param _collateralToken token address
+     * @param _user user address
+     * @param _art user's borrow amount
+     */
+    function takeSnapshot(
+        address _collateralToken, address _user, uint256 _art
+    ) onlyRole(MANAGER) external {
+        borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
+    }
+
+    /**
      * @dev set new collateral distributor
      */
     function setCollateralDistributor(address _collateralToken, address _collateralDistributor) onlyRole(DEFAULT_ADMIN_ROLE) external {

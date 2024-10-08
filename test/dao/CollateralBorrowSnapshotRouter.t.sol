@@ -167,4 +167,17 @@ contract CollateralBorrowSnapshotRouterTest is Test {
         assertEq(123e18, slisBNBCollateralDistributor.userInk(user));
         assertEq(456e18, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
     }
+
+    function test_takeSnapshot_collateral_borrow_compatible() public {
+        assertEq(0, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
+
+        vm.expectEmit(address(borrowLisUSDListaDistributor));
+        emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 456e18);
+
+        vm.startPrank(manager);
+        collateralBorrowSnapshotRouter.takeSnapshot(address(slisBNB), user, 456e18);
+        vm.stopPrank();
+
+        assertEq(456e18, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
+    }
 }
