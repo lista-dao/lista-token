@@ -1,13 +1,13 @@
 import { deployProxy } from "./tasks";
 import hre from "hardhat";
 
-const lista = "0x90b94D605E069569Adf33C0e73E26a83637c94B1";
-const velista = "0x79B3286c318bdf7511A59dcf9a2E88882064eCbA";
-const veListaDistributor = "0x040037d4c8cb2784d47a75Aa20e751CDB1E8971A";
-const oracle = "0x79e9675cDe605Ef9965AbCE185C5FD08d0DE16B1";
-const feeReceiver = "0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06";
-const admin = "0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06";
-const bot = "0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232";
+const lista = "0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46";
+const velista = "0xd0C380D31DB43CD291E2bbE2Da2fD6dc877b87b3";
+const veListaDistributor = "0x45aAc046Bc656991c52cf25E783c6942425ce40C";
+const oracle = "0xf3afD82A4071f272F403dC176916141f44E6c750";
+const feeReceiver = "0x34B504A5CF0fF41F8A480580533b6Dda687fa3Da";
+const admin = "0x8d388136d578dCD791D081c6042284CED6d9B0c6";
+const bot = "0x6dD696c8DBa8764D0e5fD914A470FD5e780D0D12";
 
 async function main() {
   await deployProxy(
