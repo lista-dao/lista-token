@@ -225,7 +225,6 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
             uint16 distributorId = distributorIds[i];
             uint256 weight = weights[i];
             require(!disabledDistributors[distributorId], "distributor is disabled");
-            require(weight >= 0, "weight should be equals to or greater than 0");
             require(distributorId > 0 && distributorId <= vault.distributorId(), "distributor does not exists");
 
             int256 idx = int256(userVotedDistributorIndex[msg.sender][votingWeek][distributorId]) - 1;
@@ -233,6 +232,7 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
 
             // first time vote and weight is not 0
             if (!voted) {
+                require(weight > 0, "weight should greater than 0");
                 userVotes.push(Vote(distributorId, weight));
                 userVotedDistributorIndex[msg.sender][votingWeek][distributorId] = userVotes.length;
                 newUserVotedWeight += weight;
