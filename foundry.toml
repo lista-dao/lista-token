@@ -4,6 +4,7 @@ out = 'out'
 libs = ['lib']
 test = 'test'
 cache_path  = 'cache_forge'
+evm_version = "shanghai"
 
 remappings=[
     "@openzeppelin/contracts=./node_modules/@openzeppelin/contracts",
