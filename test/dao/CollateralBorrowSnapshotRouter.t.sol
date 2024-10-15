@@ -112,7 +112,7 @@ contract CollateralBorrowSnapshotRouterTest is Test {
     }
 
     function test_takeSnapshot_collateral_slisBNB() public {
-        assertEq(0, slisBNBCollateralDistributor.userInk(user));
+        assertEq(0, slisBNBCollateralDistributor.balanceOf(user));
 
         vm.expectEmit(address(slisBNBCollateralDistributor));
         emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 123e18);
@@ -121,11 +121,11 @@ contract CollateralBorrowSnapshotRouterTest is Test {
         collateralBorrowSnapshotRouter.takeSnapshot(address(slisBNB), user, 123e18, 0, true, false);
         vm.stopPrank();
 
-        assertEq(123e18, slisBNBCollateralDistributor.userInk(user));
+        assertEq(123e18, slisBNBCollateralDistributor.balanceOf(user));
     }
 
     function test_takeSnapshot_collateral_ETH() public {
-        assertEq(0, slisBNBCollateralDistributor.userInk(user));
+        assertEq(0, slisBNBCollateralDistributor.balanceOf(user));
 
         vm.expectEmit(address(ethCollateralDistributor));
         emit CommonListaDistributor.LPTokenDeposited(address(ETH), user, 123e18);
@@ -134,7 +134,7 @@ contract CollateralBorrowSnapshotRouterTest is Test {
         collateralBorrowSnapshotRouter.takeSnapshot(address(ETH), user, 123e18, 0, true, false);
         vm.stopPrank();
 
-        assertEq(123e18, ethCollateralDistributor.userInk(user));
+        assertEq(123e18, ethCollateralDistributor.balanceOf(user));
     }
 
     function test_takeSnapshot_borrow() public {
@@ -151,7 +151,7 @@ contract CollateralBorrowSnapshotRouterTest is Test {
     }
 
     function test_takeSnapshot_collateral_borrow() public {
-        assertEq(0, slisBNBCollateralDistributor.userInk(user));
+        assertEq(0, slisBNBCollateralDistributor.balanceOf(user));
         assertEq(0, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
 
         vm.expectEmit(address(slisBNBCollateralDistributor));
@@ -164,7 +164,7 @@ contract CollateralBorrowSnapshotRouterTest is Test {
         collateralBorrowSnapshotRouter.takeSnapshot(address(slisBNB), user, 123e18, 456e18, true, true);
         vm.stopPrank();
 
-        assertEq(123e18, slisBNBCollateralDistributor.userInk(user));
+        assertEq(123e18, slisBNBCollateralDistributor.balanceOf(user));
         assertEq(456e18, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
     }
 

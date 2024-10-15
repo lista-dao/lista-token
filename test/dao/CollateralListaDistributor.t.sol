@@ -46,12 +46,12 @@ contract CollateralListaDistributorTest is Test {
     }
 
     function test_takeSnapshot() public {
-        assertEq(0, slisBNBCollateralDistributor.userInk(user));
+        assertEq(0, slisBNBCollateralDistributor.balanceOf(user));
 
         vm.startPrank(manager);
         slisBNBCollateralDistributor.takeSnapshot(address(slisBNB), user, 123e18);
         vm.stopPrank();
 
-        assertEq(123e18, slisBNBCollateralDistributor.userInk(user));
+        assertEq(123e18, slisBNBCollateralDistributor.balanceOf(user));
     }
 }
