@@ -7,6 +7,12 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "../../contracts/dao/Buyback.sol";
 
 contract BuybackTest is Test {
+    /**
+     * @dev Storage slot with the address of the implementation.
+     * This is the keccak-256 hash of "eip1967.proxy.implementation" subtracted by 1.
+     */
+    bytes32 private constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
     address admin = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
     address manager = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
     address pauser = 0xEEfebb1546d88EA0909435DF6f615084DD3c5Bd8;
@@ -17,6 +23,7 @@ contract BuybackTest is Test {
     address tokenOut = 0x55d398326f99059fF775485246999027B3197955; // USDT
 
     Buyback buyback;
+    address buybackImpl;
 
     function setUp() public {
         vm.createSelectFork("https://rpc.ankr.com/bsc", 43143645);
@@ -24,9 +31,10 @@ contract BuybackTest is Test {
         // deploy buyback
         address[] memory tokenIns = new address[](1);
         tokenIns[0] = address(tokenIn);
-        Buyback buybackImpl = new Buyback();
-        ERC1967Proxy proxy = new ERC1967Proxy(address(buybackImpl), abi.encodeCall(
-            buybackImpl.initialize,
+        Buyback buybackImplContract = new Buyback();
+        buybackImpl = address(buybackImplContract);
+        ERC1967Proxy proxy = new ERC1967Proxy(buybackImpl, abi.encodeCall(
+            buybackImplContract.initialize,
             (
                 admin,
                 manager,
@@ -41,7 +49,7 @@ contract BuybackTest is Test {
         address proxyAddress = address(proxy);
         buyback = Buyback(proxyAddress);
         console.log("buyback proxy address: %s", proxyAddress);
-        console.log("buyback impl address: %s", address(buybackImpl));
+        console.log("buyback impl address: %s", buybackImpl);
         deal(tokenIn, proxyAddress, 10000 ether);
     }
 
@@ -201,6 +209,33 @@ contract BuybackTest is Test {
         vm.expectRevert();
         buyback.removeTokenInWhitelist(tokenIn);
         vm.stopPrank();
+    }
+
+    /**
+     * @dev test upgrade
+   */
+    function test_upgrade() public {
+        address proxyAddress = address(buyback);
+        address actualOldImpl = getImplementation(proxyAddress);
+        assertEq(actualOldImpl, buybackImpl);
+        address oldImpl = buybackImpl;
+        address newImpl = address(new Buyback());
+
+        // only admin can upgrade
+        vm.expectRevert();
+        buyback.upgradeTo(newImpl);
+
+        vm.startPrank(admin);
+        buyback.upgradeTo(newImpl);
+        address actualNewImpl = getImplementation(proxyAddress);
+        assertEq(actualNewImpl, newImpl);
+        assertFalse(actualNewImpl == oldImpl);
+        vm.stopPrank();
+    }
+
+    function getImplementation(address proxyAddress) public view returns (address) {
+        bytes32 implSlot = vm.load(proxyAddress, IMPLEMENTATION_SLOT);
+        return address(uint160(uint256(implSlot)));
     }
 
 
