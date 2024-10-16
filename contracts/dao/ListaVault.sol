@@ -9,6 +9,7 @@ import "./interfaces/IDistributor.sol";
 import "../interfaces/IVeLista.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "./interfaces/IEmissionVoting.sol";
 
 /**
   * @title ListaVault
@@ -25,6 +26,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     event EmergencyWithdraw(address token, uint256 amount);
     event Paused(address account);
     event Unpaused(address account);
+    event EmissionVotingSet(address emissionVoting);
 
     // lista token address
     IERC20 public token;
@@ -49,6 +51,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     uint16 public distributorId;
     // lp proxy address
     address public lpProxy;
+    // emission voting address
+    IEmissionVoting public emissionVoting;
 
     // manager role
     bytes32 public constant MANAGER = keccak256("MANAGER");
@@ -119,21 +123,6 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @dev register distributor which can claim rewards
-     * @param distributor distributor address
-     * @return distributor id
-     */
-    function registerDistributor(address distributor) external onlyRole(MANAGER) returns (uint16) {
-        uint16 week = veLista.getCurrentWeek();
-        ++distributorId;
-        distributorUpdatedWeek[distributorId] = week;
-        idToDistributor[distributorId] = distributor;
-        require(IDistributor(distributor).notifyRegisteredId(distributorId), "distributor registration failed");
-        emit NewDistributorRegistered(distributor, distributorId);
-        return distributorId;
-    }
-
-    /**
      * @dev set weekly distributor percent
      * @param week week number
      * @param ids distributor ids
@@ -160,6 +149,31 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         // mark this week set flag
         weeklyDistributorPercent[week][0] = 1;
         require(totalPercent <= 1e18, "Total percent must be less than or equal to 1e18");
+    }
+
+    /**
+     * @dev register distributor which can claim rewards
+     * @param distributor distributor address
+     * @return distributor id
+     */
+    function registerDistributor(address distributor) external onlyRole(MANAGER) returns (uint16) {
+        uint16 week = veLista.getCurrentWeek();
+        ++distributorId;
+        distributorUpdatedWeek[distributorId] = week;
+        idToDistributor[distributorId] = distributor;
+        require(IDistributor(distributor).notifyRegisteredId(distributorId), "distributor registration failed");
+        emit NewDistributorRegistered(distributor, distributorId);
+        return distributorId;
+    }
+
+    /**
+     * @dev set emission voting contract address
+     * @param _emissionVoting emission voting contract address
+     */
+    function setEmissionVoting(address _emissionVoting) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_emissionVoting != address(0) && _emissionVoting != address(emissionVoting), "emission voting is invalid");
+        emissionVoting = IEmissionVoting(_emissionVoting);
+        emit EmissionVotingSet(_emissionVoting);
     }
 
     /**
@@ -245,8 +259,21 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @return emissions
      */
     function getDistributorWeeklyEmissions(uint16 id, uint16 week) public view returns (uint256) {
-        uint256 pct = weeklyDistributorPercent[week][id];
-        return Math.mulDiv(weeklyEmissions[week], pct, 1e18);
+        // emission voting contract not set OR override voting result
+        if (emissionVoting == IEmissionVoting(address(0)) || weeklyDistributorPercent[week][0] == 1) {
+            uint256 pct = weeklyDistributorPercent[week][id];
+            return Math.mulDiv(weeklyEmissions[week], pct, 1e18);
+        }
+        // no one votes
+        if (emissionVoting.getWeeklyTotalWeight(week) == 0) {
+            return 0;
+        }
+        // @dev emission = weeklyEmissions[week] * distributorWeight / totalWeight
+        return Math.mulDiv(
+            weeklyEmissions[week],
+            emissionVoting.getDistributorWeeklyTotalWeight(id, week),
+            emissionVoting.getWeeklyTotalWeight(week)
+        );
     }
 
     /**
