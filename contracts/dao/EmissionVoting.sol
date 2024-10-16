@@ -81,6 +81,7 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
         require(_adminVoter != address(0), "adminVoter is a zero address");
         require(_veLista != address(0), "veLista is a zero address");
         require(_vault != address(0), "vault is a zero address");
+        require(_adminVotePeriod >= 0 && _adminVotePeriod <= WEEK, "admin vote period should within 0 to 1 week");
 
         __AccessControl_init();
 
