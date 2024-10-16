@@ -27,7 +27,15 @@ last_conf*
 cache_forge
 
 out
-broadcast
+
+# Ignores development and testnet broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/*/97/
+/broadcast/**/dry-run/
+
 oftChains.json
 
 typechain-types
+
+lib/

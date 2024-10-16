@@ -3,3 +3,10 @@ artifacts
 cache
 coverage*
 gasReporterOutput.json
+lib/
+contracts/*
+!contracts/new/
+scripts/*
+!scripts/new/
+test/*
+!test/new/
