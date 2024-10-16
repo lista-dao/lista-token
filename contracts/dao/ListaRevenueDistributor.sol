@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "../interfaces/IVeListaRewardsCourierV2.sol";
 
 /**
   * @title ListaRevenueDistributor
@@ -100,7 +101,8 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         if (amount0 > 0) {
             if (token == listaTokenAddress) {
                 // lista should skip autoBuyback process
-                IERC20(token).safeTransfer(listaDistributeToAddress, amount0);
+                IERC20(token).safeIncreaseAllowance(listaDistributeToAddress, amount0);
+                IVeListaRewardsCourierV2(listaDistributeToAddress).rechargeRewards(amount0);
             } else {
                 IERC20(token).safeTransfer(autoBuybackAddress, amount0);
             }
