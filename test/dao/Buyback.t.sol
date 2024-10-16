@@ -92,7 +92,7 @@ contract BuybackTest is Test {
         uint256 buybackBalanceAfter = swapDesc.srcToken.balanceOf(address(buyback));
         uint256 receiverBalanceAfter = swapDesc.dstToken.balanceOf(receiver);
 
-        assertEq(buybackBalanceAfter, buybackBalanceBefore - 1 ether);
+        assertEq(buybackBalanceAfter, buybackBalanceBefore - swapDesc.amount);
 
         uint256 today = (block.timestamp / 1 days) * 1 days;
         uint256 amountOut = buyback.dailyBought(today);
@@ -140,7 +140,6 @@ contract BuybackTest is Test {
         vm.startPrank(manager);
         vm.expectRevert("receiver is the zero address");
         buyback.changeReceiver(address(0));
-        vm.stopPrank();
 
         vm.expectRevert("receiver is the same");
         buyback.changeReceiver(receiver);
@@ -163,7 +162,7 @@ contract BuybackTest is Test {
         vm.expectRevert("1Inch router is the zero address");
         buyback.add1InchRouterWhitelist(address(0));
 
-        vm.expectRevert("1Inch router is the same");
+        vm.expectRevert("1Inch router has been whitelisted");
         buyback.add1InchRouterWhitelist(oneInchRouter);
 
         address oneInchRouter2 = makeAddr("1InchRouter2");
@@ -212,8 +211,34 @@ contract BuybackTest is Test {
     }
 
     /**
+     * @dev test emergency withdraw
+    */
+    function test_emergency_withdraw() public {
+        uint256 amount = 1000 ether;
+        deal(tokenIn, address(buyback), amount);
+
+        // only admin can withdraw
+        vm.expectRevert();
+        buyback.emergencyWithdraw(tokenIn, amount);
+
+        uint256 buybackBalanceBefore = IERC20(tokenIn).balanceOf(address(buyback));
+        uint256 adminBalanceBefore = IERC20(tokenIn).balanceOf(admin);
+
+        vm.startPrank(admin);
+        buyback.emergencyWithdraw(tokenIn, amount);
+        vm.stopPrank();
+
+        uint256 buybackBalanceAfter = IERC20(tokenIn).balanceOf(address(buyback));
+        uint256 adminBalanceAfter = IERC20(tokenIn).balanceOf(admin);
+
+        assertEq(buybackBalanceAfter, buybackBalanceBefore - amount);
+        assertEq(adminBalanceAfter, adminBalanceBefore + amount);
+    }
+
+
+    /**
      * @dev test upgrade
-   */
+    */
     function test_upgrade() public {
         address proxyAddress = address(buyback);
         address actualOldImpl = getImplementation(proxyAddress);

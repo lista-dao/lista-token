@@ -181,6 +181,7 @@ contract Buyback is
   function add1InchRouterWhitelist(
     address _1InchRouter
   ) external onlyRole(MANAGER) {
+    require(_1InchRouter != address(0), "1Inch router is the zero address");
     require(
       !oneInchRouterWhitelist[_1InchRouter],
       "1Inch router has been whitelisted"
@@ -213,6 +214,7 @@ contract Buyback is
   function addTokenInWhitelist(
     address _tokenIn
   ) external onlyRole(MANAGER) {
+    require(_tokenIn != address(0), "the token is the zero address");
     require(!tokenInWhitelist[_tokenIn], "the token has been whitelisted");
 
     tokenInWhitelist[_tokenIn] = true;
