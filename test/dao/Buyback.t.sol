@@ -47,9 +47,49 @@ contract BuybackTest is Test {
 
     function test_buyback() public {
         bytes memory data = hex"07ed2379000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd090000000000000000000000000782b6d8c4551b9760e74c0545a9bcd90bdc41e500000000000000000000000055d398326f99059ff775485246999027b3197955000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd0900000000000000000000000009702ea135d9d707dd51f530864f2b9220aad87b0000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000000000000000000000000000d9fdf681582420500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000010e0000000000000000000000000000000000000000000000000000000000f051200520451b19ad0bb00ed35ef391086a692cfc74b20782b6d8c4551b9760e74c0545a9bcd90bdc41e500449908fc8b0000000000000000000000000782b6d8c4551b9760e74c0545a9bcd90bdc41e500000000000000000000000055d398326f99059ff775485246999027b319795500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000111111125421ca6dc452d289314280a0f8842a650000000000000000000000000000000000000000000000000000000067153898000000000000000000000000000000000000b3276493";
+        (, IBuyback.SwapDescription memory swapDesc, ) = abi.decode(
+            sliceBytes(data, 4, data.length - 4),
+            (address, IBuyback.SwapDescription, bytes)
+        );
+
+        uint256 buybackBalanceBefore = swapDesc.srcToken.balanceOf(address(buyback));
+        uint256 receiverBalanceBefore = swapDesc.dstToken.balanceOf(receiver);
+
+        // only bot can call buyback
+        vm.startPrank(admin);
+        vm.expectRevert();
+        buyback.buyback(oneInchRouter, data);
+        vm.stopPrank();
+
+        vm.startPrank(pauser);
+        buyback.pause();
+        vm.stopPrank();
+
+        // bot cannot call buyback when paused
+        vm.startPrank(bot);
+        vm.expectRevert("Pausable: paused");
+        buyback.buyback(oneInchRouter, data);
+        vm.stopPrank();
+
+        // unpause
+        vm.startPrank(admin);
+        buyback.togglePause();
+        vm.stopPrank();
+
+        // bot can call buyback when not paused
         vm.startPrank(bot);
         buyback.buyback(oneInchRouter, data);
         vm.stopPrank();
+
+        uint256 buybackBalanceAfter = swapDesc.srcToken.balanceOf(address(buyback));
+        uint256 receiverBalanceAfter = swapDesc.dstToken.balanceOf(receiver);
+
+        assertEq(buybackBalanceAfter, buybackBalanceBefore - 1 ether);
+
+        uint256 today = (block.timestamp / 1 days) * 1 days;
+        uint256 amountOut = buyback.dailyBought(today);
+        assertTrue(amountOut >= swapDesc.minReturnAmount);
+        assertEq(amountOut, receiverBalanceAfter - receiverBalanceBefore);
     }
 
     // test invalid 1Inch router
@@ -85,5 +125,92 @@ contract BuybackTest is Test {
         vm.expectRevert("invalid receiver");
         buyback.buyback(oneInchRouter, data);
         vm.stopPrank();
+    }
+
+    // test change receiver
+    function test_change_receiver() public {
+        vm.startPrank(manager);
+        vm.expectRevert("receiver is the zero address");
+        buyback.changeReceiver(address(0));
+        vm.stopPrank();
+
+        vm.expectRevert("receiver is the same");
+        buyback.changeReceiver(receiver);
+
+        address receiver2 = makeAddr("receiver2");
+        buyback.changeReceiver(receiver2);
+        vm.stopPrank();
+        assertEq(buyback.receiver(), receiver2);
+
+        // only manager can change receiver
+        vm.startPrank(admin);
+        vm.expectRevert();
+        buyback.changeReceiver(makeAddr("receiver3"));
+        vm.stopPrank();
+    }
+
+    // test change oneInch router whitelist
+    function test_change_oneInch_router_whitelist() public {
+        vm.startPrank(manager);
+        vm.expectRevert("1Inch router is the zero address");
+        buyback.add1InchRouterWhitelist(address(0));
+
+        vm.expectRevert("1Inch router is the same");
+        buyback.add1InchRouterWhitelist(oneInchRouter);
+
+        address oneInchRouter2 = makeAddr("1InchRouter2");
+        buyback.add1InchRouterWhitelist(oneInchRouter2);
+        assertTrue(buyback.oneInchRouterWhitelist(oneInchRouter2));
+
+        buyback.remove1InchRouterWhitelist(oneInchRouter2);
+        assertFalse(buyback.oneInchRouterWhitelist(oneInchRouter2));
+        vm.stopPrank();
+
+        // only manager can change oneInch router whitelist
+        vm.startPrank(admin);
+        vm.expectRevert();
+        buyback.add1InchRouterWhitelist(oneInchRouter2);
+
+        vm.expectRevert();
+        buyback.remove1InchRouterWhitelist(oneInchRouter);
+        vm.stopPrank();
+    }
+
+    // test change swap input token whitelist
+    function test_change_token_in_whitelist() public {
+        vm.startPrank(manager);
+        vm.expectRevert("the token is the zero address");
+        buyback.addTokenInWhitelist(address(0));
+
+        vm.expectRevert("the token has been whitelisted");
+        buyback.addTokenInWhitelist(tokenIn);
+
+        address tokenIn2 = makeAddr("tokenIn2");
+        buyback.addTokenInWhitelist(tokenIn2);
+        assertTrue(buyback.tokenInWhitelist(tokenIn2));
+
+        buyback.removeTokenInWhitelist(tokenIn2);
+        assertFalse(buyback.tokenInWhitelist(tokenIn2));
+        vm.stopPrank();
+
+        // only manager can change swap input token whitelist
+        vm.startPrank(admin);
+        vm.expectRevert();
+        buyback.addTokenInWhitelist(tokenIn2);
+
+        vm.expectRevert();
+        buyback.removeTokenInWhitelist(tokenIn);
+        vm.stopPrank();
+    }
+
+
+    function sliceBytes(bytes memory data, uint start, uint length) public returns (bytes memory) {
+        require(start + length <= data.length, "Out of bounds");
+
+        bytes memory result = new bytes(length);
+        for (uint i = 0; i < length; i++) {
+            result[i] = data[start + i];
+        }
+        return result;
     }
 }
