@@ -83,7 +83,7 @@ contract Buyback is
     address _receiver
   ) external initializer {
     require(_admin != address(0), "Invalid admin address");
-    require(_manager != address(0), "Invalid _manager address");
+    require(_manager != address(0), "Invalid manager address");
     require(_pauser != address(0), "Invalid pauser address");
     require(_bot != address(0), "Invalid bot address");
     require(_1InchRouter != address(0), "Invalid 1Inch router address");
@@ -120,9 +120,9 @@ contract Buyback is
   ) external override onlyRole(BOT) nonReentrant whenNotPaused {
     require(
       oneInchRouterWhitelist[_1inchRouter],
-      "invalid 1Inch router"
+      "Invalid 1Inch router"
     );
-    require(bytes4(_data[0:4]) == SWAP_FUNCTION_SELECTOR, "invalid 1Inch function selector");
+    require(bytes4(_data[0:4]) == SWAP_FUNCTION_SELECTOR, "Invalid 1Inch function selector");
 
     (, SwapDescription memory swapDesc, ) = abi.decode(
       _data[4:],
@@ -130,14 +130,14 @@ contract Buyback is
     );
     require(
       tokenInWhitelist[address(swapDesc.srcToken)],
-      "invalid swap input token"
+      "Invalid swap input token"
     );
-    require(address(swapDesc.dstToken) == tokenOut, "invalid swap output token");
-    require(address(swapDesc.dstReceiver) == receiver, "invalid receiver");
-    require(swapDesc.amount > 0, "invalid swap input amount");
+    require(address(swapDesc.dstToken) == tokenOut, "Invalid swap output token");
+    require(address(swapDesc.dstReceiver) == receiver, "Invalid receiver");
+    require(swapDesc.amount > 0, "Invalid swap input amount");
     require(
       swapDesc.srcToken.balanceOf(address(this)) >= swapDesc.amount,
-      "insufficient balance of swap input token"
+      "Insufficient balance of swap input token"
     );
 
     swapDesc.srcToken.approve(_1inchRouter, swapDesc.amount);
@@ -149,7 +149,7 @@ contract Buyback is
     uint256 afterBalance = swapDesc.dstToken.balanceOf(receiver);
     uint256 diff = afterBalance - beforeBalance;
     (uint256 amountOut, ) = abi.decode(result, (uint256, uint256));
-    require(amountOut == diff && amountOut >= swapDesc.minReturnAmount, "invalid swap output amount");
+    require(amountOut == diff && amountOut >= swapDesc.minReturnAmount, "Invalid swap output amount");
 
     uint256 today = (block.timestamp / DAY) * DAY;
     dailyBought[today] = dailyBought[today] + amountOut;
@@ -167,8 +167,8 @@ contract Buyback is
    * @param _receiver - Address of the receiver
    */
   function changeReceiver(address _receiver) external onlyRole(MANAGER) {
-    require(_receiver != address(0), "receiver is the zero address");
-    require(_receiver != receiver, "receiver is the same");
+    require(_receiver != address(0), "Invalid receiver");
+    require(_receiver != receiver, "Receiver is the same");
 
     receiver = _receiver;
     emit ReceiverChanged(_receiver);
@@ -181,10 +181,10 @@ contract Buyback is
   function add1InchRouterWhitelist(
     address _1InchRouter
   ) external onlyRole(MANAGER) {
-    require(_1InchRouter != address(0), "1Inch router is the zero address");
+    require(_1InchRouter != address(0), "Invalid 1Inch router");
     require(
       !oneInchRouterWhitelist[_1InchRouter],
-      "1Inch router has been whitelisted"
+      "Already whitelisted"
     );
 
     oneInchRouterWhitelist[_1InchRouter] = true;
@@ -214,8 +214,8 @@ contract Buyback is
   function addTokenInWhitelist(
     address _tokenIn
   ) external onlyRole(MANAGER) {
-    require(_tokenIn != address(0), "the token is the zero address");
-    require(!tokenInWhitelist[_tokenIn], "the token has been whitelisted");
+    require(_tokenIn != address(0), "Invalid token");
+    require(!tokenInWhitelist[_tokenIn], "Already whitelisted");
 
     tokenInWhitelist[_tokenIn] = true;
     emit TokenInChanged(_tokenIn, true);
@@ -228,7 +228,7 @@ contract Buyback is
   function removeTokenInWhitelist(
     address _tokenIn
   ) external onlyRole(MANAGER) {
-    require(tokenInWhitelist[_tokenIn], "the token is not in whitelist");
+    require(tokenInWhitelist[_tokenIn], "Token is not in whitelist");
 
     delete tokenInWhitelist[_tokenIn];
     emit TokenInChanged(_tokenIn, false);
