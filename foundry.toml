@@ -5,6 +5,8 @@ libs = ['lib']
 test = 'test'
 cache_path  = 'cache_forge'
 evm_version = "shanghai"
+solc = "0.8.20"
+optimizer_runs = 200
 
 remappings=[
     "@openzeppelin/contracts=./node_modules/@openzeppelin/contracts",
