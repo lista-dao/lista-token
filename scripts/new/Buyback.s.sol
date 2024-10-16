@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import { Buyback } from "../../contracts/dao/Buyback.sol";
+import { Buyback } from "../../contracts/new/Buyback.sol";
 
 contract BuybackScript is Script {
   function setUp() public {}
@@ -30,7 +30,10 @@ contract BuybackScript is Script {
     // swap input tokens
     address[] memory tokenIns = vm.envAddress("BUYBACK_TOKEN_INS", ",");
     for (uint256 i = 0; i < tokenIns.length; i++) {
-      require(tokenIns[i] != address(0), "Swap input token address cannot be null");
+      require(
+        tokenIns[i] != address(0),
+        "Swap input token address cannot be null"
+      );
       console.log("Swap input token: %s, %s", i, tokenIns[i]);
     }
 
