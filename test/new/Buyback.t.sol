@@ -11,8 +11,7 @@ contract BuybackTest is Test {
    * @dev Storage slot with the address of the implementation.
    * This is the keccak-256 hash of "eip1967.proxy.implementation" subtracted by 1.
    */
-  bytes32 private constant IMPLEMENTATION_SLOT =
-    0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+  bytes32 private constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
 
   address admin = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
   address manager = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
@@ -38,16 +37,7 @@ contract BuybackTest is Test {
       buybackImpl,
       abi.encodeCall(
         buybackImplContract.initialize,
-        (
-          admin,
-          manager,
-          pauser,
-          bot,
-          oneInchRouter,
-          tokenIns,
-          tokenOut,
-          receiver
-        )
+        (admin, manager, pauser, bot, oneInchRouter, tokenIns, tokenOut, receiver)
       )
     );
     address proxyAddress = address(proxy);
@@ -65,9 +55,7 @@ contract BuybackTest is Test {
       (address, IBuyback.SwapDescription, bytes)
     );
 
-    uint256 buybackBalanceBefore = swapDesc.srcToken.balanceOf(
-      address(buyback)
-    );
+    uint256 buybackBalanceBefore = swapDesc.srcToken.balanceOf(address(buyback));
     uint256 receiverBalanceBefore = swapDesc.dstToken.balanceOf(receiver);
 
     // only bot can call buyback
@@ -257,18 +245,12 @@ contract BuybackTest is Test {
     vm.stopPrank();
   }
 
-  function getImplementation(
-    address proxyAddress
-  ) public view returns (address) {
+  function getImplementation(address proxyAddress) public view returns (address) {
     bytes32 implSlot = vm.load(proxyAddress, IMPLEMENTATION_SLOT);
     return address(uint160(uint256(implSlot)));
   }
 
-  function sliceBytes(
-    bytes memory data,
-    uint start,
-    uint length
-  ) public returns (bytes memory) {
+  function sliceBytes(bytes memory data, uint start, uint length) public returns (bytes memory) {
     require(start + length <= data.length, "Out of bounds");
 
     bytes memory result = new bytes(length);

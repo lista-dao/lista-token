@@ -30,11 +30,7 @@ contract Buyback is
   uint256 internal constant DAY = 1 days;
 
   bytes4 public constant SWAP_FUNCTION_SELECTOR =
-    bytes4(
-      keccak256(
-        "swap(address,(address,address,address,address,uint256,uint256,uint256),bytes)"
-      )
-    );
+    bytes4(keccak256("swap(address,(address,address,address,address,uint256,uint256,uint256),bytes)"));
 
   /* ============ State Variables ============ */
   // 1Inch router whitelist
@@ -49,12 +45,7 @@ contract Buyback is
   mapping(uint256 => uint256) public dailyBought;
 
   /* ============ Events ============ */
-  event BoughtBack(
-    address indexed tokenIn,
-    address indexed tokenOut,
-    uint256 amountIn,
-    uint256 amountOut
-  );
+  event BoughtBack(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut);
   event ReceiverChanged(address indexed receiver);
   event OneInchRouterChanged(address indexed oneInchRouter, bool added);
   event TokenInChanged(address indexed token, bool added);
@@ -123,29 +114,14 @@ contract Buyback is
     bytes calldata _data
   ) external override onlyRole(BOT) nonReentrant whenNotPaused {
     require(oneInchRouterWhitelist[_1inchRouter], "Invalid 1Inch router");
-    require(
-      bytes4(_data[0:4]) == SWAP_FUNCTION_SELECTOR,
-      "Invalid 1Inch function selector"
-    );
+    require(bytes4(_data[0:4]) == SWAP_FUNCTION_SELECTOR, "Invalid 1Inch function selector");
 
-    (, SwapDescription memory swapDesc, ) = abi.decode(
-      _data[4:],
-      (address, SwapDescription, bytes)
-    );
-    require(
-      tokenInWhitelist[address(swapDesc.srcToken)],
-      "Invalid swap input token"
-    );
-    require(
-      address(swapDesc.dstToken) == tokenOut,
-      "Invalid swap output token"
-    );
+    (, SwapDescription memory swapDesc, ) = abi.decode(_data[4:], (address, SwapDescription, bytes));
+    require(tokenInWhitelist[address(swapDesc.srcToken)], "Invalid swap input token");
+    require(address(swapDesc.dstToken) == tokenOut, "Invalid swap output token");
     require(address(swapDesc.dstReceiver) == receiver, "Invalid receiver");
     require(swapDesc.amount > 0, "Invalid swap input amount");
-    require(
-      swapDesc.srcToken.balanceOf(address(this)) >= swapDesc.amount,
-      "Insufficient balance of swap input token"
-    );
+    require(swapDesc.srcToken.balanceOf(address(this)) >= swapDesc.amount, "Insufficient balance of swap input token");
 
     swapDesc.srcToken.approve(_1inchRouter, swapDesc.amount);
     uint256 beforeBalance = swapDesc.dstToken.balanceOf(receiver);
@@ -156,20 +132,12 @@ contract Buyback is
     uint256 afterBalance = swapDesc.dstToken.balanceOf(receiver);
     uint256 diff = afterBalance - beforeBalance;
     (uint256 amountOut, ) = abi.decode(result, (uint256, uint256));
-    require(
-      amountOut == diff && amountOut >= swapDesc.minReturnAmount,
-      "Invalid swap output amount"
-    );
+    require(amountOut == diff && amountOut >= swapDesc.minReturnAmount, "Invalid swap output amount");
 
     uint256 today = (block.timestamp / DAY) * DAY;
     dailyBought[today] = dailyBought[today] + amountOut;
 
-    emit BoughtBack(
-      address(swapDesc.srcToken),
-      address(swapDesc.dstToken),
-      swapDesc.amount,
-      amountOut
-    );
+    emit BoughtBack(address(swapDesc.srcToken), address(swapDesc.dstToken), swapDesc.amount, amountOut);
   }
 
   /**
@@ -188,9 +156,7 @@ contract Buyback is
    * @dev add 1Inch router to whitelist
    * @param _1InchRouter - Address of the 1Inch router
    */
-  function add1InchRouterWhitelist(
-    address _1InchRouter
-  ) external onlyRole(MANAGER) {
+  function add1InchRouterWhitelist(address _1InchRouter) external onlyRole(MANAGER) {
     require(_1InchRouter != address(0), "Invalid 1Inch router");
     require(!oneInchRouterWhitelist[_1InchRouter], "Already whitelisted");
 
@@ -202,13 +168,8 @@ contract Buyback is
    * @dev remove 1Inch router from whitelist
    * @param _1InchRouter - Address of the 1Inch router
    */
-  function remove1InchRouterWhitelist(
-    address _1InchRouter
-  ) external onlyRole(MANAGER) {
-    require(
-      oneInchRouterWhitelist[_1InchRouter],
-      "1Inch router is not in whitelist"
-    );
+  function remove1InchRouterWhitelist(address _1InchRouter) external onlyRole(MANAGER) {
+    require(oneInchRouterWhitelist[_1InchRouter], "1Inch router is not in whitelist");
 
     delete oneInchRouterWhitelist[_1InchRouter];
     emit OneInchRouterChanged(_1InchRouter, false);
@@ -242,10 +203,7 @@ contract Buyback is
    * @param _token ERC20 token address
    * @param _amount token amount
    */
-  function emergencyWithdraw(
-    address _token,
-    uint256 _amount
-  ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function emergencyWithdraw(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
     IERC20(_token).safeTransfer(msg.sender, _amount);
     emit EmergencyWithdraw(_token, _amount);
   }
@@ -266,7 +224,5 @@ contract Buyback is
 
   // /* ============ Internal Functions ============ */
 
-  function _authorizeUpgrade(
-    address newImplementation
-  ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }

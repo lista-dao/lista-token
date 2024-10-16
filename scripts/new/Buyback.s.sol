@@ -30,10 +30,7 @@ contract BuybackScript is Script {
     // swap input tokens
     address[] memory tokenIns = vm.envAddress("BUYBACK_TOKEN_INS", ",");
     for (uint256 i = 0; i < tokenIns.length; i++) {
-      require(
-        tokenIns[i] != address(0),
-        "Swap input token address cannot be null"
-      );
+      require(tokenIns[i] != address(0), "Swap input token address cannot be null");
       console.log("Swap input token: %s, %s", i, tokenIns[i]);
     }
 
@@ -51,19 +48,7 @@ contract BuybackScript is Script {
     Buyback buyback = new Buyback();
     ERC1967Proxy proxy = new ERC1967Proxy(
       address(buyback),
-      abi.encodeCall(
-        buyback.initialize,
-        (
-          admin,
-          manager,
-          pauser,
-          bot,
-          oneInchRouter,
-          tokenIns,
-          tokenOut,
-          receiver
-        )
-      )
+      abi.encodeCall(buyback.initialize, (admin, manager, pauser, bot, oneInchRouter, tokenIns, tokenOut, receiver))
     );
     vm.stopBroadcast();
     console.log("Buyback proxy address: %s", address(proxy));
