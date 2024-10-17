@@ -17,6 +17,11 @@ contract LpProxy is OwnableUpgradeable {
     // distributor address -> vault address
     mapping(address => address) public distributorToVault;
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
       * @dev initialize contract
       * @param _owner owner address
