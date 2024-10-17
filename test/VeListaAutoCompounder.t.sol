@@ -3,6 +3,7 @@ pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "../contracts/dao/interfaces/OracleInterface.sol";
 import "../contracts/interfaces/IVeLista.sol";
@@ -26,13 +27,14 @@ contract VeListaAutoCompounderTest is Test {
     address admin = makeAddr("admin");
     address bot = makeAddr("bot");
     address user1 = makeAddr("user1");
+    address proxyAdminOwner = makeAddr("proxyAdminOwner");
 
     function setUp() public {
         lista = new ListaToken(admin);
         veLista = new VeLista();
         veListaDistributor = new VeListaDistributor();
         oracle = new MockResilientOracle();
-        compounder = new VeListaAutoCompounder();
+        VeListaAutoCompounder compounderImpl = new VeListaAutoCompounder();
 
         vm.mockCall(
             address(veLista),
@@ -46,15 +48,16 @@ contract VeListaAutoCompounderTest is Test {
             abi.encode(IVeLista(veLista))
         );
 
-        compounder.initialize(
-            address(lista),
-            address(veLista),
-            address(veListaDistributor),
-            address(oracle),
-            feeReceiver,
-            admin,
-            bot
+        TransparentUpgradeableProxy compounderProxy = new TransparentUpgradeableProxy(
+            address(compounderImpl),
+            proxyAdminOwner,
+            abi.encodeWithSignature(
+                "initialize(address,address,address,address,address,address,address)",
+                address(lista), address(veLista), address(veListaDistributor), address(oracle), feeReceiver, admin, bot
+            )
         );
+        compounder = VeListaAutoCompounder(address(compounderProxy));
+
         assertEq(
             compounder.hasRole(compounder.DEFAULT_ADMIN_ROLE(), admin),
             true

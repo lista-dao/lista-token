@@ -79,6 +79,11 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     event FeeReceiverUpdated(address indexed _newReceiver);
     event DefaultStatusToggled(bool _defaultStatus);
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         address _lista,
         address _velista,
