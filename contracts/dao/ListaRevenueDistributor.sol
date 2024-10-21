@@ -19,12 +19,21 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
     using SafeERC20 for IERC20;
 
     event RevenueDistributed(address indexed token, uint256 amount0, uint256 amount1);
+    event RevenueDistributedWithCost(
+        address indexed token,
+        uint256 amount0,
+        uint256 amount1,
+        uint256 cost,
+        uint256 targetCost
+    );
 
     event AddressChanged(uint128 addressType, address newAddress);
 
     event RateChanged(uint128 rate);
 
     event TokenChanged(address token, bool isAdd);
+
+    event TokenCostToAddressChanged(address token, address costToAddress);
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
 
@@ -43,6 +52,9 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
 
     // distributeRate part of lista token revenue will be sent to this address instead of autoBuybackAddress
     address public listaDistributeToAddress;
+
+    // added on 2024-10-21
+    address public tokenCostToAddress;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -112,6 +124,58 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         emit RevenueDistributed(token, amount0, amount1);
     }
 
+    /**
+     * @dev distribute tokens to autoBuybackAddress and revenueWalletAddress
+     *      according to distributeRate excluding cost
+     *
+     * @param tokens, token to distribute
+     * @param costs, amount directly to cost address
+     */
+    function distributeTokensWithCost(address[] memory tokens, uint256[] memory costs)
+        external
+        onlyRole(MANAGER)
+    {
+        for (uint256 i = 0; i < tokens.length; i++) {
+            _distributeTokenWithCost(tokens[i], costs[i]);
+        }
+    }
+
+    function _distributeTokenWithCost(address token, uint256 cost) internal {
+        require(tokenWhitelist[token], "token not whitelisted");
+        require(tokenCostToAddress != address(0), "reserve address not set");
+
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        if (balance == 0) {
+            return;
+        }
+
+        if (balance <= cost) {
+            IERC20(token).safeTransfer(tokenCostToAddress, balance);
+            emit RevenueDistributedWithCost(token, 0, 0, balance, cost);
+        } else {
+            uint256 available = balance - cost;
+            uint256 amount0 = available * distributeRate / RATE_DENOMINATOR;
+            uint256 amount1 = available - amount0;
+            if (amount0 > 0) {
+                if (token == listaTokenAddress) {
+                    // lista should skip autoBuyback process
+                    IERC20(token).safeTransfer(listaDistributeToAddress, amount0);
+                } else {
+                    IERC20(token).safeTransfer(autoBuybackAddress, amount0);
+                }
+
+            }
+            if (amount1 > 0) {
+                IERC20(token).safeTransfer(revenueWalletAddress, amount1);
+            }
+            if (cost > 0) {
+                IERC20(token).safeTransfer(tokenCostToAddress, cost);
+            }
+
+            emit RevenueDistributedWithCost(token, amount0, amount1, cost, cost);
+        }
+    }
+
     function changeAutoBuybackAddress(address _autoBuybackAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_autoBuybackAddress != address(0), "autoBuybackAddress is the zero address");
         require(_autoBuybackAddress != autoBuybackAddress, "autoBuybackAddress is the same");
@@ -163,5 +227,14 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
 
             emit TokenChanged(_token, false);
         }
+    }
+
+    function changeTokenCostToAddress(address _token, address _costToAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_token != address(0), "token is the zero address");
+        require(_costToAddress != address(0), "costToAddress is the zero address");
+        require(_costToAddress != tokenCostToAddress, "costToAddress is the same");
+
+        tokenCostToAddress = _costToAddress;
+        emit TokenCostToAddressChanged(_token, _costToAddress);
     }
 }
