@@ -33,7 +33,7 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
 
     event TokenChanged(address token, bool isAdd);
 
-    event TokenCostToAddressChanged(address token, address costToAddress);
+    event CostToAddressChanged(address costToAddress);
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
 
@@ -229,12 +229,11 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         }
     }
 
-    function changeTokenCostToAddress(address _token, address _costToAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_token != address(0), "token is the zero address");
+    function changeCostToAddress(address _costToAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_costToAddress != address(0), "costToAddress is the zero address");
         require(_costToAddress != tokenCostToAddress, "costToAddress is the same");
 
         tokenCostToAddress = _costToAddress;
-        emit TokenCostToAddressChanged(_token, _costToAddress);
+        emit CostToAddressChanged(_costToAddress);
     }
 }

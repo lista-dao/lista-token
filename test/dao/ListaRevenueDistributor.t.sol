@@ -56,7 +56,7 @@ contract ListaRevenueDistributorTest is Test {
 
         vm.startPrank(admin);
         listaRevenueDistributor.addTokensToWhitelist(tokens);
-        listaRevenueDistributor.changeTokenCostToAddress(address(lisUSD), lisUSDCostToAddress);
+        listaRevenueDistributor.changeCostToAddress(lisUSDCostToAddress);
         vm.stopPrank();
 
         assertTrue(listaRevenueDistributor.tokenWhitelist(address(slisBNB)));
