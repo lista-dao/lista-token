@@ -39,7 +39,7 @@ async function main() {
   // set pauser
   const emissionVoting = await ethers.getContractAt(
     "EmissionVoting",
-    "0xaD2f3D7b233aF4fb7bdF676162148a6559Ae962B"
+    address
   );
   await emissionVoting.grantRole(
     "0x539440820030c4994db4e31b6b800deafd503688728f932addfe7a410515c14c", // PAUSER_ROLE
