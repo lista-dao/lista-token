@@ -265,7 +265,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     /**
      * @dev Update the contract variables
      * @param what The variable to update; bytes32 encoded of the state variable name
-     * @param data The new value
+     * @param data The next value
      */
     function file(
         bytes32 what,
@@ -297,7 +297,7 @@ contract VeListaAutoCompounder is Initializable, AccessControlUpgradeable {
     /**
      * @dev Update the stored addresses
      * @param what The contract address to update; bytes32 encoded of the contract(state variable) name
-     * @param data The new value
+     * @param data The next value
      */
     function file(
         bytes32 what,

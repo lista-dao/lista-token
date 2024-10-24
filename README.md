@@ -74,7 +74,7 @@ Open coverage report in browser: `coverage/index.html`
 Run `forge script <path_to_script> --rpc-url <your_rpc_url> --private-key <your_private_key> --etherscan-api-key <bscscan-api-key> --broadcast --verify -vvv`, which will deploy Lista contracts on bsc with foundry, for example:
 ```bash
 # deploy the proxy contract of Buyback
-forge script scripts/new/Buyback.s.sol:BuybackScript --rpc-url https://bsc-dataseed.binance.org --etherscan-api-key <bscscan-api-key> --broadcast --verify -vvv
+forge script scripts/next/Buyback.s.sol:BuybackScript --rpc-url https://bsc-dataseed.binance.org --etherscan-api-key <bscscan-api-key> --broadcast --verify -vvv
 ```
 
 ## Code style
@@ -90,9 +90,9 @@ yarn run fix
 ### Check and fix linting errors for a specific contract
 1. Run `npx prettier --check <contract>` to check for linting errors, for example:
 ```bash
-npx prettier --check contracts/new/Buyback.sol
+npx prettier --check contracts/next/Buyback.sol
 ```
 2. Run `npx prettier --write <contract>` to fix linting errors, for example:
 ```bash
-npx prettier --write contracts/new/Buyback.sol
+npx prettier --write contracts/next/Buyback.sol
 ```

@@ -4,9 +4,9 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import { Buyback } from "../../contracts/new/Buyback.sol";
+import { Buyback } from "../../contracts/next/Buyback.sol";
 
-contract BuybackImplScript is Script {
+contract BuybackScript is Script {
   function setUp() public {}
 
   function run() public {
@@ -46,7 +46,12 @@ contract BuybackImplScript is Script {
 
     vm.startBroadcast(deployerPrivateKey);
     Buyback buyback = new Buyback();
+    ERC1967Proxy proxy = new ERC1967Proxy(
+      address(buyback),
+      abi.encodeCall(buyback.initialize, (admin, manager, pauser, bot, oneInchRouter, tokenIns, tokenOut, receiver))
+    );
     vm.stopBroadcast();
+    console.log("Buyback proxy address: %s", address(proxy));
     console.log("Buyback implementation address: %s", address(buyback));
   }
 }

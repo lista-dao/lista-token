@@ -44,7 +44,7 @@ contract ListaAirdrop is Ownable {
     }
 
     /**
-     * @dev Set start block of airdrop. Users can only claim airdrop after the new start block.
+     * @dev Set start block of airdrop. Users can only claim airdrop after the next start block.
      */
     function setStartBlock(uint256 _startBlock) external onlyOwner {
         require(_startBlock != startBlock, "Start block already set");
@@ -54,7 +54,7 @@ contract ListaAirdrop is Ownable {
     }
 
     /**
-     * @dev Set end block of airdrop. Users are not allowed to claim airdrop after the new end block.
+     * @dev Set end block of airdrop. Users are not allowed to claim airdrop after the next end block.
      */
     function setEndBlock(uint256 _endBlock) external onlyOwner {
         require(_endBlock != endBlock, "End block already set");

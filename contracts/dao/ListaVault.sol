@@ -228,7 +228,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @dev allocate new emissions to distributor
+     * @dev allocate next emissions to distributor
      * @param id distributor id
      * @return amount allocated amount
      */

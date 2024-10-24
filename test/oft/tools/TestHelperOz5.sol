@@ -278,7 +278,7 @@ contract TestHelperOz5 is Test, OptionsHelper {
 
     /**
      * @notice Deploys an OApp contract using provided bytecode and constructor arguments.
-     * @dev This internal function uses low-level `create` for deploying a new contract.
+     * @dev This internal function uses low-level `create` for deploying a next contract.
      * @param _oappBytecode The bytecode of the OApp contract to be deployed.
      * @param _constructorArgs The encoded constructor arguments for the OApp contract.
      * @return addr The address of the newly deployed OApp contract.

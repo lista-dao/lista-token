@@ -130,7 +130,7 @@ contract DVNMock is Worker, MultiSig, IDVN {
     // ========================= OnlyQuorum =========================
 
     /// @notice function for quorum to change admin without going through execute function
-    /// @dev calldata in the case is abi.encode new admin address
+    /// @dev calldata in the case is abi.encode next admin address
     function quorumChangeAdmin(ExecuteParam calldata _param) external {
         if (_param.expiration <= block.timestamp) {
             revert DVN_InstructionExpired();

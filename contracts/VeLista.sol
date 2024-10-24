@@ -93,7 +93,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev create a new lock to get veLista
+     * @dev create a next lock to get veLista
      * @param amount amount of token to lock
      * @param week number of weeks to lock
      * @param autoLock auto lock status
@@ -120,7 +120,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         _createLock(_account, _accountData.locked, week, autoLock);
     }
 
-    // create new lock
+    // create next lock
     function _createLock(address _account, uint256 _amount, uint16 _week, bool autoLock) private {
         require(_week <= MAX_LOCK_WEEKS, "exceeds MAX_LOCK_WEEKS");
         require(_week > 0, "invalid lock week");

@@ -11,7 +11,7 @@ import "./interfaces/IVault.sol";
  *  @title Lista Emission Voting
  *  @notice Users with LISTA balances locked in `veLista` may register their
  *          veLista weights in this contract, and use this weight to vote on where
- *          new LISTA emissions will be released in the following week.
+ *          next LISTA emissions will be released in the following week.
  */
 contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgradeable {
 

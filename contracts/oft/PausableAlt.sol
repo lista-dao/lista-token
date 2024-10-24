@@ -21,7 +21,7 @@ abstract contract PausableAlt is Pausable, Ownable {
 
   /**
    * @notice Set the multiSig address
-   * @param _multiSig The new multiSig address
+   * @param _multiSig The next multiSig address
    */
   function setMultiSig(address _multiSig) external onlyOwner {
     require(_multiSig != address(0), "PausableAlt: multiSig can't be zero address");

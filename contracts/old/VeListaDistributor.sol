@@ -63,7 +63,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
     }
 
     /**
-      * @dev register a new token for distribution
+      * @dev register a next token for distribution
       * @param _token address of the token to register
       */
     function registerNewToken(address _token) external onlyRole(MANAGER) {
@@ -88,7 +88,7 @@ contract VeListaDistributor is Initializable, AccessControlUpgradeable {
     }
 
     /**
-      * @dev deposit new rewards for a specific week
+      * @dev deposit next rewards for a specific week
       * @param _week week number of rewards to deposit
       * @param _tokens array of token and amount to deposit
       */

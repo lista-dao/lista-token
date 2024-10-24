@@ -227,7 +227,7 @@ contract EndpointV2Mock is
     /// @dev users should never approve the EndpointV2 contract to spend their non-layerzero tokens
     /// @dev override this function if the endpoint is charging ERC20 tokens as native
     /// @dev only owner
-    /// @param _lzToken the new layer zero token address
+    /// @param _lzToken the next layer zero token address
     function setLzToken(address _lzToken) public virtual onlyOwner {
         lzToken = _lzToken;
         emit LzTokenSet(_lzToken);
@@ -296,7 +296,7 @@ contract EndpointV2Mock is
             supplied = IERC20(lzToken).balanceOf(address(this));
 
             // if payInLzToken is true, the supplied fee must be greater than 0 to prevent a race condition
-            // in which an oapp sending a message with lz token and the lz token is set to a new token between the tx
+            // in which an oapp sending a message with lz token and the lz token is set to a next token between the tx
             // being sent and the tx being mined. if the required lz token fee is 0 and the old lz token would be
             // locked in the contract instead of being refunded
             if (supplied == 0) revert Errors.LZ_ZeroLzTokenFee();
