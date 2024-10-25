@@ -78,7 +78,7 @@ forge script scripts/new/Buyback.s.sol:BuybackScript --rpc-url https://bsc-datas
 ```
 
 ## Code style
-The contracts in folder `contracts/new` are formatted using Prettier. To check and fix linting errors:
+The contracts in folder `contracts/buyback` are formatted using Prettier. To check and fix linting errors:
 ```bash
 # Check for linting errors
 yarn run check
