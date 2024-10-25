@@ -52,10 +52,10 @@ async function main() {
   let listaVault = '', manager;
   if (hre.network.name === "bsc") {
     listaVault = "0x307d13267f360f78005f476Fa913F8848F30292A";
-    manager = "";
+    manager = ""; // router address
   } else if (hre.network.name === "bscTestnet") {
     listaVault = "0x1D70D733401169055002FB4450942F15C2F088d4";
-    manager = "";
+    manager = ""; // router address
   }
 
   for (const collateralConfig of collateralConfigs) {
@@ -71,11 +71,10 @@ async function main() {
       listaVault,
       collateralConfig.lpToken
     );
-
-    const contract = await hre.ethers.getContractAt("ListaVault", listaVault);
-    await contract.registerDistributor(address);
-
     console.log(`CollateralListaDistributor loop done, ${collateralConfig.symbol} deployed to: ${address}`);
+
+    // const contract = await hre.ethers.getContractAt("ListaVault", listaVault);
+    // await contract.registerDistributor(address);
   }
 
   console.log(`CollateralListaDistributor all done`);

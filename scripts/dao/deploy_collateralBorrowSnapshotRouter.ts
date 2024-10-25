@@ -1,7 +1,6 @@
 import { deployProxy } from "../tasks";
 import hre from "hardhat";
 
-
 async function main() {
   const signers = await hre.ethers.getSigners();
   const deployer = signers[0].address;
