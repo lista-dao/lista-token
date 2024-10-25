@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import "../../contracts/new/Buyback.sol";
+import "../../contracts/buyback/Buyback.sol";
 
 contract BuybackTest is Test {
   /**

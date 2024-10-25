@@ -5,8 +5,8 @@ coverage*
 gasReporterOutput.json
 lib/
 contracts/*
-!contracts/new/
+!contracts/buyback/
 scripts/*
-!scripts/new/
+!scripts/buyback/
 test/*
-!test/new/
+!test/buyback/
