@@ -51,8 +51,6 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     uint16 public distributorId;
     // lp proxy address
     address public lpProxy;
-    // emission voting address
-    IEmissionVoting public emissionVoting;
 
     // manager role
     bytes32 public constant MANAGER = keccak256("MANAGER");
@@ -60,6 +58,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
 
     // paused flag
     bool public paused;
+    // emission voting address
+    IEmissionVoting public emissionVoting;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
