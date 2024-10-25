@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import { Buyback } from "../../contracts/new/Buyback.sol";
+import { Buyback } from "../../contracts/buyback/Buyback.sol";
 
 contract BuybackScript is Script {
   function setUp() public {}
