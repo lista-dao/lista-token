@@ -126,7 +126,7 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
 
     /**
      * @dev distribute tokens to autoBuybackAddress and revenueWalletAddress
-     *      according to distributeRate excluding cost
+     *      according to distributeRate and cost amount will be sent to tokenCostToAddress
      *
      * @param tokens, token to distribute
      * @param costs, amount directly to cost address
@@ -135,6 +135,7 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         external
         onlyRole(MANAGER)
     {
+        require(tokens.length > 0 && tokens.length == costs.length, "invalid tokens and costs length");
         for (uint256 i = 0; i < tokens.length; i++) {
             _distributeTokenWithCost(tokens[i], costs[i]);
         }
