@@ -1,4 +1,4 @@
-import { deployProxy } from "./tasks";
+import { deployProxyUUPS } from "./tasks";
 import hre from "hardhat";
 
 async function main() {
@@ -15,7 +15,7 @@ async function main() {
     vault = "0x1D70D733401169055002FB4450942F15C2F088d4";
     emissionVoting = "0x6B7B87F92354bEC0eC20Db0CB328e186cda950dd";
   }
-  await deployProxy(hre, "VotingIncentive", vault, emissionVoting, adminVoter, admin);
+  await deployProxyUUPS(hre, "VotingIncentive", vault, emissionVoting, adminVoter, admin);
 }
 
 main()

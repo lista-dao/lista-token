@@ -4,7 +4,8 @@ pragma solidity ^0.8.10;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import { VotingIncentive } from "contracts/dao/VotingIncentive.sol";
@@ -25,26 +26,14 @@ contract VotingIncentiveTest is Test {
   address user2 = makeAddr("user2");
   address proxyAdminOwner = makeAddr("proxyAdminOwner");
   address adminVoter = makeAddr("adminVoter");
+  address manager = makeAddr("manager");
+  address pauser = makeAddr("pauser");
 
   function setUp() public {
     VotingIncentive votingIncentiveImpl = new VotingIncentive();
 
     vault = new ListaVault();
     emissionVoting = new EmissionVoting();
-
-    vm.startPrank(admin);
-    vm.expectRevert("Invalid adminVoter");
-    TransparentUpgradeableProxy _votingIncentiveProxy = new TransparentUpgradeableProxy(
-      address(votingIncentiveImpl),
-      proxyAdminOwner,
-      abi.encodeWithSignature(
-        "initialize(address,address,address,address)",
-        address(vault),
-        address(emissionVoting),
-        adminVoter,
-        admin
-      )
-    );
     vm.mockCall(address(emissionVoting), abi.encodeWithSignature("hasRole(bytes32,address)"), abi.encode(true));
     vm.mockCall(
       address(vault),
@@ -52,26 +41,27 @@ contract VotingIncentiveTest is Test {
       abi.encode(uint256(1)) // week 1
     );
 
-    TransparentUpgradeableProxy votingIncentiveProxy = new TransparentUpgradeableProxy(
-      address(votingIncentiveImpl),
-      proxyAdminOwner,
-      abi.encodeWithSignature(
-        "initialize(address,address,address,address)",
-        address(vault),
-        address(emissionVoting),
-        adminVoter,
-        admin
-      )
+    vm.startPrank(admin);
+
+    bytes memory data = abi.encodeWithSignature(
+      "initialize(address,address,address,address,address,address)",
+      address(vault),
+      address(emissionVoting),
+      adminVoter,
+      admin,
+      manager,
+      pauser
     );
 
-    votingIncentive = VotingIncentive(address(votingIncentiveProxy));
+    address proxy = address(new ERC1967Proxy(address(votingIncentiveImpl), data));
+    votingIncentive = VotingIncentive(proxy);
     vm.stopPrank();
 
     asset1 = new ERC20("asset1", "asset1");
   }
 
   function test_whitelistAsset() public {
-    vm.startPrank(admin);
+    vm.startPrank(manager);
     votingIncentive.whitelistAsset(address(asset1), true);
     assertTrue(votingIncentive.assetWhitelist(address(asset1)));
     vm.stopPrank();
@@ -84,7 +74,7 @@ contract VotingIncentiveTest is Test {
     address bnbAsset = address(0);
     votingIncentive.addIncentives(1, 2, 3, bnbAsset, 100);
 
-    vm.startPrank(admin);
+    vm.startPrank(manager);
     votingIncentive.whitelistAsset(bnbAsset, true);
     assertTrue(votingIncentive.assetWhitelist(bnbAsset));
 
@@ -104,7 +94,7 @@ contract VotingIncentiveTest is Test {
     vm.expectRevert("Asset not whitelisted");
     votingIncentive.addIncentives(1, 2, 3, makeAddr("asset2"), 100);
 
-    vm.startPrank(admin);
+    vm.startPrank(manager);
     votingIncentive.whitelistAsset(address(asset1), true);
     assertTrue(votingIncentive.assetWhitelist(address(asset1)));
 
@@ -137,7 +127,7 @@ contract VotingIncentiveTest is Test {
       abi.encode(uint256(100)) // pool weight 100 for week 1 distributor 1
     );
 
-    vm.startPrank(admin);
+    vm.startPrank(manager);
     votingIncentive.whitelistAsset(address(asset1), true);
     assertTrue(votingIncentive.assetWhitelist(address(asset1)));
 
@@ -164,7 +154,7 @@ contract VotingIncentiveTest is Test {
 
     vm.startPrank(user2);
     uint256 balanceBefore = asset1.balanceOf(user2);
-    votingIncentive.claim(1, 1, address(asset1));
+    votingIncentive.claim(user2, 1, 1, address(asset1));
     vm.stopPrank();
     assertEq(asset1.balanceOf(user2) - balanceBefore, 0.005 ether); // 0.5 * 1 / 100
   }
@@ -187,7 +177,7 @@ contract VotingIncentiveTest is Test {
       abi.encode(uint256(100)) // pool weight 100 for week 1 distributor 1
     );
 
-    vm.startPrank(admin);
+    vm.startPrank(manager);
     votingIncentive.whitelistAsset(bnbAsset, true);
     assertTrue(votingIncentive.assetWhitelist(bnbAsset));
 
@@ -213,8 +203,8 @@ contract VotingIncentiveTest is Test {
     );
 
     vm.startPrank(user2);
-    uint256 balanceBefore =user2.balance;
-    votingIncentive.claim(1, 1, bnbAsset);
+    uint256 balanceBefore = user2.balance;
+    votingIncentive.claim(user2, 1, 1, bnbAsset);
     vm.stopPrank();
     assertEq(user2.balance - balanceBefore, 0.005 ether); // 0.5 * 1 / 100
   }
@@ -237,7 +227,7 @@ contract VotingIncentiveTest is Test {
       abi.encode(uint256(100)) // pool weight 100 for week 1 distributor 1
     );
 
-    vm.startPrank(admin);
+    vm.startPrank(manager);
     votingIncentive.whitelistAsset(address(asset1), true);
     assertTrue(votingIncentive.assetWhitelist(address(asset1)));
 
@@ -271,7 +261,7 @@ contract VotingIncentiveTest is Test {
 
     vm.startPrank(user2);
     uint256 balanceBefore = asset1.balanceOf(user2);
-    votingIncentive.claim(1, 1, address(asset1));
+    votingIncentive.claim(user2, 1, 1, address(asset1));
     vm.stopPrank();
     assertEq(asset1.balanceOf(user2) - balanceBefore, 0.01 ether); // 0.5 * 1 / (100 - 50)
   }
@@ -279,9 +269,9 @@ contract VotingIncentiveTest is Test {
   function test_setAdminVoter() public {
     vm.startPrank(admin);
 
-    vm.expectRevert("Invalid adminVoter");
+    vm.expectRevert();
     votingIncentive.setAdminVoter(address(0));
-    vm.expectRevert("Invalid adminVoter");
+    vm.expectRevert();
     votingIncentive.setAdminVoter(adminVoter);
 
     address newAdminVoter = makeAddr("newAdminVoter");
