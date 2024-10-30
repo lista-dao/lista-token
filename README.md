@@ -55,6 +55,20 @@ Run a specific test file:
 npx hardhat test <path/to/file>
 ```
 
+Run a specific test file with forge:
+```bash
+forge test --match-contract <Contract Test Script Name> -vvv
+forge test --match-contract <Contract Test Script Name> -vvv --via-ir
+forge test --match-contract <Contract Test Script Name> --match-test <Test Name> -vvv
+
+# Examples
+forge test --match-contract BuybackTest -vvv
+# clean the cache and run the test
+forge clean && forge test --match-contract BuybackTest -vvv
+# run a specific test in the contract
+forge test --match-contract BuybackTest --match-test "test_buyback" -vvv
+```
+
 ### Run coverage
 
 Generate coverage report:
