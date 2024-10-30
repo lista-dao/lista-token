@@ -308,13 +308,12 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
    * @param _week week number
    */
   function getRawWeight(address _account, uint16 _distributorId, uint16 _week) public view returns (uint256 _weight) {
-    uint256 index = emissionVoting.userVotedDistributorIndex(_account, _week, _distributorId);
-    EmissionVoting.Vote[] memory votes = emissionVoting.getUserVotedDistributors(_account, _week);
-    if (votes.length == 0) {
+    int256 index = int256(emissionVoting.userVotedDistributorIndex(_account, _week, _distributorId)) - 1;
+    if (index < 0) {
       return 0; // account has not voted
     }
-    require(votes.length > index, "Invalid index");
-    EmissionVoting.Vote memory vote = votes[index];
+    EmissionVoting.Vote[] memory votes = emissionVoting.getUserVotedDistributors(_account, _week);
+    EmissionVoting.Vote memory vote = votes[uint256(index)];
 
     require(vote.distributorId == _distributorId, "Invalid distributorId");
     _weight = vote.weight;

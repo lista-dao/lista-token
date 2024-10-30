@@ -140,7 +140,7 @@ contract VotingIncentiveTest is Test {
     vm.mockCall(
       address(emissionVoting),
       abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(1), uint16(1)),
-      abi.encode(uint256(0))
+      abi.encode(uint256(1)) // start from 1
     );
 
     EmissionVoting.Vote[] memory user2Votes = new EmissionVoting.Vote[](1);
@@ -190,7 +190,7 @@ contract VotingIncentiveTest is Test {
     vm.mockCall(
       address(emissionVoting),
       abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(1), uint16(1)),
-      abi.encode(uint256(0))
+      abi.encode(uint256(1)) // start from 1
     );
 
     EmissionVoting.Vote[] memory user2Votes = new EmissionVoting.Vote[](1);
@@ -240,7 +240,13 @@ contract VotingIncentiveTest is Test {
     vm.mockCall(
       address(emissionVoting),
       abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(1), uint16(1)),
-      abi.encode(uint256(0))
+      abi.encode(uint256(1)) // User2's index = 1
+    );
+
+    vm.mockCall(
+      address(emissionVoting),
+      abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(adminVoter), uint16(1), uint16(1)),
+      abi.encode(uint256(1)) // adminVoter's index = 1
     );
 
     EmissionVoting.Vote[] memory user2Votes = new EmissionVoting.Vote[](1);
@@ -256,7 +262,7 @@ contract VotingIncentiveTest is Test {
     vm.mockCall(
       address(emissionVoting),
       abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(adminVoter), uint16(1)),
-      abi.encode(adminVotes) // mock user2's weight to be 50
+      abi.encode(adminVotes) // mock adminVoter's weight to be 50
     );
 
     vm.startPrank(user2);
