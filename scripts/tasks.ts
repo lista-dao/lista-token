@@ -135,6 +135,27 @@ export async function validateUpgrade(
   );
 }
 
+export async function upgradeProxyUUPS(
+  hre: HardhatRuntimeEnvironment,
+  contractName: string,
+  proxyAddress: string
+) {
+  const Contract = await hre.ethers.getContractFactory(contractName);
+
+  console.log(`Upgrading UUPS ${contractName} with proxy at: ${proxyAddress}`);
+
+  const contract = await hre.upgrades.upgradeProxy(proxyAddress, Contract, {
+    kind: "uups",
+  });
+  await contract.waitForDeployment();
+
+  const contractImplAddress =
+    await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
+
+  console.log(`Proxy ${contractName} deployed to:`, contract.target);
+  console.log(`Impl ${contractName} deployed to:`, contractImplAddress);
+}
+
 export async function transferProxyAdminOwner(
   hre: HardhatRuntimeEnvironment,
   proxyAddress: string,
