@@ -20,6 +20,7 @@ contract BuybackTest is Test {
   address receiver = 0x09702Ea135d9D707DD51f530864f2B9220aAD87B;
   address oneInchRouter = 0x111111125421cA6dc452d289314280a0f8842A65;
   address tokenIn = 0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5; // lisUSD
+  address oneInchNativeToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
   address tokenOut = 0x55d398326f99059fF775485246999027B3197955; // USDT
 
   Buyback buyback;
@@ -29,8 +30,9 @@ contract BuybackTest is Test {
     vm.createSelectFork("https://rpc.ankr.com/bsc", 43143645);
 
     // deploy buyback
-    address[] memory tokenIns = new address[](1);
+    address[] memory tokenIns = new address[](2);
     tokenIns[0] = address(tokenIn);
+    tokenIns[1] = address(oneInchNativeToken);
     Buyback buybackImplContract = new Buyback();
     buybackImpl = address(buybackImplContract);
     ERC1967Proxy proxy = new ERC1967Proxy(
@@ -45,18 +47,43 @@ contract BuybackTest is Test {
     console.log("buyback proxy address: %s", proxyAddress);
     console.log("buyback impl address: %s", buybackImpl);
     deal(tokenIn, proxyAddress, 10000 ether);
+    deal(proxyAddress, 10000 ether);
+  }
+
+  function _swap(bytes memory _data) private {
+    vm.startPrank(bot);
+    (, IBuyback.SwapDescription memory swapDesc, ) = abi.decode(
+      sliceBytes(_data, 4, _data.length - 4),
+      (address, IBuyback.SwapDescription, bytes)
+    );
+
+    bool isNativeSrcToken = address(swapDesc.srcToken) == oneInchNativeToken;
+    uint256 buybackBalanceBefore = isNativeSrcToken
+      ? address(buyback).balance
+      : swapDesc.srcToken.balanceOf(address(buyback));
+    uint256 receiverBalanceBefore = swapDesc.dstToken.balanceOf(receiver);
+
+    vm.startPrank(bot);
+    buyback.buyback(oneInchRouter, _data);
+    vm.stopPrank();
+
+    uint256 buybackBalanceAfter = isNativeSrcToken
+      ? address(buyback).balance
+      : swapDesc.srcToken.balanceOf(address(buyback));
+    uint256 receiverBalanceAfter = swapDesc.dstToken.balanceOf(receiver);
+
+    assertEq(buybackBalanceAfter, buybackBalanceBefore - swapDesc.amount);
+
+    uint256 today = (block.timestamp / 1 days) * 1 days;
+    uint256 amountOut = buyback.dailyBought(today);
+    assertTrue(amountOut >= swapDesc.minReturnAmount);
+    assertEq(amountOut, receiverBalanceAfter - receiverBalanceBefore);
+    vm.stopPrank();
   }
 
   function test_buyback() public {
     bytes
       memory data = hex"07ed2379000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd090000000000000000000000000782b6d8c4551b9760e74c0545a9bcd90bdc41e500000000000000000000000055d398326f99059ff775485246999027b3197955000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd0900000000000000000000000009702ea135d9d707dd51f530864f2b9220aad87b0000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000000000000000000000000000d9fdf681582420500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000010e0000000000000000000000000000000000000000000000000000000000f051200520451b19ad0bb00ed35ef391086a692cfc74b20782b6d8c4551b9760e74c0545a9bcd90bdc41e500449908fc8b0000000000000000000000000782b6d8c4551b9760e74c0545a9bcd90bdc41e500000000000000000000000055d398326f99059ff775485246999027b319795500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000111111125421ca6dc452d289314280a0f8842a650000000000000000000000000000000000000000000000000000000067153898000000000000000000000000000000000000b3276493";
-    (, IBuyback.SwapDescription memory swapDesc, ) = abi.decode(
-      sliceBytes(data, 4, data.length - 4),
-      (address, IBuyback.SwapDescription, bytes)
-    );
-
-    uint256 buybackBalanceBefore = swapDesc.srcToken.balanceOf(address(buyback));
-    uint256 receiverBalanceBefore = swapDesc.dstToken.balanceOf(receiver);
 
     // only bot can call buyback
     vm.startPrank(admin);
@@ -80,19 +107,13 @@ contract BuybackTest is Test {
     vm.stopPrank();
 
     // bot can call buyback when not paused
-    vm.startPrank(bot);
-    buyback.buyback(oneInchRouter, data);
-    vm.stopPrank();
+    _swap(data);
+  }
 
-    uint256 buybackBalanceAfter = swapDesc.srcToken.balanceOf(address(buyback));
-    uint256 receiverBalanceAfter = swapDesc.dstToken.balanceOf(receiver);
-
-    assertEq(buybackBalanceAfter, buybackBalanceBefore - swapDesc.amount);
-
-    uint256 today = (block.timestamp / 1 days) * 1 days;
-    uint256 amountOut = buyback.dailyBought(today);
-    assertTrue(amountOut >= swapDesc.minReturnAmount);
-    assertEq(amountOut, receiverBalanceAfter - receiverBalanceBefore);
+  function test_buyback_with_native_token() public {
+    bytes
+      memory data = hex"07ed2379000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00000000000000000000000055d398326f99059ff775485246999027b3197955000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd0900000000000000000000000009702ea135d9d707dd51f530864f2b9220aad87b0000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000000000001fe70d482aeb5d76590000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000ff0000000000000000000000000000000000000000e10000b300006900001a4041bb4cdb9cbd36b01bd1cbaebf2de08d9173bc095cd0e30db002a000000000000000000000000000000000000000000000001fe70d482aeb5d7659ee63c1e50047a90a2d92a8367a91efa1906bfc8c1e05bf10c4bb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c00a0f2fa6b6655d398326f99059ff775485246999027b3197955000000000000000000000000000000000000000000000020398c1f85dba4397c0000000000000000456ccf6ce4c66ecb80a06c4eca2755d398326f99059ff775485246999027b3197955111111125421ca6dc452d289314280a0f8842a6500b3276493";
+    _swap(data);
   }
 
   /**
@@ -198,29 +219,47 @@ contract BuybackTest is Test {
     vm.stopPrank();
   }
 
+  function _emergencyWithdraw(address _token, uint256 _amount) private {
+    bool isNativeToken = _token == address(0);
+    if (isNativeToken) {
+      deal(address(buyback), _amount);
+    } else {
+      deal(_token, address(buyback), _amount);
+    }
+
+    uint256 buybackBalanceBefore = isNativeToken
+      ? address(buyback).balance
+      : IERC20(tokenIn).balanceOf(address(buyback));
+    uint256 adminBalanceBefore = isNativeToken ? admin.balance : IERC20(tokenIn).balanceOf(admin);
+
+    vm.startPrank(admin);
+    buyback.emergencyWithdraw(_token, _amount);
+    vm.stopPrank();
+
+    uint256 buybackBalanceAfter = isNativeToken
+      ? address(buyback).balance
+      : IERC20(tokenIn).balanceOf(address(buyback));
+    uint256 adminBalanceAfter = isNativeToken ? admin.balance : IERC20(tokenIn).balanceOf(admin);
+
+    assertEq(buybackBalanceAfter, buybackBalanceBefore - _amount);
+    assertEq(adminBalanceAfter, adminBalanceBefore + _amount);
+  }
+
   /**
    * @dev test emergency withdraw
    */
   function test_emergency_withdraw() public {
     uint256 amount = 1000 ether;
-    deal(tokenIn, address(buyback), amount);
 
     // only admin can withdraw
     vm.expectRevert();
     buyback.emergencyWithdraw(tokenIn, amount);
 
-    uint256 buybackBalanceBefore = IERC20(tokenIn).balanceOf(address(buyback));
-    uint256 adminBalanceBefore = IERC20(tokenIn).balanceOf(admin);
+    // withdraw erc20 token
+    _emergencyWithdraw(tokenIn, amount);
 
-    vm.startPrank(admin);
-    buyback.emergencyWithdraw(tokenIn, amount);
-    vm.stopPrank();
-
-    uint256 buybackBalanceAfter = IERC20(tokenIn).balanceOf(address(buyback));
-    uint256 adminBalanceAfter = IERC20(tokenIn).balanceOf(admin);
-
-    assertEq(buybackBalanceAfter, buybackBalanceBefore - amount);
-    assertEq(adminBalanceAfter, adminBalanceBefore + amount);
+    // withdraw native token
+    _emergencyWithdraw(address(0), amount);
   }
 
   /**

@@ -32,6 +32,8 @@ contract Buyback is
   bytes4 public constant SWAP_FUNCTION_SELECTOR =
     bytes4(keccak256("swap(address,(address,address,address,address,uint256,uint256,uint256),bytes)"));
 
+  address public constant SWAP_NATIVE_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
   /* ============ State Variables ============ */
   // 1Inch router whitelist
   mapping(address => bool) public oneInchRouterWhitelist;
@@ -121,11 +123,16 @@ contract Buyback is
     require(address(swapDesc.dstToken) == tokenOut, "Invalid swap output token");
     require(address(swapDesc.dstReceiver) == receiver, "Invalid receiver");
     require(swapDesc.amount > 0, "Invalid swap input amount");
-    require(swapDesc.srcToken.balanceOf(address(this)) >= swapDesc.amount, "Insufficient balance of swap input token");
 
-    swapDesc.srcToken.approve(_1inchRouter, swapDesc.amount);
+    bool isNativeSrcToken = address(swapDesc.srcToken) == SWAP_NATIVE_TOKEN_ADDRESS ? true : false;
+    uint256 srcTokenBalance = isNativeSrcToken ? address(this).balance : swapDesc.srcToken.balanceOf(address(this));
+    require(srcTokenBalance >= swapDesc.amount, "Insufficient balance of swap input token");
+
+    if (!isNativeSrcToken) {
+      swapDesc.srcToken.approve(_1inchRouter, swapDesc.amount);
+    }
     uint256 beforeBalance = swapDesc.dstToken.balanceOf(receiver);
-    (bool success, bytes memory result) = _1inchRouter.call(_data);
+    (bool success, bytes memory result) = _1inchRouter.call{ value: isNativeSrcToken ? swapDesc.amount : 0 }(_data);
     if (!success) {
       revert(RevertReasonParser.parse(result, "1inch call failed: "));
     }
@@ -199,12 +206,17 @@ contract Buyback is
   }
 
   /**
-   * @dev allows admin to withdraw tokens for emergency or recover any other mistaken ERC20 tokens.
-   * @param _token ERC20 token address
+   * @dev allows admin to withdraw tokens for emergency or recover any other mistaken tokens.
+   * @param _token token address
    * @param _amount token amount
    */
   function emergencyWithdraw(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-    IERC20(_token).safeTransfer(msg.sender, _amount);
+    if (_token == address(0)) {
+      (bool success, ) = payable(msg.sender).call{ value: _amount }("");
+      require(success, "Withdraw failed");
+    } else {
+      IERC20(_token).safeTransfer(msg.sender, _amount);
+    }
     emit EmergencyWithdraw(_token, _amount);
   }
 
