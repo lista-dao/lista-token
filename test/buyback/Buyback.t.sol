@@ -219,29 +219,47 @@ contract BuybackTest is Test {
     vm.stopPrank();
   }
 
+  function _emergencyWithdraw(address _token, uint256 _amount) private {
+    bool isNativeToken = _token == address(0);
+    if (isNativeToken) {
+      deal(address(buyback), _amount);
+    } else {
+      deal(_token, address(buyback), _amount);
+    }
+
+    uint256 buybackBalanceBefore = isNativeToken
+      ? address(buyback).balance
+      : IERC20(tokenIn).balanceOf(address(buyback));
+    uint256 adminBalanceBefore = isNativeToken ? admin.balance : IERC20(tokenIn).balanceOf(admin);
+
+    vm.startPrank(admin);
+    buyback.emergencyWithdraw(_token, _amount);
+    vm.stopPrank();
+
+    uint256 buybackBalanceAfter = isNativeToken
+      ? address(buyback).balance
+      : IERC20(tokenIn).balanceOf(address(buyback));
+    uint256 adminBalanceAfter = isNativeToken ? admin.balance : IERC20(tokenIn).balanceOf(admin);
+
+    assertEq(buybackBalanceAfter, buybackBalanceBefore - _amount);
+    assertEq(adminBalanceAfter, adminBalanceBefore + _amount);
+  }
+
   /**
    * @dev test emergency withdraw
    */
   function test_emergency_withdraw() public {
     uint256 amount = 1000 ether;
-    deal(tokenIn, address(buyback), amount);
 
     // only admin can withdraw
     vm.expectRevert();
     buyback.emergencyWithdraw(tokenIn, amount);
 
-    uint256 buybackBalanceBefore = IERC20(tokenIn).balanceOf(address(buyback));
-    uint256 adminBalanceBefore = IERC20(tokenIn).balanceOf(admin);
+    // withdraw erc20 token
+    _emergencyWithdraw(tokenIn, amount);
 
-    vm.startPrank(admin);
-    buyback.emergencyWithdraw(tokenIn, amount);
-    vm.stopPrank();
-
-    uint256 buybackBalanceAfter = IERC20(tokenIn).balanceOf(address(buyback));
-    uint256 adminBalanceAfter = IERC20(tokenIn).balanceOf(admin);
-
-    assertEq(buybackBalanceAfter, buybackBalanceBefore - amount);
-    assertEq(adminBalanceAfter, adminBalanceBefore + amount);
+    // withdraw native token
+    _emergencyWithdraw(address(0), amount);
   }
 
   /**
