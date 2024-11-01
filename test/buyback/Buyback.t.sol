@@ -102,8 +102,8 @@ contract BuybackTest is Test {
     vm.stopPrank();
 
     // unpause
-    vm.startPrank(admin);
-    buyback.togglePause();
+    vm.startPrank(manager);
+    buyback.unpause();
     vm.stopPrank();
 
     // bot can call buyback when not paused
