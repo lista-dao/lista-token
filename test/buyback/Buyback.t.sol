@@ -102,7 +102,7 @@ contract BuybackTest is Test {
     vm.stopPrank();
 
     // unpause
-    vm.startPrank(admin);
+    vm.startPrank(manager);
     buyback.unpause();
     vm.stopPrank();
 
