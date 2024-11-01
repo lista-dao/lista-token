@@ -110,7 +110,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
   }
 
   /**
-   * @dev Add Bnb incentives for a distributor for a range of weeks. msg.value should be divisible by number of weeks
+   * @dev Add Bnb incentives for a distributor for a range of weeks.
    * @param _distributorId id of the distributor
    * @param _startWeek start week
    * @param _endWeek end week
@@ -192,6 +192,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
    */
   function claim(address _user, uint16 _distributorId, uint16 _week, address _asset) public nonReentrant whenNotPaused {
     require(_user != adminVoter, "Invalid voter");
+    require(_week <= vault.getWeek(block.timestamp), "Invalid week");
     require(_distributorId > 0 && _distributorId <= vault.distributorId(), "Invalid distributorId");
     require(!claimedIncentives[_user][_distributorId][_week][_asset], "Already claimed");
     uint256 adminWeight = getRawWeight(adminVoter, _distributorId, _week);
