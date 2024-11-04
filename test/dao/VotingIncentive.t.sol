@@ -118,13 +118,12 @@ contract VotingIncentiveTest is Test {
     vm.mockCall(
       address(vault),
       abi.encodeWithSignature("getWeek(uint256)", uint256(1)),
-      abi.encode(uint256(0)) // week 0
+      abi.encode(uint256(1)) // set currnet week = 1
     );
-
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(1), uint16(1)),
-      abi.encode(uint256(100)) // pool weight 100 for week 1 distributor 1
+      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(1), uint16(2)), // week 2
+      abi.encode(uint256(100)) // pool weight 100 for week 2 distributor 1
     );
 
     vm.startPrank(manager);
@@ -134,27 +133,34 @@ contract VotingIncentiveTest is Test {
     deal(address(asset1), user1, 100 ether);
     vm.startPrank(user1);
     asset1.approve(address(votingIncentive), 1 ether);
-    votingIncentive.addIncentives(1, 1, 2, address(asset1), 1 ether);
+    votingIncentive.addIncentives(1, 2, 3, address(asset1), 1 ether); // start week 2, end week 3
     vm.stopPrank();
 
+    // ----------------- Mock user2's vote -------------------- //
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(1), uint16(1)),
-      abi.encode(uint256(1)) // start from 1
+      abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(2), uint16(1)), // week 2, distributor 1
+      abi.encode(uint256(1))
     );
-
     EmissionVoting.Vote[] memory user2Votes = new EmissionVoting.Vote[](1);
     user2Votes[0] = EmissionVoting.Vote({ distributorId: 1, weight: 1 });
-
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(user2), uint16(1)),
+      abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(user2), uint16(2)), // week 2
       abi.encode(user2Votes)
+    );
+
+    // ------------------- user2 claim ---------------------- //
+    skip(1 weeks);
+    vm.mockCall(
+      address(vault),
+      abi.encodeWithSignature("getWeek(uint256)", uint256(604801)),
+      abi.encode(uint256(2)) // currnet week = 2
     );
 
     vm.startPrank(user2);
     uint256 balanceBefore = asset1.balanceOf(user2);
-    votingIncentive.claim(user2, 1, 1, address(asset1));
+    votingIncentive.claim(user2, 1, 2, address(asset1)); // week 2, distributor 1
     vm.stopPrank();
     assertEq(asset1.balanceOf(user2) - balanceBefore, 0.005 ether); // 0.5 * 1 / 100
   }
@@ -164,17 +170,17 @@ contract VotingIncentiveTest is Test {
     vm.mockCall(
       address(vault),
       abi.encodeWithSignature("distributorId()"),
-      abi.encode(uint256(1000)) // max distributor id 1000
+      abi.encode(uint256(1000)) // set max distributor id to 1000
     );
     vm.mockCall(
       address(vault),
       abi.encodeWithSignature("getWeek(uint256)", uint256(1)),
-      abi.encode(uint256(0)) // week 0
+      abi.encode(uint256(1)) // set currnet week = 1
     );
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(1), uint16(1)),
-      abi.encode(uint256(100)) // pool weight 100 for week 1 distributor 1
+      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(1), uint16(2)), // week 2
+      abi.encode(uint256(100)) // pool weight 100 for week 2 distributor 1
     );
 
     vm.startPrank(manager);
@@ -184,27 +190,35 @@ contract VotingIncentiveTest is Test {
     vm.deal(user1, 100 ether);
     vm.startPrank(user1);
     asset1.approve(address(votingIncentive), 1 ether);
-    votingIncentive.addIncentivesBnb{ value: 1 ether }(1, 1, 2);
+    votingIncentive.addIncentivesBnb{ value: 1 ether }(1, 2, 3);
     vm.stopPrank();
 
+    // ----------------- Mock user2's vote -------------------- //
+    // user2 has voted for distributor 1 on week 2
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(1), uint16(1)),
-      abi.encode(uint256(1)) // start from 1
+      abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(2), uint16(1)), // week 2, distributor 1
+      abi.encode(uint256(1)) // user2 has voted for distributor 1 on week 2, index = 1
+    );
+    EmissionVoting.Vote[] memory user2Votes = new EmissionVoting.Vote[](1); // length = 1; since `index -= 1`
+    user2Votes[0] = EmissionVoting.Vote({ distributorId: 1, weight: 1 });
+    vm.mockCall(
+      address(emissionVoting),
+      abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(user2), uint16(2)), // week 2
+      abi.encode(user2Votes)
     );
 
-    EmissionVoting.Vote[] memory user2Votes = new EmissionVoting.Vote[](1);
-    user2Votes[0] = EmissionVoting.Vote({ distributorId: 1, weight: 1 });
-
+    // ------------------- user2 claim ---------------------- //
+    skip(1 weeks);
     vm.mockCall(
-      address(emissionVoting),
-      abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(user2), uint16(1)),
-      abi.encode(user2Votes)
+      address(vault),
+      abi.encodeWithSignature("getWeek(uint256)", uint256(604801)),
+      abi.encode(uint256(2)) // currnet week = 2
     );
 
     vm.startPrank(user2);
     uint256 balanceBefore = user2.balance;
-    votingIncentive.claim(user2, 1, 1, bnbAsset);
+    votingIncentive.claim(user2, 1, 2, bnbAsset); // week 2, distributor 1
     vm.stopPrank();
     assertEq(user2.balance - balanceBefore, 0.005 ether); // 0.5 * 1 / 100
   }
@@ -218,13 +232,12 @@ contract VotingIncentiveTest is Test {
     vm.mockCall(
       address(vault),
       abi.encodeWithSignature("getWeek(uint256)", uint256(1)),
-      abi.encode(uint256(0)) // week 0
+      abi.encode(uint256(1)) // set currnet week = 1
     );
-
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(1), uint16(1)),
-      abi.encode(uint256(100)) // pool weight 100 for week 1 distributor 1
+      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(1), uint16(2)), // week 2
+      abi.encode(uint256(100)) // pool weight 100 for week 2 distributor 1
     );
 
     vm.startPrank(manager);
@@ -234,40 +247,53 @@ contract VotingIncentiveTest is Test {
     deal(address(asset1), user1, 100 ether);
     vm.startPrank(user1);
     asset1.approve(address(votingIncentive), 1 ether);
-    votingIncentive.addIncentives(1, 1, 2, address(asset1), 1 ether);
+    votingIncentive.addIncentives(1, 2, 3, address(asset1), 1 ether); // start week 2, end week 3
     vm.stopPrank();
 
+    // ------------------- Mock user2 vote ---------------------- //
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(1), uint16(1)),
+      abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(2), uint16(1)), // week 2, distributor 1
       abi.encode(uint256(1)) // User2's index = 1
     );
-
-    vm.mockCall(
-      address(emissionVoting),
-      abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(adminVoter), uint16(1), uint16(1)),
-      abi.encode(uint256(1)) // adminVoter's index = 1
-    );
-
     EmissionVoting.Vote[] memory user2Votes = new EmissionVoting.Vote[](1);
     user2Votes[0] = EmissionVoting.Vote({ distributorId: 1, weight: 1 });
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(user2), uint16(1)),
+      abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(user2), uint16(2)), // week 2
       abi.encode(user2Votes) // mock user2's weight to be 1
     );
 
+    // ------------------- Mock adminVoter vote ---------------------- //
+    vm.mockCall(
+      address(emissionVoting),
+      abi.encodeWithSignature(
+        "userVotedDistributorIndex(address,uint16,uint16)",
+        address(adminVoter),
+        uint16(2), // week 2
+        uint16(1) // distributor 1
+      ),
+      abi.encode(uint256(1)) // adminVoter's index = 1
+    );
     EmissionVoting.Vote[] memory adminVotes = new EmissionVoting.Vote[](1);
     adminVotes[0] = EmissionVoting.Vote({ distributorId: 1, weight: 50 });
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(adminVoter), uint16(1)),
+      abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(adminVoter), uint16(2)), // week 2
       abi.encode(adminVotes) // mock adminVoter's weight to be 50
+    );
+
+    // ------------------- user2 claim ---------------------- //
+    skip(1 weeks);
+    vm.mockCall(
+      address(vault),
+      abi.encodeWithSignature("getWeek(uint256)", uint256(604801)),
+      abi.encode(uint256(2)) // currnet week = 2
     );
 
     vm.startPrank(user2);
     uint256 balanceBefore = asset1.balanceOf(user2);
-    votingIncentive.claim(user2, 1, 1, address(asset1));
+    votingIncentive.claim(user2, 1, 2, address(asset1));
     vm.stopPrank();
     assertEq(asset1.balanceOf(user2) - balanceBefore, 0.01 ether); // 0.5 * 1 / (100 - 50)
   }
@@ -286,5 +312,21 @@ contract VotingIncentiveTest is Test {
     Vm.Log[] memory entries = vm.getRecordedLogs();
     assertEq(entries.length, 1);
     vm.stopPrank();
+  }
+
+  function test_pause() public {
+    vm.startPrank(pauser);
+    votingIncentive.pause();
+    assertEq(votingIncentive.paused(), true);
+    vm.expectRevert(
+      "AccessControl: account 0x1733d2304bfd07ad9b29053845b904ffbd99f9fb is missing role 0xaf290d8680820aad922855f39b306097b20e28774d6c1ad35a20325630c3a02c"
+    );
+    votingIncentive.unpause();
+    vm.stopPrank();
+
+    vm.startPrank(manager);
+    votingIncentive.unpause();
+    vm.stopPrank();
+    assertEq(votingIncentive.paused(), false);
   }
 }
