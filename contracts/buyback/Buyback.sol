@@ -234,6 +234,8 @@ contract Buyback is
     _unpause();
   }
 
+  receive() external payable {}
+
   // /* ============ Internal Functions ============ */
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
