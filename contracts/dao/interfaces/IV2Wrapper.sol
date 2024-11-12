@@ -16,4 +16,6 @@ interface IV2Wrapper {
     function pendingReward(address _userAddress) external view returns (uint256);
 
     function userInfo(address _userAddress) external view returns (UserInfo memory);
+
+    function emergencyWithdraw() external;
 }
