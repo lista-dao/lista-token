@@ -42,7 +42,7 @@ contract BuybackTest is Test {
         (admin, manager, pauser, bot, oneInchRouter, tokenIns, tokenOut, receiver)
       )
     );
-    address proxyAddress = address(proxy);
+    address payable proxyAddress = payable(address(proxy));
     buyback = Buyback(proxyAddress);
     console.log("buyback proxy address: %s", proxyAddress);
     console.log("buyback impl address: %s", buybackImpl);
