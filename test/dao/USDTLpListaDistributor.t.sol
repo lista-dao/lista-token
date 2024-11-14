@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import { IDistributor } from "../../contracts/dao/interfaces/IDistributor.sol";
+import { IV2Wrapper } from "../../contracts/dao/interfaces/IV2Wrapper.sol";
 
 import { USDTLpListaDistributor } from "../../contracts/dao/USDTLpListaDistributor.sol";
 import { VeLista } from "../../contracts/VeLista.sol";
@@ -25,7 +26,14 @@ contract USDTLpListaDistributorTest is Test {
   address cake = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
   IERC20 lpToken = IERC20(0xB2Aa63f363196caba3154D4187949283F085a488);
 
+  address stakingVaultOwner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
+
+  ProxyAdmin public proxyAdminStakingVault = ProxyAdmin(0x1d7296C2a2dE261732931F82174272A361E21B0b);
+  address proxyAdminOwnerStakingVault = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
+  ITransparentUpgradeableProxy stakingVaultProxy =
+    ITransparentUpgradeableProxy(0x62DfeC5C9518fE2e0ba483833d1BAD94ecF68153);
   StakingVault public stakingVault = StakingVault(0x62DfeC5C9518fE2e0ba483833d1BAD94ecF68153);
+
   ListaToken public lista = ListaToken(0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46);
   VeLista public veLista = VeLista(0xd0C380D31DB43CD291E2bbE2Da2fD6dc877b87b3);
 
@@ -42,6 +50,12 @@ contract USDTLpListaDistributorTest is Test {
 
   function setUp() public {
     vm.createSelectFork("https://rpc.ankr.com/bsc", 43143645);
+
+    // Upgrade StakingVault
+    vm.startPrank(proxyAdminOwnerStakingVault);
+    StakingVault stakingVaultLogic = new StakingVault();
+    proxyAdminStakingVault.upgradeAndCall{ value: 0 }(stakingVaultProxy, address(stakingVaultLogic), bytes(""));
+    vm.stopPrank();
 
     vm.startPrank(proxyAdminOwner);
     ListaVault listaVaultLogic = new ListaVault();
@@ -81,6 +95,12 @@ contract USDTLpListaDistributorTest is Test {
 
     vm.prank(user1);
     IERC20(usdt).approve(address(usdtDistributor), MAX_UINT);
+    vm.stopPrank();
+
+    // Set usdt distributor to the staking vault
+    vm.startPrank(stakingVaultOwner);
+    stakingVault.setUsdtDistributor(address(usdtDistributor));
+    vm.stopPrank();
 
     skip(1 weeks);
   }
@@ -175,7 +195,7 @@ contract USDTLpListaDistributorTest is Test {
     assertEq(usdtBalanceAfter, usdtBalance + _usdtAmount, "usdt amount is not correct");
   }
 
-  function test_fetchRewards() public {
+  function test_fetchRewards_lista() public {
     uint16 currentWeek = veLista.getCurrentWeek();
     uint256 weekAmount = 700 ether;
     vm.startPrank(manager);
@@ -204,7 +224,7 @@ contract USDTLpListaDistributorTest is Test {
     assertEq(usdtDistributor.periodFinish(), block.timestamp + 1 weeks, "period finish error");
   }
 
-  function test_claimReward() public {
+  function test_claimReward_lista() public {
     uint16 currentWeek = veLista.getCurrentWeek();
     uint256 weekAmount = 700 ether;
 
@@ -248,5 +268,22 @@ contract USDTLpListaDistributorTest is Test {
     vm.stopPrank();
     uint256 listaBalance = lista.balanceOf(user1);
     assertApproxEqAbs(listaBalance, claimable, 1, "reward amount is incorrect");
+  }
+
+  function test_harvest() public {
+    // Step 1. User1 deposit 10 USDT
+    uint256 usdtAmt = 10 ether; // 10 USDT
+    uint256 expectLpMinted = usdtDistributor.getLpAmount(usdtAmt);
+    vm.startPrank(user1);
+    usdtDistributor.deposit(usdtAmt, expectLpMinted);
+    vm.stopPrank();
+    assertEq(usdtDistributor.balanceOf(user1), expectLpMinted, "user1's lp balance should be updated correctly");
+
+    skip(1 days);
+
+    // Step 2. Harvest
+    uint256 pending = IV2Wrapper(v2wrapper).pendingReward(address(usdtDistributor));
+    uint256 claimed = usdtDistributor.harvest();
+    assertEq(claimed, pending, "harvest amount is incorrect");
   }
 }

@@ -33,6 +33,8 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
     address public lpProxy;
     // pauser address
     address public pauser;
+    // usdt distributor address
+    address public usdtDistributor;
 
     event AddRewards(address distributor, uint256 amount, uint256 fee);
 
@@ -69,8 +71,8 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
         _;
     }
 
-    modifier onlyStaking() {
-        require(msg.sender == staking, "Only staking contract can call this function");
+    modifier onlyStakingOrUsdtDistributor() {
+        require(msg.sender == staking || msg.sender == usdtDistributor, "Only staking contract can call this function");
         _;
     }
 
@@ -84,8 +86,9 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
       * @param distributor distributor address
       * @param amount reward amount
       */
-    function sendRewards(address distributor, uint256 amount) external onlyStaking {
-        IERC20(rewardToken).safeTransferFrom(staking, address(this), amount);
+    function sendRewards(address distributor, uint256 amount) external onlyStakingOrUsdtDistributor {
+        // The caller should pay the staking rewards
+        IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 rewardAmount = amount;
         uint256 fee;
@@ -170,6 +173,15 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
     function setLpProxy(address _lpProxy) external onlyOwner {
         require(_lpProxy != address(0), "lpProxy cannot be zero address");
         lpProxy = _lpProxy;
+    }
+
+    /**
+      * @dev set USDTLpListaDistributor address since it's not registered in the staking contract
+      * @param _usdtDistributor USDTLpListaDistributor address
+      */
+    function setUsdtDistributor(address _usdtDistributor) external onlyOwner {
+        require(_usdtDistributor != address(0) && usdtDistributor != _usdtDistributor, "invalid usdtDistributor provided");
+        usdtDistributor = _usdtDistributor;
     }
 
     /**
