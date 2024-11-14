@@ -157,7 +157,9 @@ contract USDTLpListaDistributorTest is Test {
     uint256 expectLpMinted = usdtDistributor.getLpAmount(usdtAmt);
 
     vm.startPrank(user1);
-    usdtDistributor.deposit(usdtAmt);
+    vm.expectRevert("Invalid min lp amount");
+    usdtDistributor.deposit(usdtAmt, expectLpMinted + 1 ether);
+    usdtDistributor.deposit(usdtAmt, expectLpMinted);
     vm.stopPrank();
 
     uint256 lpBalance = usdtDistributor.balanceOf(user1);
@@ -171,7 +173,7 @@ contract USDTLpListaDistributorTest is Test {
     uint256 usdtAmt = 10 ether; // 10 USDT
     uint256 expectLpMinted = usdtDistributor.getLpAmount(usdtAmt);
     vm.startPrank(user1);
-    usdtDistributor.deposit(usdtAmt);
+    usdtDistributor.deposit(usdtAmt, expectLpMinted);
     vm.stopPrank();
     assertEq(usdtDistributor.balanceOf(user1), expectLpMinted, "user1's lp balance should be updated correctly");
 
@@ -243,7 +245,7 @@ contract USDTLpListaDistributorTest is Test {
     uint256 usdtAmt = 10 ether; // 10 USDT
     uint256 expectLpMinted = usdtDistributor.getLpAmount(usdtAmt);
     vm.startPrank(user1);
-    usdtDistributor.deposit(usdtAmt);
+    usdtDistributor.deposit(usdtAmt, expectLpMinted);
     vm.stopPrank();
     assertEq(usdtDistributor.balanceOf(user1), expectLpMinted, "user1's lp balance should be updated correctly");
 

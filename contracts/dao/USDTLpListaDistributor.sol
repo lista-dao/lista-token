@@ -109,9 +109,10 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev deposit USDT
    * @param usdtAmount amount of USDT to stake
    */
-  function deposit(uint256 usdtAmount) external {
+  function deposit(uint256 usdtAmount, uint256 minLpAmount) external {
     require(usdtAmount > 0, "Invalid usdt amount");
-    uint256 minLpAmount = getLpAmount(usdtAmount);
+    uint256 expectLpAmount = getLpAmount(usdtAmount);
+    require(expectLpAmount >= minLpAmount, "Invalid min lp amount");
 
     // transfer USDT to this contract
     usdt.safeIncreaseAllowance(stableSwapPool, usdtAmount);
@@ -121,11 +122,10 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     IStableSwap(stableSwapPool).add_liquidity([0, usdtAmount], minLpAmount);
     actualLpAmount = IERC20(lpToken).balanceOf(address(this)) - actualLpAmount;
 
-    require(actualLpAmount > 0, "Invalid lp amount");
+    require(actualLpAmount >= minLpAmount, "Invalid lp amount minted");
 
     // update balance, reward and total supply
     _deposit(msg.sender, actualLpAmount);
-
     // stake lp token
     _depositLp(msg.sender, actualLpAmount);
   }
