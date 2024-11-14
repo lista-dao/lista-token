@@ -17,6 +17,8 @@ import { StakingVault } from "../../contracts/dao/StakingVault.sol";
 import "../../contracts/mock/MockERC20.sol";
 
 contract USDTLpListaDistributorTest is Test {
+  address stableSwap = 0xb1Da7D2C257c5700612BdE35C8d7187dc80d79f1;
+  address stableSwapPoolInfo = 0x150c8AbEB487137acCC541925408e73b92F39A50;
   address usdt = 0x55d398326f99059fF775485246999027B3197955;
   address lisUSD = 0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5;
   address v2wrapper = 0xd069a9E50E4ad04592cb00826d312D9f879eBb02; // stableswap LP farming
@@ -75,12 +77,14 @@ contract USDTLpListaDistributorTest is Test {
       address(distributorLogic),
       proxyAdminOwner,
       abi.encodeWithSignature(
-        "initialize(address,address,address,address,address)",
+        "initialize(address,address,address,address,address,address,address)",
         manager,
         manager,
         address(listaVault),
         address(pancakeStaking),
-        address(stakingVault)
+        address(stakingVault),
+        address(stableSwap),
+        address(stableSwapPoolInfo)
       )
     );
     usdtDistributor = USDTLpListaDistributor(address(proxy));
@@ -232,7 +236,7 @@ contract USDTLpListaDistributorTest is Test {
     ids[0] = id;
     uint256[] memory percents = new uint256[](1);
     percents[0] = 1e18;
-    listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
+    listaVault.setWeeklyDistributorPercent(currentWeek + 1, ids, percents);
     vm.stopPrank();
 
     // Step 2. User1 deposit 10 USDT

@@ -12,6 +12,7 @@ import { IVault } from "./interfaces/IVault.sol";
 
 /**
  * @title USDTLpListaDistributor
+ * @dev This contract is used to stake USDT and earn token emission rewards.
  */
 contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgradeable {
   using SafeERC20 for IERC20;
@@ -45,10 +46,10 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   mapping(address => uint256) private stakeStoredPendingReward;
 
   // lisUSD/USDT PancakeStableSwapTwoPool contract address
-  address constant stableSwapPool = 0xb1Da7D2C257c5700612BdE35C8d7187dc80d79f1;
+  address public stableSwapPool;
 
   // PancakeStableSwapTwoPoolInfo contract address
-  address constant poolInfo = 0x150c8AbEB487137acCC541925408e73b92F39A50;
+  address private poolInfo;
 
   event StakeRewardClaimed(address indexed receiver, uint256 amount);
 
@@ -67,17 +68,27 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     address _manager,
     address _vault,
     address _pancakeStaking,
-    address _stakeVault
+    address _stakeVault,
+    address _stableswap,
+    address _poolInfo
   ) external initializer {
     require(_admin != address(0), "admin is the zero address");
     require(_manager != address(0), "manager is the zero address");
     require(_vault != address(0), "vault is the zero address");
+    require(_pancakeStaking != address(0), "pancake staking is the zero address");
+    require(_stakeVault != address(0), "stake vault is the zero address");
+    require(_stableswap != address(0), "stableswap is the zero address");
+    require(_poolInfo != address(0), "pool info is the zero address");
+
     __AccessControl_init();
     __Pausable_init();
 
     _setupRole(DEFAULT_ADMIN_ROLE, _admin);
     _setupRole(MANAGER, _manager);
     _setupRole(VAULT, _vault);
+
+    stableSwapPool = _stableswap;
+    poolInfo = _poolInfo;
 
     lisUSD = IERC20(IStableSwap(stableSwapPool).coins(0));
     usdt = IERC20(IStableSwap(stableSwapPool).coins(1));
@@ -296,7 +307,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev harvest stake reward from third-party staking pool
    */
   function harvest() external {
-    IStaking(staking).harvest(lpToken);
+    IStaking(staking).harvest(address(usdt));
   }
 
   /**
