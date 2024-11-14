@@ -29,16 +29,8 @@ contract USDTLpListaDistributorTest is Test {
   ListaToken public lista = ListaToken(0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46);
   VeLista public veLista = VeLista(0xd0C380D31DB43CD291E2bbE2Da2fD6dc877b87b3);
 
-  //VeLista public veLista;
-  ITransparentUpgradeableProxy pancakeStakingProxy =
-    ITransparentUpgradeableProxy(0xE31f0BcE1F825A8e27f2Cc30B54af19DA2978f10);
-  PancakeStaking pancakeStaking = PancakeStaking(0xE31f0BcE1F825A8e27f2Cc30B54af19DA2978f10);
   ListaVault listaVault;
   USDTLpListaDistributor usdtDistributor;
-
-  ProxyAdmin public proxyAdminPancakeStaking = ProxyAdmin(0x9b100B82F3a4E98397ac80Ea49E5e58c78DaaeC6);
-  address proxyAdminPancakeStakingOwner = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
-  address pancakeStakingOwner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
 
   ProxyAdmin public proxyAdmin = ProxyAdmin(0xc78f64Cd367bD7d2922088669463FCEE33f50b7c);
   address proxyAdminOwner = 0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06;
@@ -50,12 +42,6 @@ contract USDTLpListaDistributorTest is Test {
 
   function setUp() public {
     vm.createSelectFork("https://rpc.ankr.com/bsc", 43143645);
-
-    // First of all, Upgrade mainnet PancakeStaking
-    PancakeStaking pancakeStakingNewImpl = new PancakeStaking();
-    vm.startPrank(proxyAdminPancakeStakingOwner);
-    proxyAdminPancakeStaking.upgradeAndCall{ value: 0 }(pancakeStakingProxy, address(pancakeStakingNewImpl), bytes(""));
-    vm.stopPrank();
 
     vm.startPrank(proxyAdminOwner);
     ListaVault listaVaultLogic = new ListaVault();
@@ -81,7 +67,7 @@ contract USDTLpListaDistributorTest is Test {
         manager,
         manager,
         address(listaVault),
-        address(pancakeStaking),
+        address(v2wrapper),
         address(stakingVault),
         address(stableSwap),
         address(stableSwapPoolInfo)
@@ -95,11 +81,6 @@ contract USDTLpListaDistributorTest is Test {
 
     vm.prank(user1);
     IERC20(usdt).approve(address(usdtDistributor), MAX_UINT);
-
-    // register pool
-    vm.startPrank(pancakeStakingOwner);
-    pancakeStaking.registerUsdtPool(v2wrapper, address(usdtDistributor));
-    vm.stopPrank();
 
     skip(1 weeks);
   }

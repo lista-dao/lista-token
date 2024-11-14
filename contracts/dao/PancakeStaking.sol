@@ -3,7 +3,6 @@ pragma solidity ^0.8.10;
 import "./interfaces/IStaking.sol";
 import "./interfaces/IStakingVault.sol";
 import "./interfaces/IV2Wrapper.sol";
-import "./interfaces/IDistributor.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
@@ -187,25 +186,6 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         });
 
         emit RegisterPool(lpToken, poolAddress, distributor);
-    }
-
-    function registerUsdtPool(address v2wrapper, address distributor) external onlyOwner {
-        address usdt = 0x55d398326f99059fF775485246999027B3197955;
-        require(!pools[usdt].isActive, "USDT Pool is active");
-
-        address lpToken = IDistributor(distributor).lpToken();
-        require(IV2Wrapper(v2wrapper).stakedToken() == lpToken, "Invalid LP token");
-
-        pools[usdt] = Pool({
-            lpToken: lpToken,
-            rewardToken: IStakingVault(vault).rewardToken(),
-            poolAddress: v2wrapper,
-            distributor: distributor,
-            isActive: true,
-            lastHarvestTime: 0
-        });
-
-        emit RegisterPool(lpToken, v2wrapper, distributor);
     }
 
     /**
