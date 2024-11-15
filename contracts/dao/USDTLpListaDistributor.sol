@@ -6,7 +6,6 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 
 import { CommonListaDistributor, SafeERC20 } from "./CommonListaDistributor.sol";
 
-//import { IStaking } from "./interfaces/IStaking.sol";
 import { IStakingVault } from "./interfaces/IStakingVault.sol";
 import { IStableSwap, IStableSwapPoolInfo } from "./interfaces/IStableSwap.sol";
 import { IVault } from "./interfaces/IVault.sol";
@@ -62,6 +61,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   // last harvest time
   uint256 public lastHarvestTime;
 
+  bool public emergencyMode;
+
   /* ============ Events ============ */
   event USDTStaked(address indexed lpToken, uint256 usdtAmount, uint256 lpAmount);
   event LpUnstaked(address indexed lpToken, uint256 usdtAmount, uint256 lisUSDAmount, uint256 lpAmount);
@@ -69,6 +70,12 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   event Harvest(address usdt, address distributor, uint256 amount);
   event WithdrawLp(address usdt, address distributor, address account, uint256 amount);
   event DepositLp(address usdt, address distributor, uint256 amount);
+  event EmergencyWithdraw(address farming, uint256 lpAmount);
+
+  modifier notInEmergencyMode() {
+    require(!emergencyMode, "In emergency mode");
+    _;
+  }
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -88,6 +95,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   function initialize(
     address _admin,
     address _manager,
+    address _pauser,
     address _vault,
     address _v2wrapper,
     address _stakeVault,
@@ -102,12 +110,14 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     require(_stableswap != address(0), "stableswap is the zero address");
     require(_poolInfo != address(0), "pool info is the zero address");
 
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __Pausable_init();
 
     _setupRole(DEFAULT_ADMIN_ROLE, _admin);
     _setupRole(MANAGER, _manager);
     _setupRole(VAULT, _vault);
+    _setupRole(PAUSER, _pauser);
 
     stableSwapPool = _stableswap;
     stableSwapPoolInfo = _poolInfo;
@@ -139,7 +149,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param usdtAmount amount of USDT to deposit
    * @param minLpAmount minimum amount of LP token required to mint
    */
-  function deposit(uint256 usdtAmount, uint256 minLpAmount) external {
+  function deposit(uint256 usdtAmount, uint256 minLpAmount) external whenNotPaused {
     require(usdtAmount > 0, "Invalid usdt amount");
     uint256 expectLpAmount = getLpAmount(usdtAmount);
     require(expectLpAmount >= minLpAmount, "Invalid min lp amount");
@@ -170,7 +180,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param minLisUSDAmount minimum amount of lisUSD to withdraw
    * @param minUSDTAmount minimum amount of USDT to withdraw
    */
-  function withdraw(uint256 lpAmount, uint256 minLisUSDAmount, uint256 minUSDTAmount) external {
+  function withdraw(uint256 lpAmount, uint256 minLisUSDAmount, uint256 minUSDTAmount) external whenNotPaused {
     // 1. Validate lisUSD and USDT amount
     (uint256 expectLisUSDAmount, uint256 expectUSDTAmount) = getCoinsAmount(lpAmount);
     require(minLisUSDAmount <= expectLisUSDAmount, "Invalid lisUSD amount");
@@ -179,8 +189,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     // 2. Update user's LP balance and LISTA reward, and distributor's LP total supply
     _withdraw(msg.sender, lpAmount);
 
-    // 3. Unstake LP token from farming contract
-    _unstakeLp(msg.sender, lpAmount);
+    // 3. Unstake LP token from farming contract if not in emergency mode
+    if (!emergencyMode) _unstakeLp(msg.sender, lpAmount);
 
     // 4. Remove liquidity from PancakeStableSwapTwoPool
     uint256 lisUSDAmountActual = lisUSD.balanceOf(address(this));
@@ -342,7 +352,6 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     }
   }
 
-
   /* ==================== Role-Based Functions ==================== */
 
   /**
@@ -381,6 +390,19 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     stakeVault = _stakeVault;
   }
 
+  /**
+   * @dev emergency withdraw LP token from farming contract
+   */
+  function emergencyWithdraw() external onlyRole(DEFAULT_ADMIN_ROLE) notInEmergencyMode {
+    uint256 lpAmount = IERC20(lpToken).balanceOf(address(this));
+    v2wrapper.emergencyWithdraw();
+    lpAmount = IERC20(lpToken).balanceOf(address(this)) - lpAmount;
+
+    emergencyMode = true;
+
+    emit EmergencyWithdraw(address(v2wrapper), lpAmount);
+  }
+
   /* ==================== View Functions ==================== */
 
   /**
@@ -401,7 +423,6 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     uint256 integralFor = stakeRewardIntegralFor[account];
     return stakeStoredPendingReward[account] + (balance * (integral - integralFor)) / 1e18;
   }
-
 
   // Check if it's time to harvest. If not, return true
   function noHarvest() public view returns (bool) {

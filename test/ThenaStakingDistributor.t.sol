@@ -21,7 +21,7 @@ contract ThenaStakingDistributorTest is Test {
     IERC20 lpToken = IERC20(0x3685502Ea3EA4175FB5cBB5344F74D2138A96708);
 
     address owner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
-    
+
     address proxyAdminOwner = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
     ProxyAdmin proxyAdmin = ProxyAdmin(0xBd8789025E91AF10487455B692419F82523D29Be);
 
@@ -105,7 +105,7 @@ contract ThenaStakingDistributorTest is Test {
         console.log("user1 lp after deposit", lpToken.balanceOf(user1));
 
         skip(1 days);
-        
+
         thenaStaking.harvest(address(lpToken));
 
         console.log("vault rewards", rewardToken.balanceOf(address(stakingVault)));
@@ -154,5 +154,17 @@ contract ThenaStakingDistributorTest is Test {
         return lpToken.balanceOf(user);
     }
 
+    function test_emergencyWithdraw() public {
+        (,,,,bool _active,) = thenaStaking.pools(address(lpToken));
+        assertTrue(_active, "pool should be active");
+        vm.startPrank(owner);
 
+        address[] memory lpTokens = new address[](1);
+        lpTokens[0] = address(slisBNBBNBThenaCorrelatedDistributor);
+
+        thenaStaking.emergencyWithdraw(lpTokens);
+        vm.stopPrank();
+
+        assertTrue(thenaStaking.emergencyMode(), "emergency mode should be true");
+    }
 }

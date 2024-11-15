@@ -217,15 +217,23 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         emit SetEmergencyMode(_emergencyMode);
     }
 
-    function emergencyWithdraw(address pool) external onlyOwner {
-        Pool memory poolInfo = pools[pool];
-        address farming = poolInfo.poolAddress;
+    /**
+      * @dev emergency withdraw all lp tokens from farming contract given the list of lp token addresses
+      * @param lpTokens the list of lp token addresses
+      */
+    function emergencyWithdraw(address[] memory lpTokens) external onlyOwner nonReentrant {
+        for (uint256 i = 0; i < lpTokens.length; ++i) {
+            address lpToken = lpTokens[i];
+            Pool memory poolInfo = pools[lpToken];
+            if (!poolInfo.isActive) {
+                continue; // Skip inactive pool
+            }
+            uint256 lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this));
+            IV2Wrapper(poolInfo.poolAddress).emergencyWithdraw();
+            lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this)) - lpAmount;
 
-        // withdraw all lp tokens
-        uint256 lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this));
-        IV2Wrapper(farming).emergencyWithdraw();
-        lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this)) - lpAmount;
-
-        emit EmergencyWithdraw(farming, lpAmount);
+            emit EmergencyWithdraw(poolInfo.poolAddress, lpAmount);
+        }
+        emergencyMode = true;
     }
 }
