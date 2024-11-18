@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-import { CommonListaDistributor, SafeERC20 } from "./CommonListaDistributor.sol";
+import { CommonListaDistributor, SafeERC20, IERC20 } from "./CommonListaDistributor.sol";
 
 import { IStakingVault } from "./interfaces/IStakingVault.sol";
 import { IStableSwap, IStableSwapPoolInfo } from "./interfaces/IStableSwap.sol";
@@ -21,15 +20,15 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
   /* ============ PancakeSwap Addresses ============ */
   // PancakeSwap lisUSD/USDT StableSwap contract address
-  address public stableSwapPool;
+  address public immutable stableSwapPool;
   // PancakeStableSwapTwoPoolInfo contract address
-  address private stableSwapPoolInfo;
+  address private immutable stableSwapPoolInfo;
+  // PancakeSwap Stable-LP Farming contract address
+  IV2Wrapper public immutable v2wrapper;
   // PancakeSwap lisUSD/USDT StableSwap coins[0]
   IERC20 public lisUSD;
   // PancakeSwap lisUSD/USDT StableSwap coins[1]
   IERC20 public usdt;
-  // PancakeSwap Stable-LP Farming contract address
-  IV2Wrapper public v2wrapper;
   // CAKE is the LP Farming reward token
   address public cake;
 
@@ -75,9 +74,23 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     _;
   }
 
+  modifier onlyStakeVault() {
+    require(msg.sender == stakeVault, "only stake vault can call this function");
+    _;
+  }
+
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor() {
+  /**
+   * @param _stableswap lisUSD/USDT PancakeStableSwapTwoPool address
+   * @param _poolInfo PancakeStableSwapTwoPoolInfo address
+   * @param _v2wrapper Stable-LP V2wWapper address
+   */
+  constructor(address _stableswap, address _poolInfo, address _v2wrapper) {
+    require(_stableswap != address(0) && _poolInfo != address(0) && _v2wrapper != address(0), "Invalid address");
     _disableInitializers();
+    stableSwapPool = _stableswap;
+    stableSwapPoolInfo = _poolInfo;
+    v2wrapper = IV2Wrapper(_v2wrapper);
   }
 
   /**
@@ -85,28 +98,19 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param _admin admin address
    * @param _manager manager address
    * @param _vault ListaVault address
-   * @param _v2wrapper V2wWapper address
    * @param _stakeVault StakingVault address
-   * @param _stableswap lisUSD/USDT PancakeStableSwapTwoPool address
-   * @param _poolInfo PancakeStableSwapTwoPoolInfo address
    */
   function initialize(
     address _admin,
     address _manager,
     address _pauser,
     address _vault,
-    address _v2wrapper,
-    address _stakeVault,
-    address _stableswap,
-    address _poolInfo
+    address _stakeVault
   ) external initializer {
     require(_admin != address(0), "admin is the zero address");
     require(_manager != address(0), "manager is the zero address");
     require(_vault != address(0), "vault is the zero address");
-    require(_v2wrapper != address(0), "pancake staking is the zero address");
     require(_stakeVault != address(0), "stake vault is the zero address");
-    require(_stableswap != address(0), "stableswap is the zero address");
-    require(_poolInfo != address(0), "pool info is the zero address");
 
     __ReentrancyGuard_init();
     __AccessControl_init();
@@ -117,26 +121,19 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     _setupRole(VAULT, _vault);
     _setupRole(PAUSER, _pauser);
 
-    stableSwapPool = _stableswap;
-    stableSwapPoolInfo = _poolInfo;
-
     lisUSD = IERC20(IStableSwap(stableSwapPool).coins(0));
     usdt = IERC20(IStableSwap(stableSwapPool).coins(1));
     lpToken = IStableSwap(stableSwapPool).token();
+
     vault = IVault(_vault);
-    v2wrapper = IV2Wrapper(_v2wrapper);
     stakeVault = _stakeVault;
+    require(v2wrapper.rewardToken() == IStakingVault(stakeVault).rewardToken(), "Invalid reward token");
     cake = IStakingVault(stakeVault).rewardToken();
 
     harvestTimeGap = 1 hours;
 
-    name = string.concat("USDT LP-Staked Reward Lista Distributor");
-    symbol = string.concat("USDTLpListaDistributor");
-  }
-
-  modifier onlyStakeVault() {
-    require(msg.sender == stakeVault, "only stake vault can call this function");
-    _;
+    name = "USDT LP-Staked Reward Lista Distributor";
+    symbol = "USDTLpListaDistributor";
   }
 
   /* ================ External Functions ================ */

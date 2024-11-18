@@ -11,6 +11,8 @@ interface IV2Wrapper {
 
     function stakedToken() external view returns (address);
 
+    function rewardToken() external view returns (address);
+
     function deposit(uint256 _amount, bool _noHarvest) external;
 
     function withdraw(uint256 _amount, bool _noHarvest) external;

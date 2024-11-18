@@ -72,20 +72,21 @@ contract USDTLpListaDistributorTest is Test {
     );
     listaVault = ListaVault(address(listaVaultProxy));
 
-    USDTLpListaDistributor distributorLogic = new USDTLpListaDistributor();
+    USDTLpListaDistributor distributorLogic = new USDTLpListaDistributor(
+      address(stableSwap),
+      address(stableSwapPoolInfo),
+      address(v2wrapper)
+    );
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
       address(distributorLogic),
       proxyAdminOwner,
       abi.encodeWithSignature(
-        "initialize(address,address,address,address,address,address,address,address)",
+        "initialize(address,address,address,address,address)",
         manager,
         manager,
         manager,
         address(listaVault),
-        address(v2wrapper),
-        address(stakingVault),
-        address(stableSwap),
-        address(stableSwapPoolInfo)
+        address(stakingVault)
       )
     );
     usdtDistributor = USDTLpListaDistributor(address(proxy));
