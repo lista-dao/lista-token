@@ -77,10 +77,16 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @param pool lp token address
       * @param amount lp token amount
       */
-    function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) notInEmergencyMode(pool) nonReentrant {
+    function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) nonReentrant {
         Pool storage poolInfo = pools[pool];
         IERC20(poolInfo.lpToken).safeTransferFrom(poolInfo.distributor, address(this), amount);
         IERC20(poolInfo.lpToken).safeApprove(poolInfo.poolAddress, amount);
+
+        // if emergency mode is turned on, just deposit lp token to the contract and don't stake it
+        if (emergencyModeForLpToken[pool]) {
+            emit DepositLp(pool, poolInfo.distributor, amount);
+            return;
+        }
 
         // deposit lp token and claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
@@ -108,6 +114,9 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @param pool lp token address
       */
     function harvest(address pool) external returns (uint256) {
+        if (emergencyModeForLpToken[pool]) {
+            return 0;
+        }
         Pool storage poolInfo = pools[pool];
         if (poolInfo.lastHarvestTime + harvestTimeGap > block.timestamp) {
             return 0;

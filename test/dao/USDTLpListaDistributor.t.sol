@@ -358,4 +358,33 @@ contract USDTLpListaDistributorTest is Test {
 
     assertEq(usdtDistributor.harvestTimeGap(), harvestTimeGap, "harvest time gap is incorrect");
   }
+
+  function test_stopEmergencyMode() public {
+    // Step 1. User1 deposit 10 USDT
+    uint256 usdtAmt = 10 ether; // 10 USDT
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(usdtAmt);
+    vm.startPrank(user1);
+    usdtDistributor.deposit(usdtAmt, expectLpMinted);
+    vm.stopPrank();
+    assertEq(usdtDistributor.balanceOf(user1), expectLpMinted, "user1's lp balance should be updated correctly");
+
+    skip(1 weeks);
+
+    // Step 2. Emergency withdraw
+    uint256 exitAmount = IERC20(lpToken).balanceOf(address(usdtDistributor));
+    vm.startPrank(manager);
+    usdtDistributor.emergencyWithdraw();
+    vm.stopPrank();
+    exitAmount = IERC20(lpToken).balanceOf(address(usdtDistributor)) - exitAmount;
+
+    assertEq(exitAmount, expectLpMinted, "emergency withdraw amount is incorrect");
+    assertEq(usdtDistributor.emergencyMode(), true, "emergency mode should be turned on");
+
+    // Step 3. Stop emergency mode
+    vm.startPrank(manager);
+    usdtDistributor.stopEmergencyMode();
+    vm.stopPrank();
+
+    assertEq(usdtDistributor.emergencyMode(), false, "emergency mode should be turned off");
+  }
 }

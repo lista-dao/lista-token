@@ -66,6 +66,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   event Harvest(address usdt, address distributor, uint256 amount);
   event WithdrawLp(address usdt, address distributor, address account, uint256 amount);
   event DepositLp(address usdt, address distributor, uint256 amount);
+  event StopEmergencyMode(address lpToken, uint256 lpAmount);
   event EmergencyWithdraw(address farming, uint256 lpAmount);
   event SetHarvestTimeGap(uint256 harvestTimeGap);
 
@@ -143,7 +144,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param usdtAmount amount of USDT to deposit
    * @param minLpAmount minimum amount of LP token required to mint
    */
-  function deposit(uint256 usdtAmount, uint256 minLpAmount) external whenNotPaused {
+  function deposit(uint256 usdtAmount, uint256 minLpAmount) external {
     require(usdtAmount > 0, "Invalid usdt amount");
     uint256 expectLpAmount = getLpToMint(usdtAmount);
     require(expectLpAmount >= minLpAmount, "Invalid min lp amount");
@@ -162,8 +163,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     // 3. Update user's LP balance and LISTA reward, and distributor's LP total supply
     _deposit(msg.sender, actualLpAmount);
 
-    // 4. Stake the received LP token to farming contract
-    _stakeLp(msg.sender, actualLpAmount);
+    // 4. Stake the received LP token to farming contract only if not in emergency mode
+    if (!emergencyMode) _stakeLp(msg.sender, actualLpAmount);
 
     emit USDTStaked(lpToken, usdtAmount, actualLpAmount);
   }
@@ -174,7 +175,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param minLisUSDAmount minimum amount of lisUSD to withdraw
    * @param minUSDTAmount minimum amount of USDT to withdraw
    */
-  function withdraw(uint256 lpAmount, uint256 minLisUSDAmount, uint256 minUSDTAmount) external whenNotPaused {
+  function withdraw(uint256 lpAmount, uint256 minLisUSDAmount, uint256 minUSDTAmount) external {
     // 1. Validate lisUSD and USDT amount
     (uint256 expectLisUSDAmount, uint256 expectUSDTAmount) = getCoinsAmount(lpAmount);
     require(minLisUSDAmount <= expectLisUSDAmount, "Invalid lisUSD amount");
@@ -208,7 +209,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev Harvest LP staking reward (CAKE) from farming contract
    * @return claimed CAKE amount
    */
-  function harvest() external returns (uint256) {
+  function harvest() external whenNotPaused notInEmergencyMode returns (uint256) {
     address distributor = address(this);
 
     if (noHarvest()) return 0;
@@ -233,7 +234,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev claim staked LP reward (CAKE)
    * @return reward amount
    */
-  function claimStakeReward() external returns (uint256) {
+  function claimStakeReward() external whenNotPaused returns (uint256) {
     address _account = msg.sender;
     uint256 amount = _claimStakingReward(_account);
     IStakingVault(stakeVault).transferAllocatedTokens(_account, amount);
@@ -368,6 +369,23 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   function setStakeVault(address _stakeVault) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(_stakeVault != address(0), "stake vault is the zero address");
     stakeVault = _stakeVault;
+  }
+
+  /**
+   * @dev stop emergency mode
+   */
+  function stopEmergencyMode() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    require(emergencyMode, "Emergency mode is off");
+    // 1. set emergency mode to false
+    emergencyMode = false;
+
+    // 2. stake lp token to farming contract
+    uint256 balance = IERC20(lpToken).balanceOf(address(this));
+    IERC20(lpToken).safeApprove(address(v2wrapper), balance);
+    // don't harvest rewards
+    v2wrapper.deposit(balance, true);
+
+    emit StopEmergencyMode(lpToken, balance);
   }
 
   /**
