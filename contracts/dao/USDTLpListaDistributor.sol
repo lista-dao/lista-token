@@ -13,7 +13,8 @@ import { IV2Wrapper } from "./interfaces/IV2Wrapper.sol";
 
 /**
  * @title USDTLpListaDistributor
- * @dev This contract is used to stake USDT and earn token emission rewards.
+ * @dev This contract enables users to provide USDT liquidity to PancakeStableSwapTwoPool and
+ *      earn both LISTA and CAKE rewards by staking LP token to PancakeSwap Stable-LP Farming contract.
  */
 contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgradeable {
   using SafeERC20 for IERC20;
@@ -67,6 +68,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   event WithdrawLp(address usdt, address distributor, address account, uint256 amount);
   event DepositLp(address usdt, address distributor, uint256 amount);
   event EmergencyWithdraw(address farming, uint256 lpAmount);
+  event SetHarvestTimeGap(uint256 harvestTimeGap);
 
   modifier notInEmergencyMode() {
     require(!emergencyMode, "In emergency mode");
@@ -149,21 +151,21 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     uint256 expectLpAmount = getLpToMint(usdtAmount);
     require(expectLpAmount >= minLpAmount, "Invalid min lp amount");
 
-    // Transfer USDT to this contract
+    // 1. Transfer USDT to this contract
     usdt.safeIncreaseAllowance(stableSwapPool, usdtAmount);
     usdt.safeTransferFrom(msg.sender, address(this), usdtAmount);
 
-    // Add USDT to PancakeStableSwapTwoPool
+    // 2. Add USDT to PancakeStableSwapTwoPool
     uint256 actualLpAmount = IERC20(lpToken).balanceOf(address(this));
     IStableSwap(stableSwapPool).add_liquidity([0, usdtAmount], minLpAmount);
     actualLpAmount = IERC20(lpToken).balanceOf(address(this)) - actualLpAmount;
 
     require(actualLpAmount >= minLpAmount, "Invalid lp amount minted");
 
-    // Update user's LP balance and LISTA reward, and distributor's LP total supply
+    // 3. Update user's LP balance and LISTA reward, and distributor's LP total supply
     _deposit(msg.sender, actualLpAmount);
 
-    // Stake the received LP token to farming contract
+    // 4. Stake the received LP token to farming contract
     _stakeLp(msg.sender, actualLpAmount);
 
     emit USDTStaked(lpToken, usdtAmount, actualLpAmount);
@@ -209,16 +211,16 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev Harvest LP staking reward (CAKE) from farming contract
    * @return claimed CAKE amount
    */
-  function harvest() external nonReentrant returns (uint256) {
+  function harvest() external returns (uint256) {
     address distributor = address(this);
 
     if (noHarvest()) return 0;
 
     // Claim CAKE rewards from V2Wrapper
     uint256 beforeBalance = IERC20(cake).balanceOf(distributor);
+    lastHarvestTime = block.timestamp;
     v2wrapper.deposit(0, false);
     uint256 claimed = IERC20(cake).balanceOf(distributor) - beforeBalance;
-    lastHarvestTime = block.timestamp;
 
     // Send CAKE to StakingVault
     if (claimed > 0) {
@@ -382,6 +384,11 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     emergencyMode = true;
 
     emit EmergencyWithdraw(address(v2wrapper), lpAmount);
+  }
+
+  function setHarvestTimeGap(uint256 _harvestTimeGap) external onlyRole(MANAGER) {
+    harvestTimeGap = _harvestTimeGap;
+    emit SetHarvestTimeGap(_harvestTimeGap);
   }
 
   /* ==================== View Functions ==================== */

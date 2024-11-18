@@ -311,4 +311,50 @@ contract USDTLpListaDistributorTest is Test {
     assertEq(exitAmount, expectLpMinted, "emergency withdraw amount is incorrect");
     assertEq(usdtDistributor.emergencyMode(), true, "emergency mode should be turned on");
   }
+
+  function test_withdraw_on_emergencyMode() public {
+    // Step 1. User1 deposit 10 USDT
+    uint256 usdtAmt = 10 ether; // 10 USDT
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(usdtAmt);
+    vm.startPrank(user1);
+    usdtDistributor.deposit(usdtAmt, expectLpMinted);
+    vm.stopPrank();
+    assertEq(usdtDistributor.balanceOf(user1), expectLpMinted, "user1's lp balance should be updated correctly");
+
+    skip(1 weeks);
+
+    // Step 2. Emergency withdraw
+    uint256 exitAmount = IERC20(lpToken).balanceOf(address(usdtDistributor));
+    vm.startPrank(manager);
+    usdtDistributor.emergencyWithdraw();
+    vm.stopPrank();
+    exitAmount = IERC20(lpToken).balanceOf(address(usdtDistributor)) - exitAmount;
+
+    assertEq(exitAmount, expectLpMinted, "emergency withdraw amount is incorrect");
+    assertEq(usdtDistributor.emergencyMode(), true, "emergency mode should be turned on");
+
+    // Step 3. User1 withdraw
+    uint256 lisUSDBalance = IERC20(lisUSD).balanceOf(user1);
+    uint256 usdtBalance = IERC20(usdt).balanceOf(user1);
+    (uint256 _lisUSDAmount, uint256 _usdtAmount) = usdtDistributor.getCoinsAmount(usdtDistributor.balanceOf(user1));
+    vm.startPrank(user1);
+    usdtDistributor.withdraw(usdtDistributor.balanceOf(user1), _lisUSDAmount, _usdtAmount);
+    vm.stopPrank();
+
+    // Check user1's LP balance, distributor's total supply, and user1's lisUSD and USDT balance
+    assertEq(usdtDistributor.balanceOf(user1), 0, "user1's lp balance should be zero");
+    assertEq(usdtDistributor.totalSupply(), 0, "distributor's lp total supply should be zero");
+    uint256 lisUSDBalanceAfter = IERC20(lisUSD).balanceOf(user1);
+    uint256 usdtBalanceAfter = IERC20(usdt).balanceOf(user1);
+    assertEq(lisUSDBalanceAfter, lisUSDBalance + _lisUSDAmount, "lisUSD amount is not correct");
+  }
+
+  function test_setHarvestTimeGap() public {
+    uint256 harvestTimeGap = 1 days;
+    vm.startPrank(manager);
+    usdtDistributor.setHarvestTimeGap(harvestTimeGap);
+    vm.stopPrank();
+
+    assertEq(usdtDistributor.harvestTimeGap(), harvestTimeGap, "harvest time gap is incorrect");
+  }
 }

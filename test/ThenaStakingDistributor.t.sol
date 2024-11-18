@@ -159,12 +159,10 @@ contract ThenaStakingDistributorTest is Test {
         assertTrue(_active, "pool should be active");
         vm.startPrank(owner);
 
-        address[] memory lpTokens = new address[](1);
-        lpTokens[0] = address(slisBNBBNBThenaCorrelatedDistributor);
-
-        thenaStaking.emergencyWithdraw(lpTokens);
+        address lpToken_ = address(slisBNBBNBThenaCorrelatedDistributor);
+        thenaStaking.emergencyWithdraw(lpToken_);
         vm.stopPrank();
 
-        assertTrue(thenaStaking.emergencyMode(), "emergency mode should be true");
+        assertTrue(thenaStaking.emergencyModeForLpToken(lpToken_), "emergency mode should be true");
     }
 }

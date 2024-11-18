@@ -25,15 +25,17 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
     uint256 public harvestTimeGap;
 
-    bool public emergencyMode;
+    // lp token address -> emergency mode (true/false)
+    mapping(address => bool) public emergencyModeForLpToken;
 
     event Harvest(address pool, address distributor, uint256 amount);
     event DepositLp(address pool, address distributor, uint256 amount);
     event WithdrawLp(address pool, address distributor, address account, uint256 amount);
     event RegisterPool(address lpToken, address pool, address distributor);
     event UnRegisterPool(address lpToken);
-    event SetEmergencyMode(bool emergencyMode);
-    event EmergencyWithdraw(address farming, uint256 lpAmount);
+    event SetHarvestTimeGap(uint256 harvestTimeGap);
+    event StopEmergencyMode(address lpToken, uint256 lpAmount);
+    event EmergencyWithdraw(address lpToken, uint256 lpAmount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -65,8 +67,8 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         _;
     }
 
-    modifier notInEmergencyMode() {
-        require(!emergencyMode, "In emergency mode");
+    modifier notInEmergencyMode(address pool) {
+        require(!emergencyModeForLpToken[pool], "In emergency mode");
         _;
     }
 
@@ -75,7 +77,7 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @param pool lp token address
       * @param amount lp token amount
       */
-    function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) notInEmergencyMode nonReentrant {
+    function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) notInEmergencyMode(pool) nonReentrant {
         Pool storage poolInfo = pools[pool];
         IERC20(poolInfo.lpToken).safeTransferFrom(poolInfo.distributor, address(this), amount);
         IERC20(poolInfo.lpToken).safeApprove(poolInfo.poolAddress, amount);
@@ -105,7 +107,7 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @dev harvest rewards
       * @param pool lp token address
       */
-    function harvest(address pool) external nonReentrant returns (uint256) {
+    function harvest(address pool) external returns (uint256) {
         Pool storage poolInfo = pools[pool];
         if (poolInfo.lastHarvestTime + harvestTimeGap > block.timestamp) {
             return 0;
@@ -113,9 +115,9 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
             // claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
+        poolInfo.lastHarvestTime = block.timestamp;
         IGaugeV2(poolInfo.poolAddress).getReward();
         uint256 claimed = IERC20(poolInfo.rewardToken).balanceOf(address(this)) - beforeBalance;
-        poolInfo.lastHarvestTime = block.timestamp;
 
         if (claimed > 0) {
             // send rewards to vault
@@ -136,7 +138,7 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     function withdraw(address to, address pool, uint256 amount) external onlyDistributor(pool) nonReentrant {
         Pool storage poolInfo = pools[pool];
 
-        if (emergencyMode) {
+        if (emergencyModeForLpToken[pool]) {
             uint256 lpBalance = IERC20(poolInfo.lpToken).balanceOf(address(this));
             require(lpBalance >= amount, "Not enough LP token to withdraw");
 
@@ -205,25 +207,42 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       */
     function setHarvestTimeGap(uint256 _harvestTimeGap) external onlyOwner {
         harvestTimeGap = _harvestTimeGap;
+        emit SetHarvestTimeGap(_harvestTimeGap);
     }
 
     /**
-      * @dev emergency withdraw all lp tokens from farming contract given the list of lp token addresses
-      * @param lpTokens the list of lp token addresses
+      * @dev stop emergency mode
+      * @param lpToken lp token address
       */
-    function emergencyWithdraw(address[] memory lpTokens) external onlyOwner nonReentrant {
-        for (uint256 i = 0; i < lpTokens.length; ++i) {
-            address lpToken = lpTokens[i];
-            Pool memory poolInfo = pools[lpToken];
-            if (!poolInfo.isActive) {
-                continue; // Skip inactive pool
-            }
-            uint256 lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this));
-            IGaugeV2(poolInfo.poolAddress).emergencyWithdraw();
-            lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this)) - lpAmount;
+    function stopEmergencyMode(address lpToken) external onlyOwner {
+        require(emergencyModeForLpToken[lpToken], "Emergency mode isn't turned on for this lp token");
+        // 1. set emergency mode to false
+        emergencyModeForLpToken[lpToken] = false;
 
-            emit EmergencyWithdraw(poolInfo.poolAddress, lpAmount);
-        }
-        emergencyMode = true;
+        // 2. stake lp token to farming contract
+        Pool memory poolInfo = pools[lpToken];
+        require(!IGaugeV2(poolInfo.poolAddress).emergency(), "Farming contract is in emergency mode");
+        uint256 balance = IERC20(poolInfo.lpToken).balanceOf(address(this));
+        IERC20(poolInfo.lpToken).safeApprove(poolInfo.poolAddress, balance);
+        IGaugeV2(poolInfo.poolAddress).deposit(balance);
+
+        emit StopEmergencyMode(lpToken, balance);
+    }
+
+    /**
+      * @dev emergency withdraw all lps from farming contract given lp token addresses
+      * @param lpToken lp token address
+      */
+    function emergencyWithdraw(address lpToken) external onlyOwner notInEmergencyMode(lpToken) nonReentrant {
+        Pool memory poolInfo = pools[lpToken];
+        require(poolInfo.isActive, "Pool is not active");
+
+        emergencyModeForLpToken[lpToken] = true;
+
+        uint256 lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this));
+        IGaugeV2(poolInfo.poolAddress).emergencyWithdraw();
+        lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this)) - lpAmount;
+
+        emit EmergencyWithdraw(lpToken, lpAmount);
     }
 }
