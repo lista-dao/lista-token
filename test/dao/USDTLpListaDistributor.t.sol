@@ -387,4 +387,20 @@ contract USDTLpListaDistributorTest is Test {
 
     assertEq(usdtDistributor.emergencyMode(), false, "emergency mode should be turned off");
   }
+
+  function test_setIsActive() public {
+    vm.startPrank(manager);
+    usdtDistributor.setIsActive(false);
+    vm.stopPrank();
+
+    assertEq(usdtDistributor.isActive(), false, "is active should be false");
+
+    // deposit should fail
+    uint256 usdtAmt = 10 ether; // 10 USDT
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(usdtAmt);
+    vm.startPrank(user1);
+    vm.expectRevert("Distributor is not active");
+    usdtDistributor.deposit(usdtAmt, expectLpMinted);
+    vm.stopPrank();
+  }
 }

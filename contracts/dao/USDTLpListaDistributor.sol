@@ -56,8 +56,11 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   uint256 public harvestTimeGap;
   // last harvest time
   uint256 public lastHarvestTime;
-
+  // emergency mode
+  // if emergency mode is on, the contract will not stake LP token to v2wrapper on depositing usdt
   bool public emergencyMode;
+  // deposit is disabled when isActive is false
+  bool public isActive;
 
   /* ============ Events ============ */
   event USDTStaked(address indexed lpToken, uint256 usdtAmount, uint256 lpAmount);
@@ -69,6 +72,12 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   event StopEmergencyMode(address lpToken, uint256 lpAmount);
   event EmergencyWithdraw(address farming, uint256 lpAmount);
   event SetHarvestTimeGap(uint256 harvestTimeGap);
+  event SetIsActive(bool isActive);
+
+  modifier onlyActive() {
+    require(isActive, "Distributor is not active");
+    _;
+  }
 
   modifier notInEmergencyMode() {
     require(!emergencyMode, "In emergency mode");
@@ -76,7 +85,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   }
 
   modifier onlyStakeVault() {
-    require(msg.sender == stakeVault, "only stake vault can call this function");
+    require(msg.sender == stakeVault, "Only stake vault can call this function");
     _;
   }
 
@@ -132,6 +141,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     cake = IStakingVault(stakeVault).rewardToken();
 
     harvestTimeGap = 1 hours;
+    isActive = true;
 
     name = "USDT LP-Staked Reward Lista Distributor";
     symbol = "USDTLpListaDistributor";
@@ -144,7 +154,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param usdtAmount amount of USDT to deposit
    * @param minLpAmount minimum amount of LP token required to mint
    */
-  function deposit(uint256 usdtAmount, uint256 minLpAmount) external {
+  function deposit(uint256 usdtAmount, uint256 minLpAmount) external onlyActive {
     require(usdtAmount > 0, "Invalid usdt amount");
     uint256 expectLpAmount = getLpToMint(usdtAmount);
     require(expectLpAmount >= minLpAmount, "Invalid min lp amount");
@@ -404,6 +414,11 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   function setHarvestTimeGap(uint256 _harvestTimeGap) external onlyRole(MANAGER) {
     harvestTimeGap = _harvestTimeGap;
     emit SetHarvestTimeGap(_harvestTimeGap);
+  }
+
+  function setIsActive(bool _isActive) external onlyRole(MANAGER) {
+    isActive = _isActive;
+    emit SetIsActive(_isActive);
   }
 
   /* ==================== View Functions ==================== */
