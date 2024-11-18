@@ -3,3 +3,10 @@ artifacts
 cache
 coverage*
 gasReporterOutput.json
+lib/
+contracts/*
+!contracts/buyback/
+scripts/*
+!scripts/buyback/
+test/*
+!test/buyback/

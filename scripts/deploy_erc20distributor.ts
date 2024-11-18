@@ -5,17 +5,17 @@ const admin = "0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232";
 
 async function main() {
   // thena LISTA/USDT norraw LP
-  await deployERC20Distributor(
-    "LISTA/USDT(norraw) thena LP",
-    "0xab092C47b23fBa03Ac1F0EC5F8E94110eb5Fff22"
-  );
-
-  // // pancake
-  // // lisUSD/USDT pancake stable pool
   // await deployERC20Distributor(
-  //   "lisUSD/USDT pancake stable pool",
-  //   "0xB2Aa63f363196caba3154D4187949283F085a488"
+  //   "LISTA/USDT(norraw) thena LP",
+  //   "0xab092C47b23fBa03Ac1F0EC5F8E94110eb5Fff22"
   // );
+
+  // pancake
+  // lisUSD/USDT pancake stable pool
+  await deployERC20Distributor(
+    "lisUSD/USDT pancake stable pool",
+    "0x5eBFbF56048575d37C033843F2AC038885EBB636"
+  );
   //
   // // thena
   // // slisBNB/BNB thena correlated LP

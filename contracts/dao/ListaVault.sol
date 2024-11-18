@@ -9,6 +9,7 @@ import "./interfaces/IDistributor.sol";
 import "../interfaces/IVeLista.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "./interfaces/IEmissionVoting.sol";
 
 /**
   * @title ListaVault
@@ -23,6 +24,9 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     event Withdraw(address indexed account, uint256 amount);
     event NewDistributorRegistered(address distributor, uint256 id);
     event EmergencyWithdraw(address token, uint256 amount);
+    event Paused(address account);
+    event Unpaused(address account);
+    event EmissionVotingSet(address emissionVoting);
 
     // lista token address
     IERC20 public token;
@@ -45,9 +49,17 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     IVeLista public veLista;
     // max distributor id
     uint16 public distributorId;
+    // lp proxy address
+    address public lpProxy;
 
     // manager role
     bytes32 public constant MANAGER = keccak256("MANAGER");
+    bytes32 public constant PAUSER = keccak256("PAUSER");
+
+    // paused flag
+    bool public paused;
+    // emission voting address
+    IEmissionVoting public emissionVoting;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -80,6 +92,21 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         veLista = IVeLista(_veLista);
     }
 
+    modifier onlyLpProxy() {
+        require(msg.sender == lpProxy, "Only lp proxy can call this function");
+        _;
+    }
+
+    modifier whenNotPaused() {
+        require(!paused, "Pausable: paused");
+        _;
+    }
+
+    modifier whenPaused() {
+        require(paused, "Pausable: not paused");
+        _;
+    }
+
     /**
      * @dev deposit lista token as rewards
      * @param amount amount of token
@@ -91,21 +118,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
 
         weeklyEmissions[week] += amount;
         token.safeTransferFrom(msg.sender, address(this), amount);
-    }
 
-    /**
-     * @dev register distributor which can claim rewards
-     * @param distributor distributor address
-     * @return distributor id
-     */
-    function registerDistributor(address distributor) external onlyRole(MANAGER) returns (uint16) {
-        uint16 week = veLista.getCurrentWeek();
-        ++distributorId;
-        distributorUpdatedWeek[distributorId] = week;
-        idToDistributor[distributorId] = distributor;
-        require(IDistributor(distributor).notifyRegisteredId(distributorId), "distributor registration failed");
-        emit NewDistributorRegistered(distributor, distributorId);
-        return distributorId;
+        emit Deposit(msg.sender, amount);
     }
 
     /**
@@ -138,20 +152,50 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
+     * @dev register distributor which can claim rewards
+     * @param distributor distributor address
+     * @return distributor id
+     */
+    function registerDistributor(address distributor) external onlyRole(MANAGER) returns (uint16) {
+        uint16 week = veLista.getCurrentWeek();
+        ++distributorId;
+        distributorUpdatedWeek[distributorId] = week;
+        idToDistributor[distributorId] = distributor;
+        require(IDistributor(distributor).notifyRegisteredId(distributorId), "distributor registration failed");
+        emit NewDistributorRegistered(distributor, distributorId);
+        return distributorId;
+    }
+
+    /**
+     * @dev set emission voting contract address
+     * @param _emissionVoting emission voting contract address
+     */
+    function setEmissionVoting(address _emissionVoting) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_emissionVoting != address(0) && _emissionVoting != address(emissionVoting), "emission voting is invalid");
+        emissionVoting = IEmissionVoting(_emissionVoting);
+        emit EmissionVotingSet(_emissionVoting);
+    }
+
+    /**
      * @dev batch claim rewards
      * @param _distributors distributor contracts
      */
-    function batchClaimRewards(IDistributor[] memory _distributors) external {
-        uint256 total;
-        for (uint16 i = 0; i < _distributors.length; ++i) {
-            uint256 amount = _distributors[i].vaultClaimReward(msg.sender);
-            require(allocated[address(_distributors[i])] >= amount, "Insufficient allocated balance");
-            allocated[address(_distributors[i])] -= amount;
-            total += amount;
-        }
-        token.safeTransfer(msg.sender, total);
+    function batchClaimRewards(address[] memory _distributors) whenNotPaused external {
+        _batchClaimRewards(msg.sender, _distributors);
     }
 
+    function _batchClaimRewards(address account, address[] memory _distributors) private {
+        uint256 total;
+        for (uint16 i = 0; i < _distributors.length; ++i) {
+            uint256 amount = IDistributor(_distributors[i]).vaultClaimReward(account);
+            require(allocated[_distributors[i]] >= amount, "Insufficient allocated balance");
+            allocated[_distributors[i]] -= amount;
+            total += amount;
+        }
+        if (total > 0) {
+            token.safeTransfer(account, total);
+        }
+    }
 
     /**
      * @dev get claimable list
@@ -173,7 +217,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @param account account address
      * @param amount amount of token
      */
-    function transferAllocatedTokens(uint16 _distributorId, address account, uint256 amount) external {
+    function transferAllocatedTokens(uint16 _distributorId, address account, uint256 amount) whenNotPaused external {
         require(amount > 0, "amount must be greater than 0");
         address distributor = idToDistributor[_distributorId];
         require(distributor == msg.sender, "distributor not registered");
@@ -215,8 +259,21 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @return emissions
      */
     function getDistributorWeeklyEmissions(uint16 id, uint16 week) public view returns (uint256) {
-        uint256 pct = weeklyDistributorPercent[week][id];
-        return Math.mulDiv(weeklyEmissions[week], pct, 1e18);
+        // emission voting contract not set OR override voting result
+        if (emissionVoting == IEmissionVoting(address(0)) || weeklyDistributorPercent[week][0] == 1) {
+            uint256 pct = weeklyDistributorPercent[week][id];
+            return Math.mulDiv(weeklyEmissions[week], pct, 1e18);
+        }
+        // no one votes
+        if (emissionVoting.getWeeklyTotalWeight(week) == 0) {
+            return 0;
+        }
+        // @dev emission = weeklyEmissions[week] * distributorWeight / totalWeight
+        return Math.mulDiv(
+            weeklyEmissions[week],
+            emissionVoting.getDistributorWeeklyTotalWeight(id, week),
+            emissionVoting.getWeeklyTotalWeight(week)
+        );
     }
 
     /**
@@ -239,5 +296,47 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     function emergencyWithdraw(address token, uint256 amount) external onlyRole(MANAGER) {
         IERC20(token).safeTransfer(msg.sender, amount);
         emit EmergencyWithdraw(token, amount);
+    }
+
+    /**
+      * @dev batch claim rewards with proxy
+      * @param account user address
+      * @param _distributors distributor addresses
+      */
+    function batchClaimRewardsWithProxy(address account, address[] memory _distributors) external onlyLpProxy whenNotPaused {
+        _batchClaimRewards(account, _distributors);
+    }
+
+    /**
+      * @dev set lp proxy address
+      * @param _lpProxy lp proxy address
+      */
+    function setLpProxy(address _lpProxy) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_lpProxy != address(0), "lpProxy cannot be zero address");
+        lpProxy = _lpProxy;
+    }
+
+    function _pause() private whenNotPaused {
+        paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function _unpause() private whenPaused {
+        paused = false;
+        emit Unpaused(msg.sender);
+    }
+
+    /**
+     * @dev Pause the contract
+     */
+    function pause() external onlyRole(PAUSER) {
+        _pause();
+    }
+
+    /**
+     * @dev Flips the pause state
+     */
+    function togglePause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        paused ? _unpause() : _pause();
     }
 }

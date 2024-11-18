@@ -2,10 +2,9 @@
 pragma solidity ^0.8.10;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {IVeLista} from "./interfaces/IVeLista.sol";
+import {IVeLista, IERC20} from "./interfaces/IVeLista.sol";
 
 /**
   * @title VeLista
@@ -181,17 +180,25 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev increase lock amount
+     * @dev increase locked amount for the caller
      * @param _amount amount of token to increase
      */
     function increaseAmount(uint256 _amount) external {
-        address _account = msg.sender;
+        increaseAmountFor(msg.sender, _amount);
+    }
+
+    /**
+     * @dev increase locked amount for an account, Lista token will be paid by the caller
+     * @param _account the account to increase the lock amount
+     * @param _amount amount of token to increase
+     */
+    function increaseAmountFor(address _account, uint256 _amount) public {
         uint256 oldWeight = balanceOf(_account);
         require(oldWeight > 0, "no lock data");
         require(_amount > 0, "invalid amount");
 
-        // transfer lista token
-        token.safeTransferFrom(_account, address(this), _amount);
+        // transfer lista token from payer
+        token.safeTransferFrom(msg.sender, address(this), _amount);
         // write history total weight
         _writeTotalWeight();
         uint16 currentWeek = lastUpdateTotalWeek; // lastUpdateTotalWeek is current week after _writeTotalWeight()
@@ -689,6 +696,17 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         totalPenalty = 0;
         token.safeTransfer(penaltyReceiver, amount);
         emit PenaltyClaimed(penaltyReceiver, amount);
+    }
+
+    /**
+     * @dev set penalty receiver, only admin can call this function
+     */
+    function setPenaltyReceiver(address _penaltyReceiver) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_penaltyReceiver != address(0), "zero address provided");
+        require(_penaltyReceiver != penaltyReceiver, "already set");
+
+        penaltyReceiver = _penaltyReceiver;
+        emit PenaltyReceiverChanged(_penaltyReceiver);
     }
 
     /**

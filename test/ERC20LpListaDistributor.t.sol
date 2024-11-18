@@ -91,7 +91,7 @@ contract ERC20LpListaDistributorTest is Test {
         ids[0] = id;
         uint256[] memory percents = new uint256[](1);
         percents[0] = 1e18;
-        listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
+        //listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
 
         lista.approve(address(listaVault), MAX_UINT);
         listaVault.depositRewards(100 ether, currentWeek+1);
@@ -151,7 +151,7 @@ contract ERC20LpListaDistributorTest is Test {
         ids[0] = id;
         uint256[] memory percents = new uint256[](1);
         percents[0] = 1e18;
-        listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
+        //listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
 
         vm.stopPrank();
 
@@ -180,7 +180,7 @@ contract ERC20LpListaDistributorTest is Test {
         ids[0] = id;
         uint256[] memory percents = new uint256[](1);
         percents[0] = 1e18;
-        listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
+        // listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
 
         lpToken.transfer(user1, 10000 ether);
         vm.stopPrank();
@@ -192,8 +192,8 @@ contract ERC20LpListaDistributorTest is Test {
         skip(1 weeks);
         erc20Distributor.fetchRewards();
 
-        IDistributor[] memory distributors = new IDistributor[](1);
-        distributors[0] = IDistributor(address(erc20Distributor));
+        address[] memory distributors = new address[](1);
+        distributors[0] = address(erc20Distributor);
 
 
         vm.stopPrank();
