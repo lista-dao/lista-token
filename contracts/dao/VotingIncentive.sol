@@ -153,18 +153,18 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
     require(_startWeek >= (vault.getWeek(block.timestamp) + 1) && _startWeek <= _endWeek, "Only future weeks");
 
     uint256 numberOfWeeks = uint256(_endWeek) - uint256(_startWeek) + 1;
-    uint256 weeklyAmount = _expectAmount / numberOfWeeks;
 
-    uint256 actualAmount = 0;
+    // FOT tokens
+    uint256 actualAmount = IERC20(_asset).balanceOf(address(this));
+    IERC20(_asset).safeTransferFrom(msg.sender, address(this), _expectAmount);
+    actualAmount = IERC20(_asset).balanceOf(address(this)) - actualAmount;
+
+    uint256 weeklyAmount = actualAmount / numberOfWeeks;
+    require(weeklyAmount > 0 && actualAmount <= _expectAmount, "Invalid amount");
 
     for (uint16 i = _startWeek; i <= _endWeek; ++i) {
       weeklyIncentives[_distributorId][i][_asset] += weeklyAmount;
-      actualAmount += weeklyAmount;
     }
-
-    // Transfer the actual amount from payer to this contract
-    require(actualAmount > 0 && actualAmount <= _expectAmount, "Invalid amount");
-    IERC20(_asset).safeTransferFrom(msg.sender, address(this), actualAmount);
 
     emit IncentiveAdded(_distributorId, _startWeek, _endWeek, _asset, actualAmount);
   }
@@ -173,12 +173,13 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
    * @dev Claim all incentives for a distributor for a week
    * @param _input array of ClaimParams to claim
    */
-  function batchClaim(ClaimParams[] memory _input) external whenNotPaused {
+  function batchClaim(ClaimParams[] memory _input) external {
     address user = msg.sender;
     for (uint256 i = 0; i < _input.length; ++i) {
       ClaimParams memory _params = _input[i];
       address[] memory _assets = _params.assets;
       for (uint256 j = 0; j < _assets.length; ++j) {
+        if (!claimedIncentives[user][_params.distributorId][_params.week][_assets[j]]) continue;
         claim(user, _params.distributorId, _params.week, _assets[j]);
       }
     }
@@ -231,8 +232,6 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
     uint256 incentive = weeklyIncentives[_distributorId][_week][_asset];
     // If admin has voted, adjust user weight by removing admin weight from pool
     _amount = (usrWeight * incentive) / (poolWeight - _adminWeight);
-
-    require(_amount <= incentive, "Invalid amount");
   }
 
   // ------------------------------------- //
