@@ -156,7 +156,7 @@ contract USDTLpListaDistributorTest is Test {
 
   function test_deposit() public {
     uint256 usdtAmt = 10 ether; // 10 USDT
-    uint256 expectLpMinted = usdtDistributor.getLpAmount(usdtAmt);
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(usdtAmt);
 
     vm.startPrank(user1);
     vm.expectRevert("Invalid min lp amount");
@@ -173,11 +173,13 @@ contract USDTLpListaDistributorTest is Test {
   function test_withdraw() public {
     // Step 1. User1 deposit 10 USDT
     uint256 usdtAmt = 10 ether; // 10 USDT
-    uint256 expectLpMinted = usdtDistributor.getLpAmount(usdtAmt);
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(usdtAmt);
     vm.startPrank(user1);
     usdtDistributor.deposit(usdtAmt, expectLpMinted);
     vm.stopPrank();
     assertEq(usdtDistributor.balanceOf(user1), expectLpMinted, "user1's lp balance should be updated correctly");
+
+    skip(1 weeks);
 
     // Step 2. User1 withdraw
     uint256 lisUSDBalance = IERC20(lisUSD).balanceOf(user1);
@@ -245,7 +247,7 @@ contract USDTLpListaDistributorTest is Test {
 
     // Step 2. User1 deposit 10 USDT
     uint256 usdtAmt = 10 ether; // 10 USDT
-    uint256 expectLpMinted = usdtDistributor.getLpAmount(usdtAmt);
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(usdtAmt);
     vm.startPrank(user1);
     usdtDistributor.deposit(usdtAmt, expectLpMinted);
     vm.stopPrank();
@@ -274,7 +276,7 @@ contract USDTLpListaDistributorTest is Test {
   function test_harvest() public {
     // Step 1. User1 deposit 10 USDT
     uint256 usdtAmt = 10 ether; // 10 USDT
-    uint256 expectLpMinted = usdtDistributor.getLpAmount(usdtAmt);
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(usdtAmt);
     vm.startPrank(user1);
     usdtDistributor.deposit(usdtAmt, expectLpMinted);
     vm.stopPrank();
@@ -291,7 +293,7 @@ contract USDTLpListaDistributorTest is Test {
   function test_emergencyWithdraw() public {
     // Step 1. User1 deposit 10 USDT
     uint256 usdtAmt = 10 ether; // 10 USDT
-    uint256 expectLpMinted = usdtDistributor.getLpAmount(usdtAmt);
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(usdtAmt);
     vm.startPrank(user1);
     usdtDistributor.deposit(usdtAmt, expectLpMinted);
     vm.stopPrank();

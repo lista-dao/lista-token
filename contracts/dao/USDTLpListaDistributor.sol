@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import { CommonListaDistributor, SafeERC20 } from "./CommonListaDistributor.sol";
@@ -37,10 +37,6 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   address public stakeVault;
 
   /* ============ State Variables ============ */
-  // lp token balance of each account
-  mapping(address => uint256) public lpBalanceOf;
-  // total lp token supply
-  uint256 public lpTotalSupply;
   // stake token period finish
   uint256 public stakePeriodFinish;
   // stake token last update operation timestamp
@@ -131,10 +127,9 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     cake = IStakingVault(stakeVault).rewardToken();
 
     harvestTimeGap = 1 hours;
-    lastHarvestTime = 0;
 
-    name = string.concat("Lista-USDT-Staking", IERC20Metadata(lpToken).name());
-    symbol = string.concat("Lista USDT Staking ", IERC20Metadata(lpToken).symbol(), " Distributor");
+    name = string.concat("USDT LP-Staked Reward Lista Distributor");
+    symbol = string.concat("USDTLpListaDistributor");
   }
 
   modifier onlyStakeVault() {
@@ -151,7 +146,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    */
   function deposit(uint256 usdtAmount, uint256 minLpAmount) external whenNotPaused {
     require(usdtAmount > 0, "Invalid usdt amount");
-    uint256 expectLpAmount = getLpAmount(usdtAmount);
+    uint256 expectLpAmount = getLpToMint(usdtAmount);
     require(expectLpAmount >= minLpAmount, "Invalid min lp amount");
 
     // Transfer USDT to this contract
@@ -255,13 +250,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    */
   function _stakeLp(address _account, uint256 _amount) private {
     address distributor = address(this);
-    uint256 balance = lpBalanceOf[_account];
-    uint256 supply = lpTotalSupply;
 
-    lpBalanceOf[_account] = balance + _amount;
-    lpTotalSupply = supply + _amount;
-
-    _updateStakeReward(_account, balance, supply);
+    _updateStakeReward(_account, balanceOf[_account]);
 
     uint256 beforeBalance = IERC20(cake).balanceOf(distributor);
     bool _noHarvest = noHarvest();
@@ -287,13 +277,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
   // withdraw lp from staking pool
   function _unstakeLp(address _account, uint256 amount) private {
-    uint256 balance = lpBalanceOf[_account];
-    uint256 supply = lpTotalSupply;
-    require(balance >= amount, "insufficient balance");
-    lpBalanceOf[_account] = balance - amount;
-    lpTotalSupply = supply - amount;
-
-    _updateStakeReward(_account, balance, supply);
+    _updateStakeReward(_account, balanceOf[_account]);
 
     address distributor = address(this);
 
@@ -315,16 +299,13 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
       emit Harvest(address(usdt), distributor, claimed);
     }
 
-    // Withdraw staked LP tokens to this contract
-    IERC20(lpToken).safeTransfer(distributor, amount);
     emit WithdrawLp(address(usdt), distributor, distributor, amount);
-
     emit LPTokenWithdrawn(address(lpToken), _account, amount);
   }
 
   // Claim CAKE reward; perform by staking vault or user
   function _claimStakingReward(address _account) internal returns (uint256) {
-    _updateStakeReward(_account, lpBalanceOf[_account], lpTotalSupply);
+    _updateStakeReward(_account, balanceOf[_account]);
     uint256 amount = stakeStoredPendingReward[_account];
     delete stakeStoredPendingReward[_account];
 
@@ -333,20 +314,20 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   }
 
   // Calculate CAKE reward if any write operation is performed
-  function _updateStakeReward(address _account, uint256 balance, uint256 supply) internal {
+  function _updateStakeReward(address _account, uint256 _balance) internal {
     // update reward
     uint256 updated = stakePeriodFinish;
     if (updated > block.timestamp) updated = block.timestamp;
     uint256 duration = updated - stakeLastUpdate;
     if (duration > 0) stakeLastUpdate = uint32(updated);
 
-    if (duration > 0 && supply > 0) {
-      stakeRewardIntegral += (duration * stakeRewardRate * 1e18) / supply;
+    if (duration > 0 && totalSupply > 0) {
+      stakeRewardIntegral += (duration * stakeRewardRate * 1e18) / totalSupply;
     }
     if (_account != address(0)) {
       uint256 integralFor = stakeRewardIntegralFor[_account];
       if (stakeRewardIntegral > integralFor) {
-        stakeStoredPendingReward[_account] += (balance * (stakeRewardIntegral - integralFor)) / 1e18;
+        stakeStoredPendingReward[_account] += (_balance * (stakeRewardIntegral - integralFor)) / 1e18;
         stakeRewardIntegralFor[_account] = stakeRewardIntegral;
       }
     }
@@ -359,7 +340,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param amount reward amount
    */
   function notifyStakingReward(uint256 amount) external onlyStakeVault {
-    _updateStakeReward(address(0), 0, lpTotalSupply);
+    _updateStakeReward(address(0), 0);
     uint256 _periodFinish = stakePeriodFinish;
     if (block.timestamp < _periodFinish) {
       uint256 remaining = _periodFinish - block.timestamp;
@@ -411,17 +392,15 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @return reward amount
    */
   function getStakeClaimableReward(address account) external view returns (uint256) {
-    uint256 balance = lpBalanceOf[account];
-    uint256 supply = lpTotalSupply;
     uint256 updated = stakePeriodFinish;
     if (updated > block.timestamp) updated = block.timestamp;
     uint256 duration = updated - stakeLastUpdate;
     uint256 integral = stakeRewardIntegral;
-    if (supply > 0) {
-      integral += (duration * stakeRewardRate * 1e18) / supply;
+    if (totalSupply > 0) {
+      integral += (duration * stakeRewardRate * 1e18) / totalSupply;
     }
     uint256 integralFor = stakeRewardIntegralFor[account];
-    return stakeStoredPendingReward[account] + (balance * (integral - integralFor)) / 1e18;
+    return stakeStoredPendingReward[account] + (balanceOf[account] * (integral - integralFor)) / 1e18;
   }
 
   // Check if it's time to harvest. If not, return true
@@ -430,14 +409,18 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   }
 
   /**
-   * @dev Get LP token amount by providing USDT amount to add
+   * @dev Get LP token amount to mint by providing USDT amount to add
    * @param _usdtAmount amount of USDT
    * @return LP token amount
    */
-  function getLpAmount(uint256 _usdtAmount) public view returns (uint256) {
+  function getLpToMint(uint256 _usdtAmount) public view returns (uint256) {
     return IStableSwapPoolInfo(stableSwapPoolInfo).get_add_liquidity_mint_amount(stableSwapPool, [0, _usdtAmount]);
   }
 
+  /**
+   * @dev Get lisUSD and USDT amount by providing LP token amount to remove
+   * @param _lpAmount amount of LP token
+   */
   function getCoinsAmount(uint256 _lpAmount) public view returns (uint256 _lisUSDAmount, uint256 _usdtAmount) {
     uint256[2] memory coinsAmount = IStableSwapPoolInfo(stableSwapPoolInfo).calc_coins_amount(
       stableSwapPool,
