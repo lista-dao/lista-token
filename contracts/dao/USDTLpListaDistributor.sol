@@ -19,16 +19,25 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   using SafeERC20 for IERC20;
 
   /* ============ PancakeSwap Addresses ============ */
+
   // PancakeSwap lisUSD/USDT StableSwap contract address
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address public immutable stableSwapPool;
+
   // PancakeStableSwapTwoPoolInfo contract address
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address private immutable stableSwapPoolInfo;
+
   // PancakeSwap Stable-LP Farming contract address
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IV2Wrapper public immutable v2wrapper;
+
   // PancakeSwap lisUSD/USDT StableSwap coins[0]
   IERC20 public lisUSD;
+
   // PancakeSwap lisUSD/USDT StableSwap coins[1]
   IERC20 public usdt;
+
   // CAKE is the LP Farming reward token
   address public cake;
 
