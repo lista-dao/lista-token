@@ -67,8 +67,6 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   event LpUnstaked(address indexed lpToken, uint256 usdtAmount, uint256 lisUSDAmount, uint256 lpAmount);
   event StakeRewardClaimed(address indexed receiver, uint256 amount);
   event Harvest(address usdt, address distributor, uint256 amount);
-  event WithdrawLp(address usdt, address distributor, address account, uint256 amount);
-  event DepositLp(address usdt, address distributor, uint256 amount);
   event StopEmergencyMode(address lpToken, uint256 lpAmount);
   event EmergencyWithdraw(address farming, uint256 lpAmount);
   event SetHarvestTimeGap(uint256 harvestTimeGap);
@@ -280,9 +278,6 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
       IStakingVault(stakeVault).sendRewards(distributor, claimed);
       emit Harvest(address(usdt), distributor, claimed);
     }
-
-    emit DepositLp(address(usdt), distributor, _amount);
-    emit LPTokenDeposited(lpToken, _account, _amount);
   }
 
   // withdraw lp from staking pool
@@ -308,9 +303,6 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
       IStakingVault(stakeVault).sendRewards(distributor, claimed);
       emit Harvest(address(usdt), distributor, claimed);
     }
-
-    emit WithdrawLp(address(usdt), distributor, distributor, amount);
-    emit LPTokenWithdrawn(address(lpToken), _account, amount);
   }
 
   // Claim CAKE reward; perform by staking vault or user
