@@ -9,8 +9,8 @@ async function main() {
   const signers = await hre.ethers.getSigners();
   const deployer = signers[0].address;
 
-  const distributor = '';
-  const distributorProxyAdmin = '';
+  const distributor = '0xf2fA32498305E6595e3D54Dc41674d0FcA207026';
+  const distributorProxyAdmin = '0x658AD16C6089Fd985e2DfAaEd2EBC21A6Cfb8101';
   const admin = '0x07D274a68393E8b8a2CCf19A2ce4Ba3518735253';
 
   const distributorContract = await hre.ethers.getContractAt(
