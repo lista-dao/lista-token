@@ -14,14 +14,17 @@ const collateralConfigs: any[] = [{
   symbol: 'wBETH CollateralListaDAODistributor',
   lpToken: '0xa2E3356610840701BDf5611a53974510Ae27E2e1',
 }, {
+  symbol: 'wstETH CollateralListaDAODistributor',
+  lpToken: '0x26c5e01524d2e6280a48f2c50ff6de7e52e9611c',
+}, {
   symbol: 'BTCB CollateralListaDAODistributor',
   lpToken: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
 }, {
-  symbol: 'weETH CollateralListaDAODistributor',
-  lpToken: '0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A',
+  symbol: 'USDT CollateralListaDAODistributor',
+  lpToken: '0x55d398326f99059fF775485246999027B3197955',
 }, {
-  symbol: 'ezETH CollateralListaDAODistributor',
-  lpToken: '0x2416092f143378750bb29b79eD961ab195CcEea5',
+  symbol: 'FDUSD CollateralListaDAODistributor',
+  lpToken: '0xc5f0f7b66764f6ec8c8dff7ba683102295e16409',
 }, {
   symbol: 'STONE CollateralListaDAODistributor',
   lpToken: '0x80137510979822322193FC997d400D5A6C747bf7',
@@ -29,20 +32,8 @@ const collateralConfigs: any[] = [{
   symbol: 'solvBTC CollateralListaDAODistributor',
   lpToken: '0x4aae823a6a0b376De6A78e74eCC5b079d38cBCf7',
 }, {
-  symbol: 'busd CollateralListaDAODistributor',
-  lpToken: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
-}, {
-  symbol: 'BBTC CollateralListaDAODistributor',
-  lpToken: '0xF5e11df1ebCf78b6b6D26E04FF19cD786a1e81dC',
-}, {
-  symbol: 'wstETH CollateralListaDAODistributor',
-  lpToken: '0x26c5e01524d2e6280a48f2c50ff6de7e52e9611c',
-}, {
-  symbol: 'USDT CollateralListaDAODistributor',
-  lpToken: '0x55d398326f99059fF775485246999027B3197955',
-}, {
-  symbol: 'FDUSD CollateralListaDAODistributor',
-  lpToken: '0xc5f0f7b66764f6ec8c8dff7ba683102295e16409',
+  symbol: 'solvBTC.BBN CollateralListaDAODistributor',
+  lpToken: '0x1346b618dc92810ec74163e4c27004c921d446a5',
 }]
 
 async function main() {

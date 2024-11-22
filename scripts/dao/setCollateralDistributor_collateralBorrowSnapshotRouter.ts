@@ -5,7 +5,6 @@ const collateralDistributors: string[] = [
   '',
   ''
 ]
-
 // TODO: add contract address
 const collateralBorrowSnapshotRouter = ""
 
