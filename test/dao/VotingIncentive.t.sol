@@ -134,12 +134,17 @@ contract VotingIncentiveTest is Test {
     vm.mockCall(
       address(vault),
       abi.encodeWithSignature("getWeek(uint256)", uint256(1)),
-      abi.encode(uint256(1)) // set currnet week = 1
+      abi.encode(uint256(1)) // set current week = 1
     );
     vm.mockCall(
       address(emissionVoting),
-      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(1), uint16(2)), // week 2
+      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(1), uint16(2)), // week 2, distributor 1
       abi.encode(uint256(100)) // pool weight 100 for week 2 distributor 1
+    );
+    vm.mockCall(
+      address(emissionVoting),
+      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(2), uint16(2)), // week 2, distributor 2
+      abi.encode(uint256(100)) // pool weight 100 for week 2 distributor 2
     );
 
     vm.startPrank(manager);
@@ -148,18 +153,26 @@ contract VotingIncentiveTest is Test {
 
     deal(address(asset1), user1, 100 ether);
     vm.startPrank(user1);
-    asset1.approve(address(votingIncentive), 1 ether);
-    votingIncentive.addIncentives(1, 2, 3, address(asset1), 1 ether); // start week 2, end week 3
+    asset1.approve(address(votingIncentive), 2 ether);
+    votingIncentive.addIncentives(1, 2, 3, address(asset1), 1 ether); // start week 2, end week 3, distributor 1
+    votingIncentive.addIncentives(2, 2, 3, address(asset1), 1 ether); // start week 2, end week 3, distributor 2
     vm.stopPrank();
 
     // ----------------- Mock user2's vote -------------------- //
     vm.mockCall(
       address(emissionVoting),
       abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(2), uint16(1)), // week 2, distributor 1
-      abi.encode(uint256(1))
+      abi.encode(uint256(1)) // index = 0
     );
-    EmissionVoting.Vote[] memory user2Votes = new EmissionVoting.Vote[](1);
-    user2Votes[0] = EmissionVoting.Vote({ distributorId: 1, weight: 1 });
+    vm.mockCall(
+      address(emissionVoting),
+      abi.encodeWithSignature("userVotedDistributorIndex(address,uint16,uint16)", address(user2), uint16(2), uint16(2)), // week 2, distributor 2
+      abi.encode(uint256(2)) // index = 1
+    );
+
+    EmissionVoting.Vote[] memory user2Votes = new EmissionVoting.Vote[](2);
+    user2Votes[0] = EmissionVoting.Vote({ distributorId: 1, weight: 1 }); // weight 1
+    user2Votes[1] = EmissionVoting.Vote({ distributorId: 2, weight: 10 }); // weight 10
     vm.mockCall(
       address(emissionVoting),
       abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(user2), uint16(2)), // week 2
@@ -179,6 +192,19 @@ contract VotingIncentiveTest is Test {
     votingIncentive.claim(user2, 1, 2, address(asset1)); // week 2, distributor 1
     vm.stopPrank();
     assertEq(asset1.balanceOf(user2) - balanceBefore, 0.005 ether); // 0.5 * 1 / 100
+
+    // ------------------- user2 batch claim ---------------------- //
+    VotingIncentive.ClaimParams[] memory claimParams = new VotingIncentive.ClaimParams[](2);
+    address[] memory assets = new address[](1);
+    assets[0] = address(asset1);
+    claimParams[0] = VotingIncentive.ClaimParams({ distributorId: 1, week: 2, assets: assets });
+    claimParams[1] = VotingIncentive.ClaimParams({ distributorId: 2, week: 2, assets: assets });
+    vm.startPrank(user2);
+    uint256 _balanceBefore = asset1.balanceOf(user2);
+    votingIncentive.batchClaim(claimParams);
+    vm.stopPrank();
+
+    assertEq(asset1.balanceOf(user2) - _balanceBefore, 0.05 ether); // 0.5 * 10 / 100
   }
 
   function test_claim_bnb_with_zero_admin_weight() public {

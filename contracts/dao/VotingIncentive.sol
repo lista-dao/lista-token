@@ -181,7 +181,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
       ClaimParams memory _params = _input[i];
       address[] memory _assets = _params.assets;
       for (uint256 j = 0; j < _assets.length; ++j) {
-        if (!claimedIncentives[user][_params.distributorId][_params.week][_assets[j]]) continue;
+        if (claimedIncentives[user][_params.distributorId][_params.week][_assets[j]]) continue;
         claim(user, _params.distributorId, _params.week, _assets[j]);
       }
     }
@@ -189,6 +189,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
 
   /**
    * @dev Claim incentives for a distributor for a week
+    * @param _user address of the user
    * @param _distributorId id of the distributor
    * @param _week week number
    * @param _asset address of the asset
