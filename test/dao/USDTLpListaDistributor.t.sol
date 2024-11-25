@@ -104,6 +104,9 @@ contract USDTLpListaDistributorTest is Test {
     stakingVault.setUsdtDistributor(address(usdtDistributor));
     vm.stopPrank();
 
+    assertEq(usdtDistributor.stableSwapPool(), stableSwap, "stable swap address is incorrect");
+    assertEq(usdtDistributor.token0(), lisUSD, "token0 address is incorrect");
+    assertEq(usdtDistributor.token1(), usdt, "token1 address is incorrect");
     skip(1 weeks);
   }
 

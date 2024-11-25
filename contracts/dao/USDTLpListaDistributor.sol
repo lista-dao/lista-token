@@ -467,4 +467,20 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     _lisUSDAmount = coinsAmount[0];
     _usdtAmount = coinsAmount[1];
   }
+
+  /**
+   * @dev Get the token0 address
+   * @return token0 address (lisUSD)
+   */
+  function token0() external view returns (address) {
+    return address(lisUSD);
+  }
+
+  /**
+   * @dev Get the token1 address
+   * @return token1 address (USDT)
+   */
+  function token1() external view returns (address) {
+    return address(usdt);
+  }
 }
