@@ -783,4 +783,8 @@ contract MockPancakeStableSwapTwoPool is OwnableUpgradeable, ReentrancyGuardUpgr
         is_killed = false;
         emit Unkill();
     }
+
+    function setLpToken(address _lp) external onlyOwner {
+        token = IPancakeStableSwapLP(_lp);
+    }
 }

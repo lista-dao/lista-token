@@ -154,4 +154,10 @@ contract MockPancakeV2Wrapper is OwnableUpgradeable {
         lastUpdate = block.timestamp;
     }
 
+    function setTokens(address _rewardToken, address _stakeToken) onlyOwner external {
+        require(_rewardToken != address(0), "rewardToken cannot be zero address");
+        require(_stakeToken != address(0), "stakeToken cannot be zero address");
+        rewardToken = _rewardToken;
+        stakeToken = _stakeToken;
+    }
 }
