@@ -239,7 +239,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
     // Send CAKE to StakingVault
     if (claimed > 0) {
-      IERC20(cake).safeApprove(stakeVault, claimed);
+      IERC20(cake).safeIncreaseAllowance(stakeVault, claimed);
       IStakingVault(stakeVault).sendRewards(distributor, claimed);
       emit Harvest(address(usdt), distributor, claimed);
     }
@@ -308,7 +308,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
     // Send CAKE rewards to StakingVault
     if (claimed > 0) {
-      IERC20(cake).safeApprove(stakeVault, claimed);
+      IERC20(cake).safeIncreaseAllowance(stakeVault, claimed);
       IStakingVault(stakeVault).sendRewards(distributor, claimed);
       emit Harvest(address(usdt), distributor, claimed);
     }
@@ -392,7 +392,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
     // 2. stake lp token to farming contract
     uint256 balance = IERC20(lpToken).balanceOf(address(this));
-    IERC20(lpToken).safeApprove(address(v2wrapper), balance);
+    IERC20(lpToken).safeIncreaseAllowance(address(v2wrapper), balance);
     // don't harvest rewards
     v2wrapper.deposit(balance, true);
 
@@ -469,18 +469,11 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   }
 
   /**
-   * @dev Get the token0 address
-   * @return token0 address (lisUSD)
+   * @dev Get PancakeStableSwapTwoPool coins
+   * @param index coin index; 0 for lisUSD, 1 for USDT
+   * @return coin address
    */
-  function token0() external view returns (address) {
-    return address(lisUSD);
-  }
-
-  /**
-   * @dev Get the token1 address
-   * @return token1 address (USDT)
-   */
-  function token1() external view returns (address) {
-    return address(usdt);
+  function coins(uint256 index) external view returns (address) {
+    return IStableSwap(stableSwapPool).coins(index);
   }
 }

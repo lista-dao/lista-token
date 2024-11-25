@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
 import "./interfaces/IStaking.sol";
@@ -82,7 +83,7 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) nonReentrant {
         Pool storage poolInfo = pools[pool];
         IERC20(poolInfo.lpToken).safeTransferFrom(poolInfo.distributor, address(this), amount);
-        IERC20(poolInfo.lpToken).safeApprove(poolInfo.poolAddress, amount);
+        IERC20(poolInfo.lpToken).safeIncreaseAllowance(poolInfo.poolAddress, amount);
 
         // if emergency mode is turned on, just deposit lp token to the contract and don't stake it
         if (emergencyModeForLpToken[pool]) {
@@ -103,7 +104,7 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
         if (claimed > 0) {
             // send rewards to vault
-            IERC20(poolInfo.rewardToken).safeApprove(vault, claimed);
+            IERC20(poolInfo.rewardToken).safeIncreaseAllowance(vault, claimed);
             IStakingVault(vault).sendRewards(poolInfo.distributor, claimed);
             emit Harvest(pool, poolInfo.distributor, claimed);
         }
@@ -132,7 +133,7 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
         if (claimed > 0) {
             // send rewards to vault
-            IERC20(poolInfo.rewardToken).safeApprove(vault, claimed);
+            IERC20(poolInfo.rewardToken).safeIncreaseAllowance(vault, claimed);
             IStakingVault(vault).sendRewards(poolInfo.distributor, claimed);
             emit Harvest(pool, poolInfo.distributor, claimed);
         }
@@ -170,7 +171,7 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
         if (claimed > 0) {
             // send rewards to vault
-            IERC20(poolInfo.rewardToken).safeApprove(vault, claimed);
+            IERC20(poolInfo.rewardToken).safeIncreaseAllowance(vault, claimed);
             IStakingVault(vault).sendRewards(poolInfo.distributor, claimed);
             emit Harvest(pool, poolInfo.distributor, claimed);
         }
@@ -234,7 +235,7 @@ contract PancakeStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         // 2. stake lp token to farming contract
         Pool memory poolInfo = pools[lpToken];
         uint256 balance = IERC20(poolInfo.lpToken).balanceOf(address(this));
-        IERC20(poolInfo.lpToken).safeApprove(poolInfo.poolAddress, balance);
+        IERC20(poolInfo.lpToken).safeIncreaseAllowance(poolInfo.poolAddress, balance);
         // don't harvest rewards
         IV2Wrapper(poolInfo.poolAddress).deposit(balance, true);
 
