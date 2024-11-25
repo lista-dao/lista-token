@@ -66,6 +66,22 @@ contract VotingIncentiveTest is Test {
     assertTrue(votingIncentive.assetWhitelist(address(asset1)));
     vm.stopPrank();
   }
+  function testRevert_addIncentivesBnb_disbaled_distributor() public {
+    vm.mockCall(address(vault), abi.encodeWithSignature("distributorId()"), abi.encode(uint256(1000)));
+    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("disabledDistributors(uint16)"), abi.encode(true));
+
+    address bnbAsset = address(0);
+
+    vm.startPrank(manager);
+    votingIncentive.whitelistAsset(bnbAsset, true);
+    assertTrue(votingIncentive.assetWhitelist(bnbAsset));
+
+    vm.expectRevert("Distributor is disabled");
+    vm.deal(user1, 2 ether);
+    vm.startPrank(user1);
+    votingIncentive.addIncentivesBnb{ value: 1 ether }(1, 2, 3);
+    vm.stopPrank();
+  }
 
   function test_addIncentivesBnb() public {
     vm.mockCall(address(vault), abi.encodeWithSignature("distributorId()"), abi.encode(uint256(1000)));
