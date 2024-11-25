@@ -271,6 +271,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
    */
   function setAdminVoter(address _adminVoter) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(_adminVoter != address(0) && _adminVoter != adminVoter, "Invalid adminVoter");
+    require(emissionVoting.hasRole(emissionVoting.ADMIN_VOTER(), _adminVoter), "_adminVoter is not granted role");
     adminVoter = _adminVoter;
 
     emit AdminVoterChanged(_adminVoter);

@@ -323,10 +323,17 @@ contract VotingIncentiveTest is Test {
     votingIncentive.setAdminVoter(adminVoter);
 
     address newAdminVoter = makeAddr("newAdminVoter");
+    address newAdminVoter2 = makeAddr("newAdminVoter2");
+
     vm.recordLogs();
     votingIncentive.setAdminVoter(newAdminVoter);
     Vm.Log[] memory entries = vm.getRecordedLogs();
     assertEq(entries.length, 1);
+
+    vm.clearMockedCalls();
+    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("hasRole(bytes32,address)"), abi.encode(false));
+    vm.expectRevert("_adminVoter is not granted role");
+    votingIncentive.setAdminVoter(newAdminVoter2);
     vm.stopPrank();
   }
 
