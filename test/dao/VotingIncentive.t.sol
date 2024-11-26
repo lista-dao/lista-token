@@ -333,12 +333,87 @@ contract VotingIncentiveTest is Test {
       abi.encode(uint256(2)) // currnet week = 2
     );
 
+    VotingIncentive.ClaimParams[] memory _input = new VotingIncentive.ClaimParams[](1);
+    address[] memory assets = new address[](1);
+    assets[0] = address(makeAddr("asset333"));
+    _input[0] = VotingIncentive.ClaimParams({ distributorId: 1, week: 2, assets: assets });
+    VotingIncentive.ClaimableAmount[] memory claimableAmounts = votingIncentive.getClaimableAmount(user2, _input);
+    assertEq(claimableAmounts[0].distributorId, 1);
+    assertEq(claimableAmounts[0].week, 2);
+    assertEq(claimableAmounts[0].incentives.length, 1);
+    VotingIncentive.Incentive memory incentives = claimableAmounts[0].incentives[0];
+    assertEq(incentives.asset, address(makeAddr("asset333")));
+    assertEq(incentives.amount, 0); // no incentives
+
     vm.startPrank(user2);
     uint256 balanceBefore = asset1.balanceOf(user2);
     votingIncentive.claim(user2, 1, 2, address(asset1));
     vm.stopPrank();
     assertEq(asset1.balanceOf(user2) - balanceBefore, 0.01 ether); // 0.5 * 1 / (100 - 50)
   }
+
+
+  function test_getClaimableAmount() public {
+    vm.mockCall(
+      address(vault),
+      abi.encodeWithSignature("distributorId()"),
+      abi.encode(uint256(1000)) // max distributor id 1000
+    );
+    vm.mockCall(
+      address(vault),
+      abi.encodeWithSignature("getWeek(uint256)", uint256(1)),
+      abi.encode(uint256(1)) // set currnet week = 1
+    );
+    vm.mockCall(
+      address(emissionVoting),
+      abi.encodeWithSignature("getDistributorWeeklyTotalWeight(uint16,uint16)", uint16(1), uint16(2)), // week 2
+      abi.encode(uint256(100)) // pool weight 100 for week 2 distributor 1
+    );
+
+    vm.startPrank(manager);
+    votingIncentive.whitelistAsset(address(asset1), true);
+    assertTrue(votingIncentive.assetWhitelist(address(asset1)));
+
+    deal(address(asset1), user1, 100 ether);
+    vm.startPrank(user1);
+    asset1.approve(address(votingIncentive), 1 ether);
+    votingIncentive.addIncentives(1, 2, 3, address(asset1), 1 ether); // start week 2, end week 3
+    vm.stopPrank();
+
+    // ------------------- Mock adminVoter vote ---------------------- //
+    vm.mockCall(
+      address(emissionVoting),
+      abi.encodeWithSignature(
+        "userVotedDistributorIndex(address,uint16,uint16)",
+        address(adminVoter),
+        uint16(2), // week 2
+        uint16(1) // distributor 1
+      ),
+      abi.encode(uint256(1)) // adminVoter's index = 1
+    );
+    EmissionVoting.Vote[] memory adminVotes = new EmissionVoting.Vote[](1);
+    adminVotes[0] = EmissionVoting.Vote({ distributorId: 1, weight: 100 });
+    vm.mockCall(
+      address(emissionVoting),
+      abi.encodeWithSelector(EmissionVoting.getUserVotedDistributors.selector, address(adminVoter), uint16(2)), // week 2
+      abi.encode(adminVotes) // mock adminVoter's weight to be **100**
+    );
+
+
+    VotingIncentive.ClaimParams[] memory _input = new VotingIncentive.ClaimParams[](1);
+    address[] memory assets = new address[](1);
+    assets[0] = address(asset1);
+    _input[0] = VotingIncentive.ClaimParams({ distributorId: 1, week: 2, assets: assets });
+    VotingIncentive.ClaimableAmount[] memory claimableAmounts = votingIncentive.getClaimableAmount(user2, _input);
+    assertEq(claimableAmounts[0].distributorId, 1);
+    assertEq(claimableAmounts[0].week, 2);
+    assertEq(claimableAmounts[0].incentives.length, 1);
+    VotingIncentive.Incentive memory incentives = claimableAmounts[0].incentives[0];
+    assertEq(incentives.asset, address(asset1));
+    assertEq(incentives.amount, 0); // no incentives
+  }
+
+
 
   function test_setAdminVoter() public {
     vm.startPrank(admin);

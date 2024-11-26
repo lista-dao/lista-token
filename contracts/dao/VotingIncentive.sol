@@ -189,7 +189,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
 
   /**
    * @dev Claim incentives for a distributor for a week
-    * @param _user address of the user
+   * @param _user address of the user
    * @param _distributorId id of the distributor
    * @param _week week number
    * @param _asset address of the asset
@@ -199,8 +199,11 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
     require(_week <= vault.getWeek(block.timestamp), "Invalid week");
     require(_distributorId > 0 && _distributorId <= vault.distributorId(), "Invalid distributorId");
     require(!claimedIncentives[_user][_distributorId][_week][_asset], "Already claimed");
-    uint256 adminWeight = getRawWeight(adminVoter, _distributorId, _week);
 
+    // If no incentives for the asset, return
+    if (weeklyIncentives[_distributorId][_week][_asset] == 0) return;
+
+    uint256 adminWeight = getRawWeight(adminVoter, _distributorId, _week);
     uint256 amountToClaim = calculateAmount(_user, _distributorId, _week, _asset, adminWeight);
 
     claimedIncentives[_user][_distributorId][_week][_asset] = true;
@@ -230,6 +233,10 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
     uint256 _adminWeight
   ) internal view returns (uint256 _amount) {
     uint256 poolWeight = emissionVoting.getDistributorWeeklyTotalWeight(_distributorId, _week);
+
+    // If no one has voted, return 0
+    if (poolWeight == _adminWeight) return 0;
+
     uint256 usrWeight = getRawWeight(_user, _distributorId, _week);
 
     uint256 incentive = weeklyIncentives[_distributorId][_week][_asset];
