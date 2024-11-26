@@ -95,9 +95,19 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
     address _manager,
     address _pauser
   ) public initializer {
+    require(
+      _vault != address(0) &&
+        _emissionVoting != address(0) &&
+        _adminVoter != address(0) &&
+        _admin != address(0) &&
+        _manager != address(0) &&
+        _pauser != address(0),
+      "Zero address provided"
+    );
     __AccessControl_init();
     __Pausable_init();
     __ReentrancyGuard_init();
+    __UUPSUpgradeable_init();
 
     vault = IVault(_vault);
     emissionVoting = IEmissionVoting(_emissionVoting);
