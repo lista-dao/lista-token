@@ -134,6 +134,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
 
     uint256 numberOfWeeks = uint256(_endWeek) - uint256(_startWeek) + 1;
     uint256 weeklyAmount = msg.value / numberOfWeeks;
+    require(weeklyAmount > 0, "Invalid weekly amount");
 
     address _asset = address(0);
     for (uint16 i = _startWeek; i <= _endWeek; ++i) {

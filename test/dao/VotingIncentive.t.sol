@@ -96,6 +96,8 @@ contract VotingIncentiveTest is Test {
 
     vm.deal(user1, 2 ether);
     vm.startPrank(user1);
+    vm.expectRevert("Invalid weekly amount");
+    votingIncentive.addIncentivesBnb{ value: 1 }(1, 2, 3);
     votingIncentive.addIncentivesBnb{ value: 1 ether }(1, 2, 3);
     vm.stopPrank();
 
@@ -354,7 +356,6 @@ contract VotingIncentiveTest is Test {
     assertEq(asset1.balanceOf(user2) - balanceBefore, 0.01 ether); // 0.5 * 1 / (100 - 50)
   }
 
-
   function test_getClaimableAmount() public {
     vm.mockCall(
       address(vault),
@@ -401,7 +402,6 @@ contract VotingIncentiveTest is Test {
       abi.encode(adminVotes) // mock adminVoter's weight to be **100**
     );
 
-
     VotingIncentive.ClaimParams[] memory _input = new VotingIncentive.ClaimParams[](1);
     address[] memory assets = new address[](1);
     assets[0] = address(asset1);
@@ -414,8 +414,6 @@ contract VotingIncentiveTest is Test {
     assertEq(incentives.asset, address(asset1));
     assertEq(incentives.amount, 0); // no incentives
   }
-
-
 
   function test_setAdminVoter() public {
     vm.startPrank(admin);
