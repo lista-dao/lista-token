@@ -261,6 +261,8 @@ contract VotingIncentiveTest is Test {
     vm.startPrank(user2);
     uint256 balanceBefore = user2.balance;
     votingIncentive.claim(user2, 1, 2, bnbAsset); // week 2, distributor 1
+    vm.expectRevert("No incentives");
+    votingIncentive.claim(user2, 1, 2, makeAddr("asset1")); // should revert
     vm.stopPrank();
     assertEq(user2.balance - balanceBefore, 0.005 ether); // 0.5 * 1 / 100
   }

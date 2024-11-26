@@ -209,9 +209,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
     require(_week <= vault.getWeek(block.timestamp), "Invalid week");
     require(_distributorId > 0 && _distributorId <= vault.distributorId(), "Invalid distributorId");
     require(!claimedIncentives[_user][_distributorId][_week][_asset], "Already claimed");
-
-    // If no incentives for the asset, return
-    if (weeklyIncentives[_distributorId][_week][_asset] == 0) return;
+    require(weeklyIncentives[_distributorId][_week][_asset] > 0, "No incentives");
 
     uint256 adminWeight = getRawWeight(adminVoter, _distributorId, _week);
     uint256 amountToClaim = calculateAmount(_user, _distributorId, _week, _asset, adminWeight);
