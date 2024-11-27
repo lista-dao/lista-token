@@ -95,9 +95,19 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
     address _manager,
     address _pauser
   ) public initializer {
+    require(
+      _vault != address(0) &&
+        _emissionVoting != address(0) &&
+        _adminVoter != address(0) &&
+        _admin != address(0) &&
+        _manager != address(0) &&
+        _pauser != address(0),
+      "Zero address provided"
+    );
     __AccessControl_init();
     __Pausable_init();
     __ReentrancyGuard_init();
+    __UUPSUpgradeable_init();
 
     vault = IVault(_vault);
     emissionVoting = IEmissionVoting(_emissionVoting);
@@ -118,11 +128,13 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
   function addIncentivesBnb(uint16 _distributorId, uint16 _startWeek, uint16 _endWeek) external payable whenNotPaused {
     require(assetWhitelist[address(0)], "Bnb not whitelisted");
     require(msg.value > 0, "Invalid amount");
+    require(!emissionVoting.disabledDistributors(_distributorId), "Distributor is disabled");
     require(_distributorId > 0 && _distributorId <= vault.distributorId(), "Invalid distributorId");
     require(_startWeek >= (vault.getWeek(block.timestamp) + 1) && _startWeek <= _endWeek, "Only future weeks");
 
     uint256 numberOfWeeks = uint256(_endWeek) - uint256(_startWeek) + 1;
     uint256 weeklyAmount = msg.value / numberOfWeeks;
+    require(weeklyAmount > 0, "Invalid weekly amount");
 
     address _asset = address(0);
     for (uint16 i = _startWeek; i <= _endWeek; ++i) {
@@ -149,6 +161,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
   ) external nonReentrant whenNotPaused {
     require(assetWhitelist[_asset], "Asset not whitelisted");
     require(_expectAmount > 0, "Invalid amount");
+    require(!emissionVoting.disabledDistributors(_distributorId), "Distributor is disabled");
     require(_distributorId > 0 && _distributorId <= vault.distributorId(), "Invalid distributorId");
     require(_startWeek >= (vault.getWeek(block.timestamp) + 1) && _startWeek <= _endWeek, "Only future weeks");
 
@@ -179,7 +192,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
       ClaimParams memory _params = _input[i];
       address[] memory _assets = _params.assets;
       for (uint256 j = 0; j < _assets.length; ++j) {
-        if (!claimedIncentives[user][_params.distributorId][_params.week][_assets[j]]) continue;
+        if (claimedIncentives[user][_params.distributorId][_params.week][_assets[j]]) continue;
         claim(user, _params.distributorId, _params.week, _assets[j]);
       }
     }
@@ -187,6 +200,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
 
   /**
    * @dev Claim incentives for a distributor for a week
+   * @param _user address of the user
    * @param _distributorId id of the distributor
    * @param _week week number
    * @param _asset address of the asset
@@ -196,8 +210,9 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
     require(_week <= vault.getWeek(block.timestamp), "Invalid week");
     require(_distributorId > 0 && _distributorId <= vault.distributorId(), "Invalid distributorId");
     require(!claimedIncentives[_user][_distributorId][_week][_asset], "Already claimed");
-    uint256 adminWeight = getRawWeight(adminVoter, _distributorId, _week);
+    require(weeklyIncentives[_distributorId][_week][_asset] > 0, "No incentives");
 
+    uint256 adminWeight = getRawWeight(adminVoter, _distributorId, _week);
     uint256 amountToClaim = calculateAmount(_user, _distributorId, _week, _asset, adminWeight);
 
     claimedIncentives[_user][_distributorId][_week][_asset] = true;
@@ -227,6 +242,10 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
     uint256 _adminWeight
   ) internal view returns (uint256 _amount) {
     uint256 poolWeight = emissionVoting.getDistributorWeeklyTotalWeight(_distributorId, _week);
+
+    // If no one has voted, return 0
+    if (poolWeight == _adminWeight) return 0;
+
     uint256 usrWeight = getRawWeight(_user, _distributorId, _week);
 
     uint256 incentive = weeklyIncentives[_distributorId][_week][_asset];
@@ -269,6 +288,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
    */
   function setAdminVoter(address _adminVoter) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(_adminVoter != address(0) && _adminVoter != adminVoter, "Invalid adminVoter");
+    require(emissionVoting.hasRole(emissionVoting.ADMIN_VOTER(), _adminVoter), "_adminVoter is not granted role");
     adminVoter = _adminVoter;
 
     emit AdminVoterChanged(_adminVoter);
