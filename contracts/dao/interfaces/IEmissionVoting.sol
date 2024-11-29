@@ -9,5 +9,5 @@ interface IEmissionVoting {
   function getDistributorWeeklyTotalWeight(uint16 distributorId, uint16 week) external view returns (uint256);
   function getUserVotedDistributors(address user, uint16 week) external view returns (EmissionVoting.Vote[] memory);
   function userVotedDistributorIndex(address user, uint16 week, uint16 distributorId) external view returns (uint256);
-  function disabledDistributors(uint16 distributorId) external view returns (bool);
+  function activeDistributors(uint16 distributorId) external view returns (bool);
 }
