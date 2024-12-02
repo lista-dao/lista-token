@@ -68,7 +68,7 @@ contract VotingIncentiveTest is Test {
   }
   function testRevert_addIncentivesBnb_disbaled_distributor() public {
     vm.mockCall(address(vault), abi.encodeWithSignature("distributorId()"), abi.encode(uint256(1000)));
-    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("disabledDistributors(uint16)"), abi.encode(true));
+    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("activeDistributors(uint16)"), abi.encode(false));
 
     address bnbAsset = address(0);
 
@@ -85,6 +85,7 @@ contract VotingIncentiveTest is Test {
 
   function test_addIncentivesBnb() public {
     vm.mockCall(address(vault), abi.encodeWithSignature("distributorId()"), abi.encode(uint256(1000)));
+    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("activeDistributors(uint16)"), abi.encode(true));
 
     vm.expectRevert("Asset not whitelisted");
     address bnbAsset = address(0);
@@ -108,6 +109,7 @@ contract VotingIncentiveTest is Test {
 
   function test_addIncentives() public {
     vm.mockCall(address(vault), abi.encodeWithSignature("distributorId()"), abi.encode(uint256(1000)));
+    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("activeDistributors(uint16)"), abi.encode(true));
 
     vm.expectRevert("Asset not whitelisted");
     votingIncentive.addIncentives(1, 2, 3, makeAddr("asset2"), 100);
@@ -128,6 +130,7 @@ contract VotingIncentiveTest is Test {
   }
 
   function test_claim_zero_admin_weight() public {
+    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("activeDistributors(uint16)"), abi.encode(true));
     vm.mockCall(
       address(vault),
       abi.encodeWithSignature("distributorId()"),
@@ -211,6 +214,7 @@ contract VotingIncentiveTest is Test {
 
   function test_claim_bnb_with_zero_admin_weight() public {
     address bnbAsset = address(0);
+    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("activeDistributors(uint16)"), abi.encode(true));
     vm.mockCall(
       address(vault),
       abi.encodeWithSignature("distributorId()"),
@@ -270,6 +274,7 @@ contract VotingIncentiveTest is Test {
   }
 
   function test_claim_nonZero_admin_weight() public {
+    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("activeDistributors(uint16)"), abi.encode(true));
     vm.mockCall(
       address(vault),
       abi.encodeWithSignature("distributorId()"),
@@ -357,6 +362,7 @@ contract VotingIncentiveTest is Test {
   }
 
   function test_getClaimableAmount() public {
+    vm.mockCall(address(emissionVoting), abi.encodeWithSignature("activeDistributors(uint16)"), abi.encode(true));
     vm.mockCall(
       address(vault),
       abi.encodeWithSignature("distributorId()"),

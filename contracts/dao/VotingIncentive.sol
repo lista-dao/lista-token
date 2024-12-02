@@ -128,7 +128,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
   function addIncentivesBnb(uint16 _distributorId, uint16 _startWeek, uint16 _endWeek) external payable whenNotPaused {
     require(assetWhitelist[address(0)], "Bnb not whitelisted");
     require(msg.value > 0, "Invalid amount");
-    require(!emissionVoting.disabledDistributors(_distributorId), "Distributor is disabled");
+    require(emissionVoting.activeDistributors(_distributorId), "Distributor is disabled");
     require(_distributorId > 0 && _distributorId <= vault.distributorId(), "Invalid distributorId");
     require(_startWeek >= (vault.getWeek(block.timestamp) + 1) && _startWeek <= _endWeek, "Only future weeks");
 
@@ -161,7 +161,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
   ) external nonReentrant whenNotPaused {
     require(assetWhitelist[_asset], "Asset not whitelisted");
     require(_expectAmount > 0, "Invalid amount");
-    require(!emissionVoting.disabledDistributors(_distributorId), "Distributor is disabled");
+    require(emissionVoting.activeDistributors(_distributorId), "Distributor is disabled");
     require(_distributorId > 0 && _distributorId <= vault.distributorId(), "Invalid distributorId");
     require(_startWeek >= (vault.getWeek(block.timestamp) + 1) && _startWeek <= _endWeek, "Only future weeks");
 
