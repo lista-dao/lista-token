@@ -233,8 +233,10 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         Pool memory poolInfo = pools[lpToken];
         require(!IGaugeV2(poolInfo.poolAddress).emergency(), "Farming contract is in emergency mode");
         uint256 balance = IERC20(poolInfo.lpToken).balanceOf(address(this));
-        IERC20(poolInfo.lpToken).safeIncreaseAllowance(poolInfo.poolAddress, balance);
-        IGaugeV2(poolInfo.poolAddress).deposit(balance);
+        if (balance > 0) {
+            IERC20(poolInfo.lpToken).safeIncreaseAllowance(poolInfo.poolAddress, balance);
+            IGaugeV2(poolInfo.poolAddress).deposit(balance);
+        }
 
         emit StopEmergencyMode(lpToken, balance);
     }

@@ -193,6 +193,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param minUSDTAmount minimum amount of USDT to withdraw
    */
   function withdraw(uint256 lpAmount, uint256 minLisUSDAmount, uint256 minUSDTAmount) external {
+    require(lpAmount > 0, "Invalid LP amount");
+
     // 1. Validate lisUSD and USDT amount
     (uint256 expectLisUSDAmount, uint256 expectUSDTAmount) = getCoinsAmount(lpAmount);
     require(minLisUSDAmount <= expectLisUSDAmount, "Invalid lisUSD amount");

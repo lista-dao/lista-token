@@ -190,6 +190,8 @@ contract USDTLpListaDistributorTest is Test {
     uint256 usdtBalance = IERC20(usdt).balanceOf(user1);
     (uint256 _lisUSDAmount, uint256 _usdtAmount) = usdtDistributor.getCoinsAmount(usdtDistributor.balanceOf(user1));
     vm.startPrank(user1);
+    vm.expectRevert("Invalid LP amount");
+    usdtDistributor.withdraw(0, 0, 0);
     usdtDistributor.withdraw(usdtDistributor.balanceOf(user1), _lisUSDAmount, _usdtAmount);
     vm.stopPrank();
 
