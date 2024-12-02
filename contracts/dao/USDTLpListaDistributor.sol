@@ -256,7 +256,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   function claimStakeReward() external whenNotPaused returns (uint256) {
     address _account = msg.sender;
     uint256 amount = _claimStakingReward(_account);
-    IStakingVault(stakeVault).transferAllocatedTokens(_account, amount);
+    if (amount > 0) IStakingVault(stakeVault).transferAllocatedTokens(_account, amount);
     return amount;
   }
 

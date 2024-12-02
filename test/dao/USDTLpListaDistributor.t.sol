@@ -2,6 +2,7 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
@@ -16,6 +17,7 @@ import { PancakeStaking } from "../../contracts/dao/PancakeStaking.sol";
 import { StakingVault } from "../../contracts/dao/StakingVault.sol";
 
 import "../../contracts/mock/MockERC20.sol";
+
 
 contract USDTLpListaDistributorTest is Test {
   address stableSwap = 0xb1Da7D2C257c5700612BdE35C8d7187dc80d79f1;
@@ -295,6 +297,32 @@ contract USDTLpListaDistributorTest is Test {
     uint256 claimed = usdtDistributor.harvest();
     assertEq(claimed, pending, "harvest amount is incorrect");
   }
+
+  function test_claimStakeReward() public {
+    // Step 1. User1 deposit 10 USDT
+    uint256 usdtAmt = 10 ether; // 10 USDT
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(usdtAmt);
+    vm.startPrank(user1);
+    usdtDistributor.deposit(usdtAmt, expectLpMinted);
+    vm.stopPrank();
+    assertEq(usdtDistributor.balanceOf(user1), expectLpMinted, "user1's lp balance should be updated correctly");
+
+    skip(1 days);
+
+    // Step 2. Harvest
+    uint256 pending = IV2Wrapper(v2wrapper).pendingReward(address(usdtDistributor));
+    uint256 harvested = usdtDistributor.harvest();
+    assertEq(harvested, pending, "harvest amount is incorrect");
+
+    skip(1 days);
+
+    // Step 3. Claim stake reward
+    uint256 claimable = usdtDistributor.getStakeClaimableReward(user1);
+    vm.prank(user1);
+    uint256 claimed = usdtDistributor.claimStakeReward();
+    assertEq(claimed, claimable, "claim stake reward amount is incorrect");
+  }
+
 
   function test_emergencyWithdraw() public {
     // Step 1. User1 deposit 10 USDT
