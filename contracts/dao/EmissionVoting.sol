@@ -49,6 +49,8 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
     bytes32 public constant ADMIN_VOTER = keccak256("ADMIN_VOTER");
     // @dev responsible to halt the contract
     bytes32 public constant PAUSER = keccak256("PAUSER");
+    // @dev responsible to activate/deactivate distributors and set admin vote period
+    bytes32 public constant MANAGER = keccak256("MANAGER");
     // @dev only user has the ADMIN_VOTER role can vote within ADMIN_VOTE_PERIOD
     uint256 public ADMIN_VOTE_PERIOD;
 
@@ -163,7 +165,7 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
             when (block.timestamp < right before next week - adminVotePeriod), only admin voter can vote
      * @param _adminVotePeriod admin vote period (in seconds)
      */
-    function setAdminVotePeriod(uint256 _adminVotePeriod) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setAdminVotePeriod(uint256 _adminVotePeriod) external onlyRole(MANAGER) {
         require(_adminVotePeriod >= 0 && _adminVotePeriod <= WEEK, "admin vote period should within 0 to 1 week");
         ADMIN_VOTE_PERIOD = _adminVotePeriod;
         emit AdminVotePeriodChanged(_adminVotePeriod);
@@ -173,7 +175,7 @@ contract EmissionVoting is Initializable, AccessControlUpgradeable, PausableUpgr
      * @dev Toggle distributor (when distributor is disabled, user/admin cannot vote for it)
      * @param distributorId distributor id
      */
-    function setDistributor(uint16 distributorId, bool active) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setDistributor(uint16 distributorId, bool active) external onlyRole(MANAGER) {
         require(distributorId > 0 && distributorId <= vault.distributorId(), "distributor does not exists");
         require(activeDistributors[distributorId] != active, "distributor status is the same");
 

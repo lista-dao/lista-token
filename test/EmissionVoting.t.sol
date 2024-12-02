@@ -27,6 +27,7 @@ contract EmissionVotingTest is Test {
   address vaultAdmin = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
   address adminVoter = makeAddr("admin_voter");
   address pauser = makeAddr("pauser");
+  address manager = makeAddr("manager");
   address user1 = makeAddr("user1");
   address user2 = makeAddr("user2");
 
@@ -60,6 +61,8 @@ contract EmissionVotingTest is Test {
     // grant pauser role
     emissionVoting.grantRole(emissionVoting.PAUSER(), pauser);
     console.logString("admin voter role granted.");
+    // grant manager role
+    emissionVoting.grantRole(emissionVoting.MANAGER(), manager);
     vm.stopPrank();
 
     // ---- (3) upgrade ListaVault
@@ -113,7 +116,7 @@ contract EmissionVotingTest is Test {
 
   function test_user_voting() public {
     // enable distributors
-    vm.startPrank(multiSig);
+    vm.startPrank(manager);
     emissionVoting.setDistributor(1, true);
     emissionVoting.setDistributor(2, true);
     emissionVoting.setDistributor(3, true);
@@ -236,7 +239,7 @@ contract EmissionVotingTest is Test {
     assertEq(emissionVoting.activeDistributors(1), false);
     assertEq(emissionVoting.activeDistributors(2), false);
 
-    vm.startPrank(multiSig);
+    vm.startPrank(manager);
     emissionVoting.setDistributor(1, true);
     emissionVoting.setDistributor(2, true);
     vm.stopPrank();
@@ -264,7 +267,7 @@ contract EmissionVotingTest is Test {
     // skip to admin period
     skip(4 days);
 
-    vm.prank(multiSig);
+    vm.prank(manager);
     emissionVoting.setDistributor(1, true);
 
     // should be able to vote
