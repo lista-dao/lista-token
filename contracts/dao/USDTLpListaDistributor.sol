@@ -193,6 +193,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param minUSDTAmount minimum amount of USDT to withdraw
    */
   function withdraw(uint256 lpAmount, uint256 minLisUSDAmount, uint256 minUSDTAmount) external {
+    require(lpAmount > 0, "Invalid LP amount");
+
     // 1. Validate lisUSD and USDT amount
     (uint256 expectLisUSDAmount, uint256 expectUSDTAmount) = getCoinsAmount(lpAmount);
     require(minLisUSDAmount <= expectLisUSDAmount, "Invalid lisUSD amount");
@@ -239,7 +241,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
     // Send CAKE to StakingVault
     if (claimed > 0) {
-      IERC20(cake).safeApprove(stakeVault, claimed);
+      IERC20(cake).safeIncreaseAllowance(stakeVault, claimed);
       IStakingVault(stakeVault).sendRewards(distributor, claimed);
       emit Harvest(address(usdt), distributor, claimed);
     }
@@ -254,7 +256,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   function claimStakeReward() external whenNotPaused returns (uint256) {
     address _account = msg.sender;
     uint256 amount = _claimStakingReward(_account);
-    IStakingVault(stakeVault).transferAllocatedTokens(_account, amount);
+    if (amount > 0) IStakingVault(stakeVault).transferAllocatedTokens(_account, amount);
     return amount;
   }
 
@@ -308,7 +310,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
     // Send CAKE rewards to StakingVault
     if (claimed > 0) {
-      IERC20(cake).safeApprove(stakeVault, claimed);
+      IERC20(cake).safeIncreaseAllowance(stakeVault, claimed);
       IStakingVault(stakeVault).sendRewards(distributor, claimed);
       emit Harvest(address(usdt), distributor, claimed);
     }
@@ -392,7 +394,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
     // 2. stake lp token to farming contract
     uint256 balance = IERC20(lpToken).balanceOf(address(this));
-    IERC20(lpToken).safeApprove(address(v2wrapper), balance);
+    IERC20(lpToken).safeIncreaseAllowance(address(v2wrapper), balance);
     // don't harvest rewards
     v2wrapper.deposit(balance, true);
 
@@ -466,5 +468,14 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     );
     _lisUSDAmount = coinsAmount[0];
     _usdtAmount = coinsAmount[1];
+  }
+
+  /**
+   * @dev Get PancakeStableSwapTwoPool coins
+   * @param index coin index; 0 for lisUSD, 1 for USDT
+   * @return coin address
+   */
+  function coins(uint256 index) external view returns (address) {
+    return IStableSwap(stableSwapPool).coins(index);
   }
 }
