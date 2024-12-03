@@ -1,12 +1,12 @@
 import { deployProxyUUPS } from "./tasks";
 import hre from "hardhat";
 
-const admin = "0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06";
-const adminVoter = "0xF45FB2567C2E081a2C866bba10d3dc543AFa2920";
-const vault = "0x1D70D733401169055002FB4450942F15C2F088d4";
-const emissionVoting = "0x6B7B87F92354bEC0eC20Db0CB328e186cda950dd";
-const manager = "0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06";
-const pauser = "0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06";
+const admin = "0x07D274a68393E8b8a2CCf19A2ce4Ba3518735253";
+const adminVoter = "0x8d388136d578dCD791D081c6042284CED6d9B0c6";
+const vault = "0x307d13267f360f78005f476Fa913F8848F30292A";
+const emissionVoting = "0xFc136f286805A7922d9Bf04317068964b231336c";
+const manager = "0x8d388136d578dCD791D081c6042284CED6d9B0c6";
+const pauser = "0xEEfebb1546d88EA0909435DF6f615084DD3c5Bd8";
 
 async function main() {
   await deployProxyUUPS(hre, "VotingIncentive", vault, emissionVoting, adminVoter, admin, manager, pauser);
