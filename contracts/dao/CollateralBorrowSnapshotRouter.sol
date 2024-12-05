@@ -121,15 +121,4 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
         delete collateralDistributors[_collateralToken];
         emit CollateralDistributorChanged(existingDistributor, _collateralToken, false);
     }
-
-    /**
-     * @dev update BorrowLisUSDListaDistributor
-     */
-    function setBorrowDistributor(address _borrowDistributor) onlyRole(DEFAULT_ADMIN_ROLE) external {
-        require(_borrowDistributor != address(0), "borrowDistributor cannot be a zero address");
-        require(_borrowDistributor != address(borrowLisUSDListaDistributor), "borrowDistributor already set");
-
-        borrowLisUSDListaDistributor = IBorrowLisUSDListaDistributor(_borrowDistributor);
-        emit BorrowDistributorChanged(_borrowDistributor);
-    }
 }
