@@ -60,6 +60,45 @@ export async function deployProxy(
   return proxyAddress;
 }
 
+export async function deployProxyUUPS(
+  hre: HardhatRuntimeEnvironment,
+  contractName: string,
+  ...args: any
+) {
+  const Contract = await hre.ethers.getContractFactory(contractName);
+
+  console.log(`Deploying proxy UUPS ${contractName}: ${args}, ${args.length}`);
+  const contract = args.length
+    ? await hre.upgrades.deployProxy(Contract, args, {
+        kind: "uups",
+      })
+    : await hre.upgrades.deployProxy(Contract, [], {
+        kind: "uups",
+      });
+
+  await contract.waitForDeployment();
+
+  const proxyAddress = await contract.getAddress();
+
+  const contractImplAddress =
+    await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
+
+  console.log(`Proxy ${contractName} deployed to:`, proxyAddress);
+  console.log(`Impl ${contractName} deployed to:`, contractImplAddress);
+
+  try {
+    await hre.run("verify:verify", {
+      address: proxyAddress,
+    });
+    await hre.run("verify:verify", {
+      address: contractImplAddress,
+    });
+  } catch (e) {
+    console.log("Error verifying contract:", e);
+  }
+  return proxyAddress;
+}
+
 export async function upgradeProxy(
   hre: HardhatRuntimeEnvironment,
   contractName: string,
@@ -94,6 +133,27 @@ export async function validateUpgrade(
   console.log(
     `${newContractName} is compatible with ${oldContractName}, can be upgraded`
   );
+}
+
+export async function upgradeProxyUUPS(
+  hre: HardhatRuntimeEnvironment,
+  contractName: string,
+  proxyAddress: string
+) {
+  const Contract = await hre.ethers.getContractFactory(contractName);
+
+  console.log(`Upgrading UUPS ${contractName} with proxy at: ${proxyAddress}`);
+
+  const contract = await hre.upgrades.upgradeProxy(proxyAddress, Contract, {
+    kind: "uups",
+  });
+  await contract.waitForDeployment();
+
+  const contractImplAddress =
+    await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
+
+  console.log(`Proxy ${contractName} deployed to:`, contract.target);
+  console.log(`Impl ${contractName} deployed to:`, contractImplAddress);
 }
 
 export async function transferProxyAdminOwner(
