@@ -11,7 +11,7 @@ async function main() {
   const signers = await hre.ethers.getSigners();
   const deployer = signers[0].address;
   let listaVault = '', manager;
-  if (hre.network.name === "bsc") {
+  if (hre.network.name === "bsc" || hre.network.name === "bscLocal") {
     listaVault = "0x307d13267f360f78005f476Fa913F8848F30292A";
     manager = "0x74E17e6996f0DDAfdA9B500ab15a3AD7c2f69307"; // router address
   } else if (hre.network.name === "bscTestnet") {
