@@ -18,7 +18,6 @@ import { StakingVault } from "../../contracts/dao/StakingVault.sol";
 
 import "../../contracts/mock/MockERC20.sol";
 
-
 contract USDTLpListaDistributorTest is Test {
   address stableSwap = 0xb1Da7D2C257c5700612BdE35C8d7187dc80d79f1;
   address stableSwapPoolInfo = 0x150c8AbEB487137acCC541925408e73b92F39A50;
@@ -51,7 +50,7 @@ contract USDTLpListaDistributorTest is Test {
   uint256 MAX_UINT = type(uint256).max;
 
   function setUp() public {
-    vm.createSelectFork("https://rpc.ankr.com/bsc", 43143645);
+    vm.createSelectFork("https://bsc-dataseed.bnbchain.org", 43143645);
 
     // Upgrade StakingVault
     vm.startPrank(proxyAdminOwnerStakingVault);
@@ -95,11 +94,13 @@ contract USDTLpListaDistributorTest is Test {
     vm.stopPrank();
 
     deal(address(usdt), user1, 10000 ether); // 10000 USDT
+    deal(address(usdt), user2, 10000 ether); // 10000 USDT
     deal(address(lista), manager, 1000000 ether); // 1M LISTA
 
     vm.prank(user1);
     IERC20(usdt).approve(address(usdtDistributor), MAX_UINT);
-    vm.stopPrank();
+    vm.prank(user2);
+    IERC20(usdt).approve(address(usdtDistributor), MAX_UINT);
 
     // Set usdt distributor to the staking vault
     vm.startPrank(stakingVaultOwner);
@@ -174,6 +175,13 @@ contract USDTLpListaDistributorTest is Test {
     uint256 totalSupply = usdtDistributor.totalSupply();
     assertEq(lpBalance, expectLpMinted, "user1 balance error");
     assertEq(totalSupply, expectLpMinted, "total supply error");
+
+    assertEq(usdtDistributor.stakePeriodFinish(), 0, "stake period finish error");
+    assertEq(usdtDistributor.stakeLastUpdate(), 0, "stake reward last update timestamp error");
+    assertEq(usdtDistributor.stakeRewardIntegral(), 0, "stake reward integral error");
+    assertEq(usdtDistributor.stakeRewardRate(), 0, "stake reward rate should be zero");
+    assertEq(usdtDistributor.stakeRewardIntegralFor(user1), 0, "stake last integral error");
+    assertEq(usdtDistributor.getStakeClaimableReward(user1), 0, "claimable staking reward should be zero");
   }
 
   function test_withdraw() public {
@@ -196,6 +204,7 @@ contract USDTLpListaDistributorTest is Test {
     usdtDistributor.withdraw(0, 0, 0);
     usdtDistributor.withdraw(usdtDistributor.balanceOf(user1), _lisUSDAmount, _usdtAmount);
     vm.stopPrank();
+    uint256 t1 = block.timestamp;
 
     // Check user1's LP balance, distributor's total supply, and user1's lisUSD and USDT balance
     assertEq(usdtDistributor.balanceOf(user1), 0, "user1's lp balance should be zero");
@@ -204,6 +213,92 @@ contract USDTLpListaDistributorTest is Test {
     uint256 usdtBalanceAfter = IERC20(usdt).balanceOf(user1);
     assertEq(lisUSDBalanceAfter, lisUSDBalance + _lisUSDAmount, "lisUSD amount is not correct");
     assertEq(usdtBalanceAfter, usdtBalance + _usdtAmount, "usdt amount is not correct");
+
+    // Check staking reward status
+    assertEq(usdtDistributor.stakePeriodFinish(), t1 + 1 weeks, "stake period finish error");
+    assertEq(usdtDistributor.stakeLastUpdate(), t1, "stake reward last update timestamp error");
+    assertEq(usdtDistributor.stakeRewardIntegral(), 0, "stake reward integral error");
+
+    uint256 rewardRate = usdtDistributor.stakeRewardRate();
+    uint256 cakeAmount = stakingVault.allocated(address(usdtDistributor));
+    assertEq(rewardRate, cakeAmount / 1 weeks, "stake reward rate error");
+
+    assertEq(usdtDistributor.stakeRewardIntegralFor(user1), 0, "stake integral error");
+    assertEq(usdtDistributor.getStakeClaimableReward(user1), 0, "claimable staking reward should be zero");
+  }
+
+  function test_initial_process() public {
+    // 1. user1 deposit 10 USDT
+    uint256 expectLpMinted = usdtDistributor.getLpToMint(10 ether); // 10 USDT
+    vm.prank(user1);
+    usdtDistributor.deposit(10 ether, expectLpMinted);
+
+    assertEq(usdtDistributor.stakePeriodFinish(), 0, "stake period finish error");
+    assertEq(usdtDistributor.stakeLastUpdate(), 0, "stake reward last update timestamp error");
+    assertEq(usdtDistributor.stakeRewardIntegral(), 0, "stake reward integral error");
+    assertEq(usdtDistributor.stakeRewardRate(), 0, "stake reward rate should be zero");
+    assertEq(usdtDistributor.stakeRewardIntegralFor(user1), 0, "stake integral error");
+    assertEq(usdtDistributor.getStakeClaimableReward(user1), 0, "claimable staking reward should be zero");
+
+    // 2. skip 30 minutes
+    skip(30 minutes);
+
+    // 3. user2 deposit 20 USDT
+    uint256 expectLpMinted2 = usdtDistributor.getLpToMint(20 ether); // 20 USDT
+    vm.prank(user2);
+    usdtDistributor.deposit(20 ether, expectLpMinted2);
+    assertEq(usdtDistributor.stakePeriodFinish(), 0, "stake period finish error");
+    assertEq(usdtDistributor.stakeLastUpdate(), 0, "stake reward last update timestamp error");
+    assertEq(usdtDistributor.stakeRewardIntegral(), 0, "stake reward integral error");
+    assertEq(usdtDistributor.stakeRewardRate(), 0, "stake reward rate should be zero");
+    assertEq(usdtDistributor.stakeRewardIntegralFor(user1), 0, "user1 stake integral error");
+    assertEq(usdtDistributor.getStakeClaimableReward(user1), 0, "user1 claimable staking reward should be zero");
+    assertEq(usdtDistributor.stakeRewardIntegralFor(user2), 0, "user2 stake integral error");
+    assertEq(usdtDistributor.getStakeClaimableReward(user2), 0, "user2 claimable staking reward should be zero");
+
+    // 4. skip 30 minutes
+    skip(30 minutes);
+
+    // 5. harvest
+    uint256 currentTimestamp = block.timestamp;
+    uint256 pending = IV2Wrapper(v2wrapper).pendingReward(address(usdtDistributor));
+    uint256 claimed = usdtDistributor.harvest();
+    assertEq(claimed, pending, "harvested amount is incorrect");
+
+    assertEq(usdtDistributor.stakePeriodFinish(), currentTimestamp + 1 weeks, "stake period finish error");
+    assertEq(usdtDistributor.stakeLastUpdate(), currentTimestamp, "stake reward last update timestamp error");
+    assertEq(usdtDistributor.stakeRewardIntegral(), 0, "stake reward integral error");
+    assertEq(usdtDistributor.stakeRewardRate(), claimed / 1 weeks, "stake reward rate should be zero");
+    assertEq(usdtDistributor.stakeRewardIntegralFor(user1), 0, "user1 stake integral error");
+    assertEq(usdtDistributor.getStakeClaimableReward(user1), 0, "user1 claimable staking reward should be zero");
+    assertEq(usdtDistributor.stakeRewardIntegralFor(user2), 0, "user2 stake integral error");
+    assertEq(usdtDistributor.getStakeClaimableReward(user2), 0, "user2 claimable staking reward should be zero");
+
+    // 6. skip 1 minute
+    skip(1 minutes);
+
+    // 7. user1 claim CAKE reward
+    uint256 claimable1 = usdtDistributor.getStakeClaimableReward(user1);
+    vm.prank(user1);
+    uint256 claimed1 = usdtDistributor.claimStakeReward();
+    assertEq(claimed1, claimable1, "user1 claimed amount is incorrect");
+    assertEq(usdtDistributor.stakeRewardRate(), claimed / 1 weeks, "stake reward rate should be zero");
+
+    uint256 oneMinuteIntegral = (1e18 * (1 minutes * usdtDistributor.stakeRewardRate())) /
+      usdtDistributor.totalSupply();
+    uint256 oneMinuteClaimable = (oneMinuteIntegral * usdtDistributor.balanceOf(user1)) / 1e18;
+
+    assertEq(usdtDistributor.stakeRewardIntegral(), oneMinuteIntegral, "stake reward integral error");
+    assertEq(usdtDistributor.stakeRewardIntegralFor(user1), oneMinuteIntegral, "user1 stake integral error");
+    assertEq(claimable1, oneMinuteClaimable, "user1 claimable staking reward is incorrect");
+
+    uint256 oneMinuteClaimable2 = (oneMinuteIntegral * usdtDistributor.balanceOf(user2)) / 1e18;
+    assertEq(usdtDistributor.stakeRewardIntegralFor(user2), 0, "user2 stake integral error");
+    assertEq(
+      usdtDistributor.getStakeClaimableReward(user2),
+      oneMinuteClaimable2,
+      "user2 claimable staking reward should be zero"
+    );
   }
 
   function test_fetchRewards_lista() public {
@@ -322,7 +417,6 @@ contract USDTLpListaDistributorTest is Test {
     uint256 claimed = usdtDistributor.claimStakeReward();
     assertEq(claimed, claimable, "claim stake reward amount is incorrect");
   }
-
 
   function test_emergencyWithdraw() public {
     // Step 1. User1 deposit 10 USDT
