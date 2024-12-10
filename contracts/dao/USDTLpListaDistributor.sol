@@ -457,7 +457,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
   // Check if it's time to harvest. If not, return true
   function noHarvest() public view returns (bool) {
-    return lastHarvestTime + harvestTimeGap > block.timestamp;
+    return lastHarvestTime + harvestTimeGap >= block.timestamp;
   }
 
   /**
