@@ -256,8 +256,8 @@ contract USDTLpListaDistributorTest is Test {
     assertEq(usdtDistributor.stakeRewardIntegralFor(user2), 0, "user2 stake integral error");
     assertEq(usdtDistributor.getStakeClaimableReward(user2), 0, "user2 claimable staking reward should be zero");
 
-    // 4. skip 30 minutes
-    skip(30 minutes);
+    // 4. skip 31 minutes
+    skip(31 minutes);
 
     // 5. harvest
     uint256 currentTimestamp = block.timestamp;

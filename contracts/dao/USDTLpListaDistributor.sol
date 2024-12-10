@@ -339,7 +339,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     uint256 updated = stakePeriodFinish;
     if (updated > block.timestamp) updated = block.timestamp;
     uint256 duration = updated - stakeLastUpdate;
-    if (duration > 0) stakeLastUpdate = uint32(updated);
+    if (duration > 0) stakeLastUpdate = updated;
 
     if (duration > 0 && totalSupply > 0) {
       stakeRewardIntegral += (duration * stakeRewardRate * 1e18) / totalSupply;
