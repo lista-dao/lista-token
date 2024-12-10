@@ -96,6 +96,11 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     _;
   }
 
+  modifier updateStakeReward(address account) {
+    _updateStakeReward(account, balanceOf[account]);
+    _;
+  }
+
   /// @custom:oz-upgrades-unsafe-allow constructor
   /**
    * @param _stableswap lisUSD/USDT PancakeStableSwapTwoPool address
@@ -114,6 +119,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev initialize contract
    * @param _admin admin address
    * @param _manager manager address
+   * @param _pauser pauser address
    * @param _vault ListaVault address
    * @param _stakeVault StakingVault address
    */
@@ -126,6 +132,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   ) external initializer {
     require(_admin != address(0), "admin is the zero address");
     require(_manager != address(0), "manager is the zero address");
+    require(_pauser != address(0), "pauser is the zero address");
     require(_vault != address(0), "vault is the zero address");
     require(_stakeVault != address(0), "stake vault is the zero address");
 
@@ -161,7 +168,10 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param usdtAmount amount of USDT to deposit
    * @param minLpAmount minimum amount of LP token required to mint
    */
-  function deposit(uint256 usdtAmount, uint256 minLpAmount) external onlyActive {
+  function deposit(
+    uint256 usdtAmount,
+    uint256 minLpAmount
+  ) external onlyActive updateStakeReward(msg.sender) nonReentrant {
     require(usdtAmount > 0, "Invalid usdt amount");
     uint256 expectLpAmount = getLpToMint(usdtAmount);
     require(expectLpAmount >= minLpAmount, "Invalid min lp amount");
@@ -192,7 +202,11 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param minLisUSDAmount minimum amount of lisUSD to withdraw
    * @param minUSDTAmount minimum amount of USDT to withdraw
    */
-  function withdraw(uint256 lpAmount, uint256 minLisUSDAmount, uint256 minUSDTAmount) external {
+  function withdraw(
+    uint256 lpAmount,
+    uint256 minLisUSDAmount,
+    uint256 minUSDTAmount
+  ) external updateStakeReward(msg.sender) nonReentrant {
     require(lpAmount > 0, "Invalid LP amount");
 
     // 1. Validate lisUSD and USDT amount
@@ -214,8 +228,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
     lisUSDAmountActual = lisUSD.balanceOf(address(this)) - lisUSDAmountActual;
     usdtAmountActual = usdt.balanceOf(address(this)) - usdtAmountActual;
-    require(lisUSDAmountActual >= minLisUSDAmount, "Invalid lisUSD amount received");
-    require(usdtAmountActual >= minUSDTAmount, "Invalid USDT amount received");
+    require(minLisUSDAmount <= lisUSDAmountActual, "Invalid lisUSD amount received");
+    require(minUSDTAmount <= usdtAmountActual, "Invalid USDT amount received");
 
     // 5. Transfer lisUSD and USDT to user
     lisUSD.safeTransfer(msg.sender, lisUSDAmountActual);
@@ -228,7 +242,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev Harvest LP staking reward (CAKE) from farming contract
    * @return claimed CAKE amount
    */
-  function harvest() external whenNotPaused notInEmergencyMode returns (uint256) {
+  function harvest() external whenNotPaused notInEmergencyMode nonReentrant returns (uint256) {
     address distributor = address(this);
 
     if (noHarvest()) return 0;
@@ -253,7 +267,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev claim staked LP reward (CAKE)
    * @return reward amount
    */
-  function claimStakeReward() external whenNotPaused returns (uint256) {
+  function claimStakeReward() external whenNotPaused updateStakeReward(msg.sender) returns (uint256) {
     address _account = msg.sender;
     uint256 amount = _claimStakingReward(_account);
     if (amount > 0) IStakingVault(stakeVault).transferAllocatedTokens(_account, amount);
@@ -269,9 +283,6 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    */
   function _stakeLp(address _account, uint256 _amount) private {
     address distributor = address(this);
-
-    _updateStakeReward(_account, balanceOf[_account]);
-
     uint256 beforeBalance = IERC20(cake).balanceOf(distributor);
     bool _noHarvest = noHarvest();
     if (!_noHarvest) {
@@ -293,10 +304,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
   // withdraw lp from staking pool
   function _unstakeLp(address _account, uint256 amount) private {
-    _updateStakeReward(_account, balanceOf[_account]);
-
     address distributor = address(this);
-
     // withdraw lp token and claim rewards
     uint256 beforeBalance = IERC20(cake).balanceOf(distributor);
 
@@ -318,7 +326,6 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
   // Claim CAKE reward; perform by staking vault or user
   function _claimStakingReward(address _account) internal returns (uint256) {
-    _updateStakeReward(_account, balanceOf[_account]);
     uint256 amount = stakeStoredPendingReward[_account];
     delete stakeStoredPendingReward[_account];
 
@@ -332,7 +339,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     uint256 updated = stakePeriodFinish;
     if (updated > block.timestamp) updated = block.timestamp;
     uint256 duration = updated - stakeLastUpdate;
-    if (duration > 0) stakeLastUpdate = uint32(updated);
+    if (duration > 0) stakeLastUpdate = updated;
 
     if (duration > 0 && totalSupply > 0) {
       stakeRewardIntegral += (duration * stakeRewardRate * 1e18) / totalSupply;
@@ -371,7 +378,9 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param _account account address
    * @return reward amount
    */
-  function vaultClaimStakingReward(address _account) external onlyStakeVault returns (uint256) {
+  function vaultClaimStakingReward(
+    address _account
+  ) external onlyStakeVault updateStakeReward(_account) returns (uint256) {
     return _claimStakingReward(_account);
   }
 
@@ -381,6 +390,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    */
   function setStakeVault(address _stakeVault) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(_stakeVault != address(0), "stake vault is the zero address");
+    require(v2wrapper.rewardToken() == IStakingVault(_stakeVault).rewardToken(), "Inconsistent reward token");
+
     stakeVault = _stakeVault;
   }
 
@@ -420,6 +431,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   }
 
   function setIsActive(bool _isActive) external onlyRole(MANAGER) {
+    require(isActive != _isActive, "Already set");
     isActive = _isActive;
     emit SetIsActive(_isActive);
   }
@@ -445,7 +457,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
   // Check if it's time to harvest. If not, return true
   function noHarvest() public view returns (bool) {
-    return lastHarvestTime + harvestTimeGap > block.timestamp;
+    return lastHarvestTime + harvestTimeGap >= block.timestamp;
   }
 
   /**
