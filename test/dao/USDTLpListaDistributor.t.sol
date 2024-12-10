@@ -518,6 +518,9 @@ contract USDTLpListaDistributorTest is Test {
   function test_setIsActive() public {
     vm.startPrank(manager);
     usdtDistributor.setIsActive(false);
+
+    vm.expectRevert("Already set");
+    usdtDistributor.setIsActive(false);
     vm.stopPrank();
 
     assertEq(usdtDistributor.isActive(), false, "is active should be false");

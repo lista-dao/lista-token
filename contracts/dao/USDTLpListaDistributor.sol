@@ -131,6 +131,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   ) external initializer {
     require(_admin != address(0), "admin is the zero address");
     require(_manager != address(0), "manager is the zero address");
+    require(_pauser != address(0), "pauser is the zero address");
     require(_vault != address(0), "vault is the zero address");
     require(_stakeVault != address(0), "stake vault is the zero address");
 
@@ -388,6 +389,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    */
   function setStakeVault(address _stakeVault) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(_stakeVault != address(0), "stake vault is the zero address");
+    require(v2wrapper.rewardToken() == IStakingVault(_stakeVault).rewardToken(), "Inconsistent reward token");
+
     stakeVault = _stakeVault;
   }
 
@@ -427,6 +430,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   }
 
   function setIsActive(bool _isActive) external onlyRole(MANAGER) {
+    require(isActive != _isActive, "Already set");
     isActive = _isActive;
     emit SetIsActive(_isActive);
   }
