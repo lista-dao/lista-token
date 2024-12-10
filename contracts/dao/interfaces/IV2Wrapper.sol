@@ -9,6 +9,10 @@ interface IV2Wrapper {
         uint256 unsettledRewards; // rewards haven't been transferred to users but already accounted in rewardDebt
     }
 
+    function stakedToken() external view returns (address);
+
+    function rewardToken() external view returns (address);
+
     function deposit(uint256 _amount, bool _noHarvest) external;
 
     function withdraw(uint256 _amount, bool _noHarvest) external;
@@ -16,4 +20,6 @@ interface IV2Wrapper {
     function pendingReward(address _userAddress) external view returns (uint256);
 
     function userInfo(address _userAddress) external view returns (UserInfo memory);
+
+    function emergencyWithdraw() external;
 }

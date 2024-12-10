@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
 import "./interfaces/IStaking.sol";
@@ -25,11 +26,17 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
     uint256 public harvestTimeGap;
 
+    // lp token address -> emergency mode (true/false)
+    mapping(address => bool) public emergencyModeForLpToken;
+
     event Harvest(address pool, address distributor, uint256 amount);
     event DepositLp(address pool, address distributor, uint256 amount);
     event WithdrawLp(address pool, address distributor, address account, uint256 amount);
     event RegisterPool(address lpToken, address pool, address distributor);
     event UnRegisterPool(address lpToken);
+    event SetHarvestTimeGap(uint256 harvestTimeGap);
+    event StopEmergencyMode(address lpToken, uint256 lpAmount);
+    event EmergencyWithdraw(address lpToken, uint256 lpAmount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -61,6 +68,11 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         _;
     }
 
+    modifier notInEmergencyMode(address pool) {
+        require(!emergencyModeForLpToken[pool], "In emergency mode");
+        _;
+    }
+
     /**
       * @dev deposit lp token to staking pool
       * @param pool lp token address
@@ -69,7 +81,13 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     function deposit(address pool, uint256 amount) external onlyPoolActive(pool) onlyDistributor(pool) nonReentrant {
         Pool storage poolInfo = pools[pool];
         IERC20(poolInfo.lpToken).safeTransferFrom(poolInfo.distributor, address(this), amount);
-        IERC20(poolInfo.lpToken).safeApprove(poolInfo.poolAddress, amount);
+        IERC20(poolInfo.lpToken).safeIncreaseAllowance(poolInfo.poolAddress, amount);
+
+        // if emergency mode is turned on, just deposit lp token to the contract and don't stake it
+        if (emergencyModeForLpToken[pool]) {
+            emit DepositLp(pool, poolInfo.distributor, amount);
+            return;
+        }
 
         // deposit lp token and claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
@@ -84,7 +102,7 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
         if (claimed > 0) {
             // send rewards to vault
-            IERC20(poolInfo.rewardToken).safeApprove(vault, claimed);
+            IERC20(poolInfo.rewardToken).safeIncreaseAllowance(vault, claimed);
             IStakingVault(vault).sendRewards(poolInfo.distributor, claimed);
             emit Harvest(pool, poolInfo.distributor, claimed);
         }
@@ -96,7 +114,10 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       * @dev harvest rewards
       * @param pool lp token address
       */
-    function harvest(address pool) external nonReentrant returns (uint256) {
+    function harvest(address pool) external returns (uint256) {
+        if (emergencyModeForLpToken[pool]) {
+            return 0;
+        }
         Pool storage poolInfo = pools[pool];
         if (poolInfo.lastHarvestTime + harvestTimeGap > block.timestamp) {
             return 0;
@@ -104,13 +125,13 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
             // claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
+        poolInfo.lastHarvestTime = block.timestamp;
         IGaugeV2(poolInfo.poolAddress).getReward();
         uint256 claimed = IERC20(poolInfo.rewardToken).balanceOf(address(this)) - beforeBalance;
-        poolInfo.lastHarvestTime = block.timestamp;
 
         if (claimed > 0) {
             // send rewards to vault
-            IERC20(poolInfo.rewardToken).safeApprove(vault, claimed);
+            IERC20(poolInfo.rewardToken).safeIncreaseAllowance(vault, claimed);
             IStakingVault(vault).sendRewards(poolInfo.distributor, claimed);
             emit Harvest(pool, poolInfo.distributor, claimed);
         }
@@ -126,6 +147,16 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       */
     function withdraw(address to, address pool, uint256 amount) external onlyDistributor(pool) nonReentrant {
         Pool storage poolInfo = pools[pool];
+
+        if (emergencyModeForLpToken[pool]) {
+            uint256 lpBalance = IERC20(poolInfo.lpToken).balanceOf(address(this));
+            require(lpBalance >= amount, "Not enough LP token to withdraw");
+
+            IERC20(poolInfo.lpToken).safeTransfer(to, amount);
+            emit WithdrawLp(pool, poolInfo.distributor, to, amount);
+            return;
+        }
+
         // withdraw lp token and claim rewards
         uint256 beforeBalance = IERC20(poolInfo.rewardToken).balanceOf(address(this));
         IGaugeV2(poolInfo.poolAddress).withdraw(amount);
@@ -137,7 +168,7 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
         if (claimed > 0) {
             // send rewards to vault
-            IERC20(poolInfo.rewardToken).safeApprove(vault, claimed);
+            IERC20(poolInfo.rewardToken).safeIncreaseAllowance(vault, claimed);
             IStakingVault(vault).sendRewards(poolInfo.distributor, claimed);
             emit Harvest(pool, poolInfo.distributor, claimed);
         }
@@ -186,5 +217,44 @@ contract ThenaStaking is OwnableUpgradeable, ReentrancyGuardUpgradeable {
       */
     function setHarvestTimeGap(uint256 _harvestTimeGap) external onlyOwner {
         harvestTimeGap = _harvestTimeGap;
+        emit SetHarvestTimeGap(_harvestTimeGap);
+    }
+
+    /**
+      * @dev stop emergency mode
+      * @param lpToken lp token address
+      */
+    function stopEmergencyMode(address lpToken) external onlyOwner {
+        require(emergencyModeForLpToken[lpToken], "Emergency mode isn't turned on for this lp token");
+        // 1. set emergency mode to false
+        emergencyModeForLpToken[lpToken] = false;
+
+        // 2. stake lp token to farming contract
+        Pool memory poolInfo = pools[lpToken];
+        require(!IGaugeV2(poolInfo.poolAddress).emergency(), "Farming contract is in emergency mode");
+        uint256 balance = IERC20(poolInfo.lpToken).balanceOf(address(this));
+        if (balance > 0) {
+            IERC20(poolInfo.lpToken).safeIncreaseAllowance(poolInfo.poolAddress, balance);
+            IGaugeV2(poolInfo.poolAddress).deposit(balance);
+        }
+
+        emit StopEmergencyMode(lpToken, balance);
+    }
+
+    /**
+      * @dev emergency withdraw all lps from farming contract given lp token addresses
+      * @param lpToken lp token address
+      */
+    function emergencyWithdraw(address lpToken) external onlyOwner notInEmergencyMode(lpToken) nonReentrant {
+        Pool memory poolInfo = pools[lpToken];
+        require(poolInfo.isActive, "Pool is not active");
+
+        emergencyModeForLpToken[lpToken] = true;
+
+        uint256 lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this));
+        IGaugeV2(poolInfo.poolAddress).emergencyWithdraw();
+        lpAmount = IERC20(poolInfo.lpToken).balanceOf(address(this)) - lpAmount;
+
+        emit EmergencyWithdraw(lpToken, lpAmount);
     }
 }

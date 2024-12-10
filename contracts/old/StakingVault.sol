@@ -1,9 +1,9 @@
 pragma solidity ^0.8.10;
 
-import "./interfaces/IStaking.sol";
-import "./interfaces/IStakingVault.sol";
-import "./interfaces/IV2Wrapper.sol";
-import "./interfaces/IDistributor.sol";
+import "../dao/interfaces/IStaking.sol";
+import "../dao/interfaces/IStakingVault.sol";
+import "../dao/interfaces/IV2Wrapper.sol";
+import "../dao/interfaces/IDistributor.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -33,8 +33,6 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
     address public lpProxy;
     // pauser address
     address public pauser;
-    // usdt distributor address
-    address public usdtDistributor;
 
     event AddRewards(address distributor, uint256 amount, uint256 fee);
 
@@ -71,8 +69,8 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
         _;
     }
 
-    modifier onlyStakingOrUsdtDistributor() {
-        require(msg.sender == staking || msg.sender == usdtDistributor, "Only staking contract can call this function");
+    modifier onlyStaking() {
+        require(msg.sender == staking, "Only staking contract can call this function");
         _;
     }
 
@@ -86,9 +84,8 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
       * @param distributor distributor address
       * @param amount reward amount
       */
-    function sendRewards(address distributor, uint256 amount) external onlyStakingOrUsdtDistributor {
-        // The caller should pay the staking rewards
-        IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
+    function sendRewards(address distributor, uint256 amount) external onlyStaking {
+        IERC20(rewardToken).safeTransferFrom(staking, address(this), amount);
 
         uint256 rewardAmount = amount;
         uint256 fee;
@@ -173,15 +170,6 @@ contract StakingVault is OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausabl
     function setLpProxy(address _lpProxy) external onlyOwner {
         require(_lpProxy != address(0), "lpProxy cannot be zero address");
         lpProxy = _lpProxy;
-    }
-
-    /**
-      * @dev set USDTLpListaDistributor address since it's not registered in the staking contract
-      * @param _usdtDistributor USDTLpListaDistributor address
-      */
-    function setUsdtDistributor(address _usdtDistributor) external onlyOwner {
-        require(_usdtDistributor != address(0) && usdtDistributor != _usdtDistributor, "invalid usdtDistributor provided");
-        usdtDistributor = _usdtDistributor;
     }
 
     /**
