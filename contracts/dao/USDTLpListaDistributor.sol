@@ -166,7 +166,10 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @param usdtAmount amount of USDT to deposit
    * @param minLpAmount minimum amount of LP token required to mint
    */
-  function deposit(uint256 usdtAmount, uint256 minLpAmount) external onlyActive updateStakeReward(msg.sender) {
+  function deposit(
+    uint256 usdtAmount,
+    uint256 minLpAmount
+  ) external onlyActive updateStakeReward(msg.sender) nonReentrant {
     require(usdtAmount > 0, "Invalid usdt amount");
     uint256 expectLpAmount = getLpToMint(usdtAmount);
     require(expectLpAmount >= minLpAmount, "Invalid min lp amount");
@@ -201,7 +204,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
     uint256 lpAmount,
     uint256 minLisUSDAmount,
     uint256 minUSDTAmount
-  ) external updateStakeReward(msg.sender) {
+  ) external updateStakeReward(msg.sender) nonReentrant {
     require(lpAmount > 0, "Invalid LP amount");
 
     // 1. Validate lisUSD and USDT amount
@@ -237,7 +240,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev Harvest LP staking reward (CAKE) from farming contract
    * @return claimed CAKE amount
    */
-  function harvest() external whenNotPaused notInEmergencyMode returns (uint256) {
+  function harvest() external whenNotPaused notInEmergencyMode nonReentrant returns (uint256) {
     address distributor = address(this);
 
     if (noHarvest()) return 0;
