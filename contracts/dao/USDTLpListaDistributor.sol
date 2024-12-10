@@ -119,6 +119,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
    * @dev initialize contract
    * @param _admin admin address
    * @param _manager manager address
+   * @param _pauser pauser address
    * @param _vault ListaVault address
    * @param _stakeVault StakingVault address
    */
@@ -227,8 +228,8 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
 
     lisUSDAmountActual = lisUSD.balanceOf(address(this)) - lisUSDAmountActual;
     usdtAmountActual = usdt.balanceOf(address(this)) - usdtAmountActual;
-    require(lisUSDAmountActual >= minLisUSDAmount, "Invalid lisUSD amount received");
-    require(usdtAmountActual >= minUSDTAmount, "Invalid USDT amount received");
+    require(minLisUSDAmount <= lisUSDAmountActual, "Invalid lisUSD amount received");
+    require(minUSDTAmount <= usdtAmountActual, "Invalid USDT amount received");
 
     // 5. Transfer lisUSD and USDT to user
     lisUSD.safeTransfer(msg.sender, lisUSDAmountActual);
