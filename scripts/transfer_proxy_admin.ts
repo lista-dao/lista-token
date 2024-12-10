@@ -27,7 +27,7 @@ const main = async () => {
     "0xb691624b69BbB23b8Cc9847B5E8c151d75110eD4", // erc721 LISTA/BNB v3 LP
     "0x8453CD3d1588E62D5e72A8bC16A8a0300A16005f", // erc721 LISTA/USDT v3 LP
   ];
-  const newOwner = "0x08aE09467ff962aF105c23775B9Bc8EAa175D27F";
+  const newOwner = "0x07D274a68393E8b8a2CCf19A2ce4Ba3518735253";
   // transfer proxy admin ownership
   for (let i = 0; i < proxyAddresses.length; i++) {
     await transferProxyAdminOwner(hre, proxyAddresses[i], newOwner);
