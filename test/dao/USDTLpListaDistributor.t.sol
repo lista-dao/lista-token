@@ -321,9 +321,18 @@ contract USDTLpListaDistributorTest is Test {
 
     skip(1 weeks);
 
-    vm.startPrank(user1);
+    vm.prank(manager);
+    usdtDistributor.pause();
+
+    vm.prank(user1);
+    vm.expectRevert("Pausable: paused");
+    usdtDistributor.claimReward();
+
+    vm.prank(manager);
+    usdtDistributor.togglePause();
+
+    vm.prank(user1);
     usdtDistributor.fetchRewards();
-    vm.stopPrank();
 
     assertEq(usdtDistributor.rewardRate(), weekAmount / 1 weeks, "reward rate error");
     assertEq(usdtDistributor.lastUpdate(), block.timestamp, "last update error");
