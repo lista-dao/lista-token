@@ -426,6 +426,7 @@ contract USDTLpListaDistributor is CommonListaDistributor, ReentrancyGuardUpgrad
   }
 
   function setHarvestTimeGap(uint256 _harvestTimeGap) external onlyRole(MANAGER) {
+    require(_harvestTimeGap != harvestTimeGap, "Already set");
     harvestTimeGap = _harvestTimeGap;
     emit SetHarvestTimeGap(_harvestTimeGap);
   }
