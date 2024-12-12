@@ -489,6 +489,8 @@ contract USDTLpListaDistributorTest is Test {
   function test_setHarvestTimeGap() public {
     uint256 harvestTimeGap = 1 days;
     vm.startPrank(manager);
+    vm.expectRevert("Already set");
+    usdtDistributor.setHarvestTimeGap(1 hours);
     usdtDistributor.setHarvestTimeGap(harvestTimeGap);
     vm.stopPrank();
 
