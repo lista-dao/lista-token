@@ -327,6 +327,8 @@ contract USDTLpListaDistributorTest is Test {
     vm.prank(user1);
     vm.expectRevert("Pausable: paused");
     usdtDistributor.claimReward();
+    vm.expectRevert("Pausable: paused");
+    usdtDistributor.fetchRewards();
 
     vm.prank(manager);
     usdtDistributor.togglePause();

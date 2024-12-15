@@ -176,7 +176,7 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
     /**
       * @dev fetch rewards weekly
       */
-    function fetchRewards() external {
+    function fetchRewards() whenNotPaused external {
         require(getWeek(block.timestamp) >= getWeek(periodFinish), "Can only fetch once per week");
         _updateReward(address(0), 0, totalSupply);
         _fetchRewards();
