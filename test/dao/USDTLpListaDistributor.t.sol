@@ -321,9 +321,20 @@ contract USDTLpListaDistributorTest is Test {
 
     skip(1 weeks);
 
-    vm.startPrank(user1);
+    vm.prank(manager);
+    usdtDistributor.pause();
+
+    vm.prank(user1);
+    vm.expectRevert("Pausable: paused");
+    usdtDistributor.claimReward();
+    vm.expectRevert("Pausable: paused");
     usdtDistributor.fetchRewards();
-    vm.stopPrank();
+
+    vm.prank(manager);
+    usdtDistributor.togglePause();
+
+    vm.prank(user1);
+    usdtDistributor.fetchRewards();
 
     assertEq(usdtDistributor.rewardRate(), weekAmount / 1 weeks, "reward rate error");
     assertEq(usdtDistributor.lastUpdate(), block.timestamp, "last update error");
@@ -480,6 +491,8 @@ contract USDTLpListaDistributorTest is Test {
   function test_setHarvestTimeGap() public {
     uint256 harvestTimeGap = 1 days;
     vm.startPrank(manager);
+    vm.expectRevert("Already set");
+    usdtDistributor.setHarvestTimeGap(1 hours);
     usdtDistributor.setHarvestTimeGap(harvestTimeGap);
     vm.stopPrank();
 
