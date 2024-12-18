@@ -1,21 +1,22 @@
 import hre from "hardhat";
 
-const admin = "0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06";
-const listaVault = "0x0fD548f448AAB6dE7489F8FD1a4be1efca009f1C";
-const stakingVault = "0x4EED5fa7344d7B40c548d21f151A89bBE750F59c";
-const stableSwap = "0xeE7c95A9e4206a1daBFb15C4F471c6D5f5e8863F";
-const stableSwapInfo = "0x0A548d59D04096Bc01206D58C3D63c478e1e06dB";
-const v2wrapper = "0x0921d42D5B7511b586A6A522fFd041394E4879e8";
+const admin = "0x07D274a68393E8b8a2CCf19A2ce4Ba3518735253";
+const manager = "0x8d388136d578dCD791D081c6042284CED6d9B0c6";
+const pauser = "0xEEfebb1546d88EA0909435DF6f615084DD3c5Bd8";
+const listaVault = "0x307d13267f360f78005f476Fa913F8848F30292A";
+const stakingVault = "0x62DfeC5C9518fE2e0ba483833d1BAD94ecF68153";
+
+const stableSwap = "0xb1Da7D2C257c5700612BdE35C8d7187dc80d79f1";
+const stableSwapInfo = "0x150c8AbEB487137acCC541925408e73b92F39A50";
+const v2wrapper = "0xd069a9E50E4ad04592cb00826d312D9f879eBb02";
 
 const constructorArguments = [stableSwap, stableSwapInfo, v2wrapper];
 
-// Proxy USDTLpListaDistributor deployed to: 0x0502142b0B7Ff90fa6B6bab739A5417E027a4Df7
-// Impl USDTLpListaDistributor deployed to: 0xAff595E4A062508a99fF5BB10cBEEB446C4Db5d4
 async function main() {
   const Contract = await hre.ethers.getContractFactory("USDTLpListaDistributor");
 
   console.log("Deploying proxy USDTLpListaDistributor");
-  const contract = await hre.upgrades.deployProxy(Contract, [admin, admin, admin, listaVault, stakingVault], {
+  const contract = await hre.upgrades.deployProxy(Contract, [admin, manager, pauser, listaVault, stakingVault], {
     unsafeAllow: ["constructor"],
     constructorArgs: constructorArguments,
   });
