@@ -156,7 +156,7 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
         return _claimReward(_account);
     }
 
-    function claimReward() external returns (uint256) {
+    function claimReward() whenNotPaused external returns (uint256) {
         address _account = msg.sender;
         uint256 amount = _claimReward(_account);
         require(amount > 0, "no reward to claim");
@@ -176,7 +176,7 @@ abstract contract CommonListaDistributor is Initializable, AccessControlUpgradea
     /**
       * @dev fetch rewards weekly
       */
-    function fetchRewards() external {
+    function fetchRewards() whenNotPaused external {
         require(getWeek(block.timestamp) >= getWeek(periodFinish), "Can only fetch once per week");
         _updateReward(address(0), 0, totalSupply);
         _fetchRewards();

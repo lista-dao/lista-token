@@ -23,6 +23,7 @@ export async function deployDirect(
     address: address,
     constructorArguments: args,
   });
+  return address;
 }
 
 export async function deployProxy(
@@ -49,10 +50,10 @@ export async function deployProxy(
 
   try {
     await hre.run("verify:verify", {
-      address: proxyAddress,
+      address: contractImplAddress,
     });
     await hre.run("verify:verify", {
-      address: contractImplAddress,
+      address: proxyAddress,
     });
   } catch (e) {
     console.log("Error verifying contract:", e);
