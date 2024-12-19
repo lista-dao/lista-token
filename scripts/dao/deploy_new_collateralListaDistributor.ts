@@ -2,8 +2,8 @@ import { deployProxy } from "../tasks";
 import hre from "hardhat";
 
 const collateralConfigs: any[] = [{
-  symbol: 'sUSDX CollateralListaDAODistributor',
-  lpToken: '0x7788A3538C5fc7F9c7C8A74EAC4c898fC8d87d92',
+  symbol: 'pumpBTC CollateralListaDAODistributor',
+  lpToken: '',
 }]
 
 async function main() {
@@ -18,7 +18,7 @@ async function main() {
     listaVault = "0x1D70D733401169055002FB4450942F15C2F088d4";
     manager = "0x227eeaf69495E97c1E72A48785B8A041664b5a28"; // router address
 
-    collateralConfigs[0].lpToken = '0xdb66d7e8edF8a16aD5e802704D2cA4EFca9e8a46'
+    collateralConfigs[0].lpToken = ''
   }
 
   for (const collateralConfig of collateralConfigs) {
