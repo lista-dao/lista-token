@@ -23,7 +23,7 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
 
     mapping(address => ICollateralDistributor) public collateralDistributors;
 
-    // To Be Deprecated
+    // Deprecated
     IBorrowLisUSDListaDistributor public borrowLisUSDListaDistributor;
 
     mapping(address => IBorrowDistributor) public borrowDistributors;
@@ -86,8 +86,6 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
 
         if (_artUpdated && address(borrowDistributors[_collateralToken]) != address(0)) {
             borrowDistributors[_collateralToken].takeSnapshot(_collateralToken, _user, _art);
-            // remove old snapshottor
-            // borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
         }
     }
 
@@ -102,8 +100,6 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
         address _collateralToken, address _user, uint256 _art
     ) onlyRole(MANAGER) external {
         borrowDistributors[_collateralToken].takeSnapshot(_collateralToken, _user, _art);
-        // remove old snapshottor
-        // borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
     }
 
     /**
@@ -118,14 +114,26 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
     }
 
     /**
-     * @dev set new borrow distributor
+     * @dev private function
      */
-    function setBorrowDistributor(address _collateralToken, address _borrowDistributor) onlyRole(DEFAULT_ADMIN_ROLE) external {
+    function _setBorrowDistributor(address _collateralToken, address _borrowDistributor) private {
         require(_borrowDistributor != address(0), "borrowDistributor cannot be a zero address");
         require(_borrowDistributor != address(borrowDistributors[_collateralToken]), "borrowDistributor already set");
+        require(_collateralToken == IBorrowDistributor(_borrowDistributor).lpToken(), "collateral token not matched");
 
         borrowDistributors[_collateralToken] = IBorrowDistributor(_borrowDistributor);
         emit BorrowDistributorChanged(_borrowDistributor, _collateralToken, true);
+    }
+
+    /**
+     * @dev batch set collateral distributors
+     */
+    function batchSetBorrowDistributors(address[] memory _collateralTokens, address[] memory _borrowDistributors) onlyRole(DEFAULT_ADMIN_ROLE) external {
+        require(_collateralTokens.length == _borrowDistributors.length, "collateralTokens and borrowDistributors length mismatch");
+
+        for (uint256 i = 0; i < _collateralTokens.length; i++) {
+            _setBorrowDistributor(_collateralTokens[i], _borrowDistributors[i]);
+        }
     }
 
     /**

@@ -7,4 +7,5 @@ interface ICollateralDistributor {
 
 interface IBorrowDistributor {
     function takeSnapshot(address _token, address _user, uint256 _debt) external;
+    function lpToken() external view returns (address);
 }

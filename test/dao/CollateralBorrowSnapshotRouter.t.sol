@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "../../contracts/dao/CollateralBorrowSnapshotRouter.sol";
 import "../../contracts/dao/BorrowLisUSDListaDistributor.sol";
 import "../../contracts/dao/CollateralListaDistributor.sol";
+import "../../contracts/dao/BorrowListaDistributor.sol";
 
 
 contract CollateralBorrowSnapshotRouterTest is Test {
@@ -17,7 +18,7 @@ contract CollateralBorrowSnapshotRouterTest is Test {
     address user = address(0x3A11AA);
     address proxyAdminOwner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
 
-    address listaVault = address(0x307d13267f360f78005f476Fa913F8848F30292A);
+    address listaVault = 0x307d13267f360f78005f476Fa913F8848F30292A;
 
     CollateralBorrowSnapshotRouter collateralBorrowSnapshotRouter;
 
@@ -29,6 +30,7 @@ contract CollateralBorrowSnapshotRouterTest is Test {
     IERC20 ETH;
     CollateralListaDistributor slisBNBCollateralDistributor;
     CollateralListaDistributor ethCollateralDistributor;
+    BorrowListaDistributor slisBnbBorrowListaDistributor;
 
     function setUp() public {
         mainnet = vm.createSelectFork("https://bsc-dataseed.binance.org");
@@ -95,6 +97,27 @@ contract CollateralBorrowSnapshotRouterTest is Test {
         ethCollateralDistributor.grantRole(ethCollateralDistributor.MANAGER(), address(collateralBorrowSnapshotRouter));
         slisBNBCollateralDistributor.grantRole(slisBNBCollateralDistributor.MANAGER(), address(collateralBorrowSnapshotRouter));
         vm.stopPrank();
+
+        // Deploy and set slisBNB borrow distributor
+        BorrowListaDistributor slisBnbBorrowListaDistributorImpl = new BorrowListaDistributor();
+        TransparentUpgradeableProxy slisBnbBorrowListaDistributorProxy = new TransparentUpgradeableProxy(
+            address(slisBnbBorrowListaDistributorImpl),
+            proxyAdminOwner,
+            abi.encodeWithSignature(
+                "initialize(string,string,address,address,address,address)",
+                "slisBnbBorrowListaDistributor", "slisBNB", admin, manager, listaVault, address(slisBNB)
+            )
+        );
+        slisBnbBorrowListaDistributor = BorrowListaDistributor(address(slisBnbBorrowListaDistributorProxy));
+
+        address[] memory _tokens = new address[](1);
+        _tokens[0] = address(slisBNB);
+        address[] memory _distributors = new address[](1);
+        _distributors[0] = address(slisBnbBorrowListaDistributor);
+
+        vm.startPrank(admin);
+        collateralBorrowSnapshotRouter.batchSetBorrowDistributors(_tokens, _distributors);
+        slisBnbBorrowListaDistributor.grantRole(slisBnbBorrowListaDistributor.MANAGER(), address(collateralBorrowSnapshotRouter));
     }
 
     function test_setUp() public {
@@ -102,6 +125,7 @@ contract CollateralBorrowSnapshotRouterTest is Test {
 
         assertEq(address(ethCollateralDistributor), address(collateralBorrowSnapshotRouter.collateralDistributors(address(ETH))));
         assertEq(address(slisBNBCollateralDistributor), address(collateralBorrowSnapshotRouter.collateralDistributors(address(slisBNB))));
+        assertEq(address(slisBnbBorrowListaDistributor), address(collateralBorrowSnapshotRouter.borrowDistributors(address(slisBNB))));
     }
 
     function test_takeSnapshot_acl() public {
@@ -138,26 +162,26 @@ contract CollateralBorrowSnapshotRouterTest is Test {
     }
 
     function test_takeSnapshot_borrow() public {
-        assertEq(0, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
+        assertEq(0, slisBnbBorrowListaDistributor.balanceOf(user));
 
-        vm.expectEmit(address(borrowLisUSDListaDistributor));
+        vm.expectEmit(address(slisBnbBorrowListaDistributor));
         emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 123e18);
 
         vm.startPrank(manager);
         collateralBorrowSnapshotRouter.takeSnapshot(address(slisBNB), user, 0, 123e18, false, true);
         vm.stopPrank();
 
-        assertEq(123e18, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
+        assertEq(123e18, slisBnbBorrowListaDistributor.balanceOf(user));
     }
 
     function test_takeSnapshot_collateral_borrow() public {
         assertEq(0, slisBNBCollateralDistributor.balanceOf(user));
-        assertEq(0, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
+        assertEq(0, slisBnbBorrowListaDistributor.balanceOf(user));
 
         vm.expectEmit(address(slisBNBCollateralDistributor));
         emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 123e18);
 
-        vm.expectEmit(address(borrowLisUSDListaDistributor));
+        vm.expectEmit(address(slisBnbBorrowListaDistributor));
         emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 456e18);
 
         vm.startPrank(manager);
@@ -165,19 +189,19 @@ contract CollateralBorrowSnapshotRouterTest is Test {
         vm.stopPrank();
 
         assertEq(123e18, slisBNBCollateralDistributor.balanceOf(user));
-        assertEq(456e18, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
+        assertEq(456e18, slisBnbBorrowListaDistributor.balanceOf(user));
     }
 
     function test_takeSnapshot_collateral_borrow_compatible() public {
-        assertEq(0, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
+        assertEq(0, slisBnbBorrowListaDistributor.balanceOf(user));
 
-        vm.expectEmit(address(borrowLisUSDListaDistributor));
+        vm.expectEmit(address(slisBnbBorrowListaDistributor));
         emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 456e18);
 
         vm.startPrank(manager);
         collateralBorrowSnapshotRouter.takeSnapshot(address(slisBNB), user, 456e18);
         vm.stopPrank();
 
-        assertEq(456e18, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
+        assertEq(456e18, slisBnbBorrowListaDistributor.balanceOf(user));
     }
 }
