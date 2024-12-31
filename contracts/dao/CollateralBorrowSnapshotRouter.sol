@@ -17,14 +17,16 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
     using SafeERC20 for IERC20;
 
     event CollateralDistributorChanged(address indexed distributor, address indexed token, bool isAdd);
-    event BorrowDistributorChanged(address indexed newAddress);
+    event BorrowDistributorChanged(address indexed distributor, address indexed token, bool isAdd);
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
 
     mapping(address => ICollateralDistributor) public collateralDistributors;
 
+    // To Be Deprecated
     IBorrowLisUSDListaDistributor public borrowLisUSDListaDistributor;
 
+    mapping(address => IBorrowDistributor) public borrowDistributors;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -82,8 +84,10 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
             collateralDistributors[_collateralToken].takeSnapshot(_collateralToken, _user, _ink);
         }
 
-        if (_artUpdated) {
-            borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
+        if (_artUpdated && address(borrowDistributors[_collateralToken]) != address(0)) {
+            borrowDistributors[_collateralToken].takeSnapshot(_collateralToken, _user, _art);
+            // remove old snapshottor
+            // borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
         }
     }
 
@@ -97,7 +101,9 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
     function takeSnapshot(
         address _collateralToken, address _user, uint256 _art
     ) onlyRole(MANAGER) external {
-        borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
+        borrowDistributors[_collateralToken].takeSnapshot(_collateralToken, _user, _art);
+        // remove old snapshottor
+        // borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
     }
 
     /**
@@ -112,6 +118,17 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
     }
 
     /**
+     * @dev set new borrow distributor
+     */
+    function setBorrowDistributor(address _collateralToken, address _borrowDistributor) onlyRole(DEFAULT_ADMIN_ROLE) external {
+        require(_borrowDistributor != address(0), "borrowDistributor cannot be a zero address");
+        require(_borrowDistributor != address(borrowDistributors[_collateralToken]), "borrowDistributor already set");
+
+        borrowDistributors[_collateralToken] = IBorrowDistributor(_borrowDistributor);
+        emit BorrowDistributorChanged(_borrowDistributor, _collateralToken, true);
+    }
+
+    /**
      * @dev remove collateral distributor
      */
     function unsetCollateralDistributor(address _collateralToken) onlyRole(DEFAULT_ADMIN_ROLE) external {
@@ -120,5 +137,16 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
 
         delete collateralDistributors[_collateralToken];
         emit CollateralDistributorChanged(existingDistributor, _collateralToken, false);
+    }
+
+    /*
+     * @dev remove borrow distributor
+     */
+    function unsetBorrowDistributor(address _collateralToken) onlyRole(DEFAULT_ADMIN_ROLE) external {
+        address existingDistributor = address(borrowDistributors[_collateralToken]);
+        require(existingDistributor != address(0), "borrowDistributor not set");
+
+        delete borrowDistributors[_collateralToken];
+        emit BorrowDistributorChanged(existingDistributor, _collateralToken, false);
     }
 }
