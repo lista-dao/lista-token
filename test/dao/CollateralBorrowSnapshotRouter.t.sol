@@ -177,11 +177,15 @@ contract CollateralBorrowSnapshotRouterTest is Test {
     function test_takeSnapshot_collateral_borrow() public {
         assertEq(0, slisBNBCollateralDistributor.balanceOf(user));
         assertEq(0, slisBnbBorrowListaDistributor.balanceOf(user));
+        assertEq(0, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
 
         vm.expectEmit(address(slisBNBCollateralDistributor));
         emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 123e18);
 
         vm.expectEmit(address(slisBnbBorrowListaDistributor));
+        emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 456e18);
+
+        vm.expectEmit(address(borrowLisUSDListaDistributor));
         emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 456e18);
 
         vm.startPrank(manager);
@@ -190,5 +194,32 @@ contract CollateralBorrowSnapshotRouterTest is Test {
 
         assertEq(123e18, slisBNBCollateralDistributor.balanceOf(user));
         assertEq(456e18, slisBnbBorrowListaDistributor.balanceOf(user));
+        assertEq(456e18, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user));
+    }
+
+    function test_takeSnapshot_collateral_borrow_after_removal() public {
+        test_takeSnapshot_collateral_borrow();
+
+        vm.startPrank(admin);
+        collateralBorrowSnapshotRouter.removeTotalDebtDistributor();
+        vm.stopPrank();
+
+        vm.expectEmit(address(slisBNBCollateralDistributor));
+        emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 1 ether); // 124e18 - 123e18
+
+        vm.expectEmit(address(slisBnbBorrowListaDistributor));
+        emit CommonListaDistributor.LPTokenDeposited(address(slisBNB), user, 2 ether); // 458e18 - 456e18
+
+        vm.recordLogs();
+
+        vm.prank(manager);
+        collateralBorrowSnapshotRouter.takeSnapshot(address(slisBNB), user, 124e18, 458e18, true, true);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        assertEq(entries.length, 4); // 2 for each distributor, removed distributor should not emit
+
+        assertEq(124e18, slisBNBCollateralDistributor.balanceOf(user)); // updated
+        assertEq(458e18, slisBnbBorrowListaDistributor.balanceOf(user)); // updated
+        assertEq(456e18, borrowLisUSDListaDistributor.debtByCollateral(address(slisBNB), user)); // not updated
     }
 }

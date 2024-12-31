@@ -23,7 +23,7 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
 
     mapping(address => ICollateralDistributor) public collateralDistributors;
 
-    // Deprecated
+    // To Be Deprecated
     IBorrowLisUSDListaDistributor public borrowLisUSDListaDistributor;
 
     mapping(address => IBorrowDistributor) public borrowDistributors;
@@ -84,8 +84,18 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
             collateralDistributors[_collateralToken].takeSnapshot(_collateralToken, _user, _ink);
         }
 
-        if (_artUpdated && address(borrowDistributors[_collateralToken]) != address(0)) {
-            borrowDistributors[_collateralToken].takeSnapshot(_collateralToken, _user, _art);
+        if (_artUpdated) {
+            // take snapshot if new debt distributor is set
+            IBorrowDistributor debtDistributor = borrowDistributors[_collateralToken];
+            if (address(debtDistributor) != address(0)) {
+                require(_collateralToken == debtDistributor.lpToken(), "collateral token not matched");
+                debtDistributor.takeSnapshot(_collateralToken, _user, _art);
+            }
+
+            // take snapshot if old debt distributor is set
+            if (address(borrowLisUSDListaDistributor) != address(0)) {
+                borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
+            }
         }
     }
 
@@ -143,5 +153,16 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
 
         delete borrowDistributors[_collateralToken];
         emit BorrowDistributorChanged(existingDistributor, _collateralToken, false);
+    }
+
+    /**
+     * @dev set borrowLisUSDListaDistributor to zero address
+     */
+    function removeTotalDebtDistributor() onlyRole(DEFAULT_ADMIN_ROLE) external {
+        require(address(borrowLisUSDListaDistributor) != address(0), "total debt distributor not set");
+
+        borrowLisUSDListaDistributor = IBorrowLisUSDListaDistributor(address(0));
+
+        emit BorrowDistributorChanged(address(borrowLisUSDListaDistributor), address(0), false);
     }
 }
