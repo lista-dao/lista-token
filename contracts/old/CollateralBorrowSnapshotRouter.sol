@@ -7,8 +7,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "./interfaces/IBorrowLisUSDListaDistributor.sol";
-import "./interfaces/ICollateralDistributor.sol";
+import "../dao/interfaces/IBorrowLisUSDListaDistributor.sol";
+import "../dao/interfaces/ICollateralDistributor.sol";
 
 /**
  */
@@ -17,16 +17,14 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
     using SafeERC20 for IERC20;
 
     event CollateralDistributorChanged(address indexed distributor, address indexed token, bool isAdd);
-    event BorrowDistributorChanged(address indexed distributor, address indexed token, bool isAdd);
+    event BorrowDistributorChanged(address indexed newAddress);
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
 
     mapping(address => ICollateralDistributor) public collateralDistributors;
 
-    // To Be Deprecated
     IBorrowLisUSDListaDistributor public borrowLisUSDListaDistributor;
 
-    mapping(address => IBorrowDistributor) public borrowDistributors;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -85,18 +83,21 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
         }
 
         if (_artUpdated) {
-            // take snapshot if new debt distributor is set
-            IBorrowDistributor debtDistributor = borrowDistributors[_collateralToken];
-            if (address(debtDistributor) != address(0)) {
-                require(_collateralToken == debtDistributor.lpToken(), "collateral token not matched");
-                debtDistributor.takeSnapshot(_collateralToken, _user, _art);
-            }
-
-            // take snapshot if old debt distributor is set
-            if (address(borrowLisUSDListaDistributor) != address(0)) {
-                borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
-            }
+            borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
         }
+    }
+
+    /**
+     * @dev take snapshot of user's activity, to make router compatible with existing borrowLisUSDListaDistributor
+     * only the Interaction contract(Manager Role) can call this function
+     * @param _collateralToken token address
+     * @param _user user address
+     * @param _art user's borrow amount
+     */
+    function takeSnapshot(
+        address _collateralToken, address _user, uint256 _art
+    ) onlyRole(MANAGER) external {
+        borrowLisUSDListaDistributor.takeSnapshot(_collateralToken, _user, _art);
     }
 
     /**
@@ -111,29 +112,6 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
     }
 
     /**
-     * @dev private function
-     */
-    function _setBorrowDistributor(address _collateralToken, address _borrowDistributor) private {
-        require(_borrowDistributor != address(0), "borrowDistributor cannot be a zero address");
-        require(_borrowDistributor != address(borrowDistributors[_collateralToken]), "borrowDistributor already set");
-        require(_collateralToken == IBorrowDistributor(_borrowDistributor).lpToken(), "collateral token not matched");
-
-        borrowDistributors[_collateralToken] = IBorrowDistributor(_borrowDistributor);
-        emit BorrowDistributorChanged(_borrowDistributor, _collateralToken, true);
-    }
-
-    /**
-     * @dev batch set collateral distributors
-     */
-    function batchSetBorrowDistributors(address[] memory _collateralTokens, address[] memory _borrowDistributors) onlyRole(DEFAULT_ADMIN_ROLE) external {
-        require(_collateralTokens.length == _borrowDistributors.length, "collateralTokens and borrowDistributors length mismatch");
-
-        for (uint256 i = 0; i < _collateralTokens.length; i++) {
-            _setBorrowDistributor(_collateralTokens[i], _borrowDistributors[i]);
-        }
-    }
-
-    /**
      * @dev remove collateral distributor
      */
     function unsetCollateralDistributor(address _collateralToken) onlyRole(DEFAULT_ADMIN_ROLE) external {
@@ -142,27 +120,5 @@ contract CollateralBorrowSnapshotRouter is Initializable, AccessControlUpgradeab
 
         delete collateralDistributors[_collateralToken];
         emit CollateralDistributorChanged(existingDistributor, _collateralToken, false);
-    }
-
-    /*
-     * @dev remove borrow distributor
-     */
-    function unsetBorrowDistributor(address _collateralToken) onlyRole(DEFAULT_ADMIN_ROLE) external {
-        address existingDistributor = address(borrowDistributors[_collateralToken]);
-        require(existingDistributor != address(0), "borrowDistributor not set");
-
-        delete borrowDistributors[_collateralToken];
-        emit BorrowDistributorChanged(existingDistributor, _collateralToken, false);
-    }
-
-    /**
-     * @dev set borrowLisUSDListaDistributor to zero address
-     */
-    function removeTotalDebtDistributor() onlyRole(DEFAULT_ADMIN_ROLE) external {
-        require(address(borrowLisUSDListaDistributor) != address(0), "total debt distributor not set");
-
-        borrowLisUSDListaDistributor = IBorrowLisUSDListaDistributor(address(0));
-
-        emit BorrowDistributorChanged(address(borrowLisUSDListaDistributor), address(0), false);
     }
 }
