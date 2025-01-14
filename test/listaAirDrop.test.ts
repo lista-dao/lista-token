@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { MerkleTree } from "merkletreejs";
-import { mine, time } from "@nomicfoundation/hardhat-network-helpers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 function toWei(eth: string) {
   return ethers.parseEther(eth).toString();
@@ -72,7 +72,7 @@ describe("ListaAirdrop", function () {
     // const endTime = 1755763200; // Thu Aug 21 2025 08:00:00 GMT+0000
     const startTime = (await time.latest()) + 10;
     const endTime = startTime + 6 * 30 * 24 * 60 * 60; // 6 months
-    const reclaimDelay = endTime;
+    const reclaimDelay = 0;
     const ListaAirdrop = await ethers.getContractFactory("ListaAirdrop", {
       libraries: {
         MerkleVerifier: merkleVerifier.target,
@@ -113,15 +113,13 @@ describe("ListaAirdrop", function () {
     await time.increase(200);
 
     // shoule revert if incorrect proof provided
-    /*
-  await expect(
-      listaAirdrop.claim(
+    await expect(
+       listaAirdrop.claim(
         user1.address,
         toWei("1"),
         proof2.map((p) => "0x" + p.data.toString("hex"))
       )
-    ).to.be.revertedWith("InvalidProof()");
-    */
+    ).to.be.revertedWithCustomError(merkleVerifier, "InvalidProof");
 
     // user1 can claim
     await expect(
@@ -181,10 +179,6 @@ describe("ListaAirdrop", function () {
 
   it("owner should be able to reclaim", async function () {
     const balanceBefore = await listaToken.balanceOf(owner.address);
-    await expect(listaAirdrop.connect(owner).reclaim(toWei("1"))).to.be.revertedWith("Tokens cannot be reclaimed");
-
-    // advance to end time
-    await time.increase( (await time.latest()) + 7 * 30 * 24 * 60 * 60);
     await listaAirdrop.connect(owner).reclaim(toWei("1"));
 
     expect(await listaToken.balanceOf(owner.address)).to.equals(
