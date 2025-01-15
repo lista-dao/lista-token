@@ -2,17 +2,19 @@ import { deployProxy } from "../tasks";
 import hre from "hardhat";
 
 const collateralConfigs: any[] = [
-{
-  symbol: 'USDT CollateralListaDAODistributor',
-  lpToken: '0x49b1401B4406Fe0B32481613bF1bC9Fe4B9378aC',
-},
-{
-  symbol: 'solvBTC CollateralListaDAODistributor',
-  lpToken: '0xB1E63330f4718772CF939128d222389b30C70cF2',
-}, {
-  symbol: 'ceABNBc CollateralListaDAODistributor',
-  lpToken: '0x92D8c63E893685Cced567b23916a8726b0CEF3FE',
-}]
+  // {
+  //   symbol: 'mBTC CollateralListaDAODistributor',
+  //   lpToken: '0x2deB430701DE0BB24ADD0c815C464e6DC6BB2634',
+  // },
+  // {
+  //   symbol: 'mCake CollateralListaDAODistributor',
+  //   lpToken: '0x70ad940d73415CDDAc47861e9691795AA7a119e1',
+  // },
+  {
+  symbol: 'mwBETH CollateralListaDAODistributor',
+  lpToken: '0x410E153F72Fa68D1e0A2aAF7e4be75CD0513E63E',
+  }
+]
 
 async function main() {
   const name = "ListaDao";
@@ -20,8 +22,8 @@ async function main() {
   const deployer = signers[0].address;
   let listaVault = '', manager;
   if (hre.network.name === "bscTestnet") {
-    listaVault = "0x1D70D733401169055002FB4450942F15C2F088d4";
-    manager = "0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232";
+    listaVault = "0x0fD548f448AAB6dE7489F8FD1a4be1efca009f1C";
+    manager = "0x227eeaf69495E97c1E72A48785B8A041664b5a28";
   }
 
   for (const collateralConfig of collateralConfigs) {

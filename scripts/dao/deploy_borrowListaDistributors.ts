@@ -2,44 +2,14 @@ import { deployProxy } from "../tasks";
 import hre from "hardhat";
 
 const collateralConfigs: any[] = [{
-  symbol: 'ceABNBc BorrowListaDAODistributor',
-  lpToken: '0x563282106A5B0538f8673c787B3A16D3Cc1DbF1a',
+  symbol: 'mBTC BorrowListaDAODistributor',
+  lpToken: '0x7c1cCA5b25Fa0bC9AF9275Fb53cBA89DC172b878',
 }, {
-  symbol: 'slisBNB BorrowListaDAODistributor',
-  lpToken: '0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B',
+  symbol: 'mCake BorrowListaDAODistributor',
+  lpToken: '0x581FA684D0Ec11ccb46B1d92F1F24C8A3F95C0CA',
 }, {
-  symbol: 'cewBETH BorrowListaDAODistributor',
-  lpToken: '0x6C813D1d114d0caBf3F82f9E910BC29fE7f96451',
-}, {
-  symbol: 'wBETH BorrowListaDAODistributor',
-  lpToken: '0xa2E3356610840701BDf5611a53974510Ae27E2e1',
-}, {
-  symbol: 'wstETH BorrowListaDAODistributor',
-  lpToken: '0x26c5e01524d2e6280a48f2c50ff6de7e52e9611c',
-}, {
-  symbol: 'BTCB BorrowListaDAODistributor',
-  lpToken: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
-}, {
-  symbol: 'USDT BorrowListaDAODistributor',
-  lpToken: '0x55d398326f99059fF775485246999027B3197955',
-}, {
-  symbol: 'FDUSD BorrowListaDAODistributor',
-  lpToken: '0xc5f0f7b66764f6ec8c8dff7ba683102295e16409',
-}, {
-  symbol: 'STONE BorrowListaDAODistributor',
-  lpToken: '0x80137510979822322193FC997d400D5A6C747bf7',
-}, {
-  symbol: 'solvBTC BorrowListaDAODistributor',
-  lpToken: '0x4aae823a6a0b376De6A78e74eCC5b079d38cBCf7',
-}, {
-  symbol: 'SolvBTC.BBN BorrowListaDAODistributor',
-  lpToken: '0x1346b618dc92810ec74163e4c27004c921d446a5',
-}, {
-  symbol: 'sUSDX BorrowListaDAODistributor',
-  lpToken: '0x7788A3538C5fc7F9c7C8A74EAC4c898fC8d87d92',
-}, {
-  symbol: 'cePumpBTC BorrowListaDAODistributor',
-  lpToken: '0xc6F28a668b7c18F921ccBA4adc3D8db72BFF0FE2',
+  symbol: 'mwBETH BorrowListaDAODistributor',
+  lpToken: '0x7dC91cBD6CB5A3E6A95EED713Aa6bF1d987146c8',
 }]
 
 async function main() {
