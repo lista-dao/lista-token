@@ -8,7 +8,7 @@ async function main() {
   let lpToken, listaVault, manager, admin;
   if (hre.network.name === "bsc") {
     listaVault = "0x307d13267f360f78005f476Fa913F8848F30292A";
-    lpToken = ""; // cemBTC
+    lpToken = "0x4510aa2b3efd13bBFD78C9BfdE764F224ecc7f50"; // cemBTC
     manager = "0xB68443Ee3e828baD1526b3e0Bdf2Dfc6b1975ec4";
     admin = "0x07D274a68393E8b8a2CCf19A2ce4Ba3518735253";
   } else if (hre.network.name === "bscTestnet") {

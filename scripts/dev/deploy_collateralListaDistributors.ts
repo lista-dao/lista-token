@@ -4,7 +4,7 @@ import hre from "hardhat";
 const collateralConfigs: any[] = [
   {
     symbol: 'cemBTC CollateralListaDAODistributor',
-    lpToken: '', // cemBTC
+    lpToken: '0x4510aa2b3efd13bBFD78C9BfdE764F224ecc7f50', // cemBTC
   },
   // {
   //   symbol: 'mCake CollateralListaDAODistributor',
