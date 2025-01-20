@@ -14,6 +14,8 @@ contract VeListaRevenueDistributortTest is Test {
 
     address veLista = 0xd0C380D31DB43CD291E2bbE2Da2fD6dc877b87b3;
     address lista = 0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46;
+    address autoCompounder = 0x9a0530A81c83D3b0daE720BF91C9254FECC3BF5E;
+
 
     VeListaVault veListaVault;
     VeListaRevenueDistributor veListaRevenueDistributor;
@@ -31,7 +33,8 @@ contract VeListaRevenueDistributortTest is Test {
                 manager,
                 bot,
                 veLista,
-                lista
+                lista,
+                autoCompounder
             )
         );
 
