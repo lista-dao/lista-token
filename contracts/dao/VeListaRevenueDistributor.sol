@@ -50,6 +50,7 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
         require(_lista != address(0), "lista cannot be zero address");
         require(_vaultPercentage <= PRECISION, "vaultPercentage cannot be greater than PRECISION");
 
+        __UUPSUpgradeable_init();
         __AccessControl_init();
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setupRole(MANAGER, _manager);
@@ -67,6 +68,7 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
      */
     function setRevenueReceiver(address _revenueReceiver) public onlyRole(MANAGER) {
         require(_revenueReceiver != address(0), "revenueReceiver cannot be zero address");
+        require(_revenueReceiver != revenueReceiver, "revenueReceiver is not different from the current address");
         revenueReceiver = _revenueReceiver;
     }
 
@@ -76,6 +78,7 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
      */
     function setVeListaVault(address _veListaVault) public onlyRole(MANAGER) {
         require(_veListaVault != address(0), "veListaVault cannot be zero address");
+        require(_veListaVault != veListaVault, "veListaVault is not different from the current address");
         veListaVault = _veListaVault;
     }
 
@@ -85,6 +88,7 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
      */
     function setVaultPercentage(uint256 _vaultPercentage) public onlyRole(MANAGER) {
         require(_vaultPercentage <= PRECISION, "vaultPercentage cannot be greater than PRECISION");
+        require(_vaultPercentage != vaultPercentage, "vaultPercentage is not different from the current percentage");
         vaultPercentage = _vaultPercentage;
     }
 

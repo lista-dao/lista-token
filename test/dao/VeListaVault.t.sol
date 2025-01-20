@@ -255,10 +255,8 @@ contract VeListaVaultTest is Test {
         vm.stopPrank();
 
         vm.startPrank(manager);
-        veListaVault.enableAutoCompound();
-
         veListaVault.disableAutoCompound();
-
+        veListaVault.enableAutoCompound();
         vm.stopPrank();
     }
 }

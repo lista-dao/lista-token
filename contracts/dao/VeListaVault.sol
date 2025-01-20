@@ -47,6 +47,7 @@ contract VeListaVault is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
         require(_lista != address(0), "lista cannot be zero address");
         require(_autoCompounder != address(0), "autoCompounder cannot be zero address");
 
+        __UUPSUpgradeable_init();
         __AccessControl_init();
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setupRole(MANAGER, _manager);
@@ -63,7 +64,7 @@ contract VeListaVault is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
     function lock() external onlyRole(BOT) {
         uint256 balance = IERC20(lista).balanceOf(address(this));
         require(balance > 0, "balance is zero");
-        IERC20(lista).safeApprove(veLista, balance);
+        IERC20(lista).safeIncreaseAllowance(veLista, balance);
         IVeLista(veLista).lock(balance, 52, true);
     }
 
@@ -73,7 +74,7 @@ contract VeListaVault is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
     function increaseLock() external onlyRole(BOT) {
         uint256 balance = IERC20(lista).balanceOf(address(this));
         require(balance > 0, "balance is zero");
-        IERC20(lista).safeApprove(veLista, balance);
+        IERC20(lista).safeIncreaseAllowance(veLista, balance);
         IVeLista(veLista).increaseAmount(balance);
     }
 
@@ -117,6 +118,7 @@ contract VeListaVault is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
      * @dev enable auto compound. only callable by manager.
      */
     function enableAutoCompound() external onlyRole(MANAGER) {
+        require(!IVeListaAutoCompounder(autoCompounder).isAutoCompoundEnabled(address(this)), "auto compound is enabled");
         IVeListaAutoCompounder(autoCompounder).enableAutoCompound();
     }
 
@@ -124,6 +126,7 @@ contract VeListaVault is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
      * @dev disable auto compound. only callable by manager.
      */
     function disableAutoCompound() external onlyRole(MANAGER) {
+        require(IVeListaAutoCompounder(autoCompounder).isAutoCompoundEnabled(address(this)), "auto compound is disabled");
         IVeListaAutoCompounder(autoCompounder).disableAutoCompound();
     }
 
