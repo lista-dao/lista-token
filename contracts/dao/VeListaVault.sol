@@ -82,6 +82,7 @@ contract VeListaVault is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
      * @dev enable auto lock. only callable by manager.
      */
     function enableAutoLock() external onlyRole(MANAGER) {
+        require(!IVeLista(veLista).getLockedData(address(this)).autoLock, "auto lock is enabled");
         IVeLista(veLista).enableAutoLock();
     }
 
@@ -89,6 +90,7 @@ contract VeListaVault is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
      * @dev disable auto lock. only callable by manager.
      */
     function disableAutoLock() external onlyRole(MANAGER) {
+        require(IVeLista(veLista).getLockedData(address(this)).autoLock, "auto lock is disabled");
         IVeLista(veLista).disableAutoLock();
     }
 
