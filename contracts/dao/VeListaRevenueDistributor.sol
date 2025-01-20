@@ -73,16 +73,6 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
     }
 
     /**
-     * @dev sets the veListaVault. only callable by manager.
-     * @param _veListaVault the address of the veListaVault.
-     */
-    function setVeListaVault(address _veListaVault) public onlyRole(MANAGER) {
-        require(_veListaVault != address(0), "veListaVault cannot be zero address");
-        require(_veListaVault != veListaVault, "veListaVault is not different from the current address");
-        veListaVault = _veListaVault;
-    }
-
-    /**
      * @dev sets the vault percentage. only callable by manager.
      * @param _vaultPercentage the percentage of revenue to be sent to the veListaVault.
      */

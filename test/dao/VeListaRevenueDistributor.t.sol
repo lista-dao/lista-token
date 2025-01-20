@@ -177,13 +177,6 @@ contract VeListaRevenueDistributortTest is Test {
         vm.stopPrank();
     }
 
-    function test_setVeListaVault() public {
-        vm.startPrank(manager);
-        veListaRevenueDistributor.setVeListaVault(address(0x6));
-        assertEq(veListaRevenueDistributor.veListaVault(), address(0x6), "veListaVault error");
-        vm.stopPrank();
-    }
-
     function test_setVaultPercentage() public {
         vm.startPrank(manager);
         veListaRevenueDistributor.setVaultPercentage(1000);

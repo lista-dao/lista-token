@@ -102,13 +102,6 @@ contract VeListaVault is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
     }
 
     /**
-     * @dev claim unexpired lista token with penalty. only callable by manager.
-     */
-    function unlockWithPenalty() external onlyRole(MANAGER) {
-        IVeLista(veLista).earlyClaim();
-    }
-
-    /**
      * @dev withdraws the entire balance of the lista token to the given address. only callable by manager.
      * @param _to the address to withdraw to.
      */

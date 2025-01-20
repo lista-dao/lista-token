@@ -226,25 +226,6 @@ contract VeListaVaultTest is Test {
         vm.stopPrank();
     }
 
-    function test_unlockWithPenalty() public {
-        deal(lista, bot, 100 ether);
-
-        vm.startPrank(bot);
-        IERC20(lista).transfer(address(veListaVault), 100 ether);
-
-        veListaVault.lock();
-        vm.stopPrank();
-
-        vm.startPrank(manager);
-        veListaVault.disableAutoLock();
-        skip(26 weeks);
-        veListaVault.unlockWithPenalty();
-
-        uint256 balance = IERC20(lista).balanceOf(address(veListaVault));
-        assertEq(50 ether, balance, "balance error");
-        vm.stopPrank();
-    }
-
     function test_autoCompound() public {
         deal(lista, bot, 100 ether);
 
