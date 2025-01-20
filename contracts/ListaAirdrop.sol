@@ -11,8 +11,8 @@ contract ListaAirdrop is Ownable {
     uint256 public reclaimPeriod;
     address public token;
     bytes32 public merkleRoot;
-    uint256 public startBlock;
-    uint256 public endBlock;
+    uint256 public startTime;
+    uint256 public endTime;
     mapping(bytes32 => bool) public claimed;
 
     event Claimed(address account, uint256 amount);
@@ -21,45 +21,45 @@ contract ListaAirdrop is Ownable {
      * @param _token Address of the token to be airdropped
      * @param _merkleRoot Merkle root of the merkle tree generated for the airdrop by off-chain service
      * @param reclaimDelay Delay in seconds after contract creation for reclaiming unclaimed tokens
-     * @param _startBlock Block number when airdrop claim starts
-     * @param _endBlock Block number when airdrop claim ends
+     * @param _startTime Block timestamp when airdrop claim starts
+     * @param _endTime Block timestamp when airdrop claim ends
      */
-    constructor(address _token, bytes32 _merkleRoot, uint256 reclaimDelay, uint256 _startBlock, uint256 _endBlock) {
-        require(_startBlock >= block.number, "Invalid start block");
-        require(_endBlock > _startBlock, "Invalid end block");
+    constructor(address _token, bytes32 _merkleRoot, uint256 reclaimDelay, uint256 _startTime, uint256 _endTime) {
+        require(_startTime >= block.timestamp, "Invalid start time");
+        require(_endTime > _startTime, "Invalid end time");
         require(_token != address(0), "Invalid token address");
         token = _token;
         merkleRoot = _merkleRoot;
         reclaimPeriod = block.timestamp + reclaimDelay;
-        startBlock = _startBlock;
-        endBlock = _endBlock;
+        startTime = _startTime;
+        endTime = _endTime;
     }
 
     /**
      * @dev Update merkle root. Merkle root can only be updated before the airdrop starts.
      */
     function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
-        require(block.number < startBlock, "Cannot change merkle root after airdrop has started");
+        require(block.timestamp < startTime, "Cannot change merkle root after airdrop has started");
         merkleRoot = _merkleRoot;
     }
 
     /**
-     * @dev Set start block of airdrop. Users can only claim airdrop after the new start block.
+     * @dev Set start Block timestamp of airdrop. Users can only claim airdrop after the new start time.
      */
-    function setStartBlock(uint256 _startBlock) external onlyOwner {
-        require(_startBlock != startBlock, "Start block already set");
-        require(endBlock > _startBlock, "Invalid start block");
+    function setStartTime(uint256 _startTime) external onlyOwner {
+        require(_startTime != startTime, "Start time already set");
+        require(endTime > _startTime, "Invalid start time");
 
-        startBlock = _startBlock;
+        startTime = _startTime;
     }
 
     /**
-     * @dev Set end block of airdrop. Users are not allowed to claim airdrop after the new end block.
+     * @dev Set end Block timestamp of airdrop. Users are not allowed to claim airdrop after the new end time.
      */
-    function setEndBlock(uint256 _endBlock) external onlyOwner {
-        require(_endBlock != endBlock, "End block already set");
-        require(_endBlock > startBlock, "Invalid end block");
-        endBlock = _endBlock;
+    function setEndTime(uint256 _endTime) external onlyOwner {
+        require(_endTime != endTime, "End time already set");
+        require(_endTime > startTime, "Invalid end time");
+        endTime = _endTime;
     }
 
     /**
@@ -73,7 +73,7 @@ contract ListaAirdrop is Ownable {
         uint256 amount,
         bytes32[] memory proof
     ) external {
-        require(block.number >= startBlock && block.number <= endBlock, "Airdrop not started or has ended");
+        require(block.timestamp >= startTime && block.timestamp <= endTime, "Airdrop not started or has ended");
         bytes32 leaf = keccak256(abi.encodePacked(account, amount)); // Use abi.encode to deal with more than one dynamic types to prevents collision
         require(!claimed[leaf], "Airdrop already claimed");
         MerkleVerifier._verifyProof(leaf, merkleRoot, proof);
@@ -89,7 +89,7 @@ contract ListaAirdrop is Ownable {
      * @param amount Amount of tokens to reclaim
      */
     function reclaim(uint256 amount) external onlyOwner {
-        require(block.timestamp > reclaimPeriod && block.number > endBlock, "Tokens cannot be reclaimed");
+        require(block.timestamp > reclaimPeriod && block.timestamp > endTime, "Tokens cannot be reclaimed");
         require(IERC20(token).transfer(msg.sender, amount), "Transfer failed");
     }
 }
