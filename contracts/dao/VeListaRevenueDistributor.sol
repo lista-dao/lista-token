@@ -9,10 +9,10 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
-    address public revenueReceiver;
-    address public veListaVault;
-    address public lista;
-    uint256 public vaultPercentage;
+    address public revenueReceiver; // address to receive the revenue
+    address public veListaVault; // address of the veListaVault contract
+    address public lista; // address of the lista token
+    uint256 public vaultPercentage; // percentage of revenue to be sent to the veListaVault
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
     bytes32 public constant BOT = keccak256("BOT");
@@ -23,6 +23,16 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
         _disableInitializers();
     }
 
+    /**
+     * @dev initializes the contract.
+     * @param _admin the address of the admin.
+     * @param _manager the address of the manager.
+     * @param _bot the address of the bot.
+     * @param _revenueReceiver the address of the revenue receiver.
+     * @param _veListaVault the address of the veListaVault contract.
+     * @param _lista the address of the lista contract.
+     * @param _vaultPercentage the percentage of revenue to be sent to the veListaVault.
+     */
     function initialize(
         address _admin,
         address _manager,
@@ -51,21 +61,36 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
         vaultPercentage = _vaultPercentage;
     }
 
+    /**
+     * @dev sets the revenue receiver. only callable by manager.
+     * @param _revenueReceiver the address of the revenue receiver.
+     */
     function setRevenueReceiver(address _revenueReceiver) public onlyRole(MANAGER) {
         require(_revenueReceiver != address(0), "revenueReceiver cannot be zero address");
         revenueReceiver = _revenueReceiver;
     }
 
+    /**
+     * @dev sets the veListaVault. only callable by manager.
+     * @param _veListaVault the address of the veListaVault.
+     */
     function setVeListaVault(address _veListaVault) public onlyRole(MANAGER) {
         require(_veListaVault != address(0), "veListaVault cannot be zero address");
         veListaVault = _veListaVault;
     }
 
+    /**
+     * @dev sets the vault percentage. only callable by manager.
+     * @param _vaultPercentage the percentage of revenue to be sent to the veListaVault.
+     */
     function setVaultPercentage(uint256 _vaultPercentage) public onlyRole(MANAGER) {
         require(_vaultPercentage <= PRECISION, "vaultPercentage cannot be greater than PRECISION");
         vaultPercentage = _vaultPercentage;
     }
 
+    /**
+     * @dev distributes the revenue to the revenue receiver and the veListaVault. only callable by bot.
+     */
     function distribute() public onlyRole(BOT) {
         uint256 balance = IERC20(lista).balanceOf(address(this));
         if (balance == 0) {
