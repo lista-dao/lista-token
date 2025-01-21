@@ -10,13 +10,13 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
     address public revenueReceiver; // address to receive the revenue
-    address public veListaVault; // address of the veListaVault contract
     address public lista; // address of the lista token
-    uint256 public vaultPercentage; // percentage of revenue to be sent to the veListaVault
+    uint256 public burnPercentage; // percentage of revenue to be sent to the dead address
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
     bytes32 public constant BOT = keccak256("BOT");
     uint256 public constant PRECISION = 10000;
+    address public constant deadAddress = 0x000000000000000000000000000000000000dEaD;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -29,26 +29,23 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
      * @param _manager the address of the manager.
      * @param _bot the address of the bot.
      * @param _revenueReceiver the address of the revenue receiver.
-     * @param _veListaVault the address of the veListaVault contract.
      * @param _lista the address of the lista contract.
-     * @param _vaultPercentage the percentage of revenue to be sent to the veListaVault.
+     * @param _burnPercentage the percentage of revenue to be sent to the dead addrress.
      */
     function initialize(
         address _admin,
         address _manager,
         address _bot,
         address _revenueReceiver,
-        address _veListaVault,
         address _lista,
-        uint256 _vaultPercentage
+        uint256 _burnPercentage
     ) public initializer {
         require(_admin != address(0), "admin cannot be zero address");
         require(_manager != address(0), "manager cannot be zero address");
         require(_bot != address(0), "bot cannot be zero address");
         require(_revenueReceiver != address(0), "revenueReceiver cannot be zero address");
-        require(_veListaVault != address(0), "veListaVault cannot be zero address");
         require(_lista != address(0), "lista cannot be zero address");
-        require(_vaultPercentage <= PRECISION, "vaultPercentage cannot be greater than PRECISION");
+        require(_burnPercentage <= PRECISION, "burnPercentage cannot be greater than PRECISION");
 
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -57,29 +54,28 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
         _setupRole(BOT, _bot);
 
         revenueReceiver = _revenueReceiver;
-        veListaVault = _veListaVault;
         lista = _lista;
-        vaultPercentage = _vaultPercentage;
+        burnPercentage = _burnPercentage;
     }
 
     /**
-     * @dev sets the revenue receiver. only callable by manager.
+     * @dev sets the revenue receiver. only callable by admin.
      * @param _revenueReceiver the address of the revenue receiver.
      */
-    function setRevenueReceiver(address _revenueReceiver) public onlyRole(MANAGER) {
+    function setRevenueReceiver(address _revenueReceiver) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_revenueReceiver != address(0), "revenueReceiver cannot be zero address");
         require(_revenueReceiver != revenueReceiver, "revenueReceiver is not different from the current address");
         revenueReceiver = _revenueReceiver;
     }
 
     /**
-     * @dev sets the vault percentage. only callable by manager.
-     * @param _vaultPercentage the percentage of revenue to be sent to the veListaVault.
+     * @dev sets the burn percentage. only callable by admin.
+     * @param _burnPercentage the percentage of revenue to be sent to the dead address.
      */
-    function setVaultPercentage(uint256 _vaultPercentage) public onlyRole(MANAGER) {
-        require(_vaultPercentage <= PRECISION, "vaultPercentage cannot be greater than PRECISION");
-        require(_vaultPercentage != vaultPercentage, "vaultPercentage is not different from the current percentage");
-        vaultPercentage = _vaultPercentage;
+    function setBurnPercentage(uint256 _burnPercentage) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_burnPercentage <= PRECISION, "burnPercentage cannot be greater than PRECISION");
+        require(_burnPercentage != burnPercentage, "burnPercentage is not different from the current value");
+        burnPercentage = _burnPercentage;
     }
 
     /**
@@ -91,11 +87,11 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
             return;
         }
 
-        uint256 vaultAmount = Math.mulDiv(balance, vaultPercentage, PRECISION);
-        uint256 revenueAmount = balance - vaultAmount;
+        uint256 burnAmount = Math.mulDiv(balance, burnPercentage, PRECISION);
+        uint256 revenueAmount = balance - burnAmount;
 
-        if (vaultAmount > 0) {
-            IERC20(lista).safeTransfer(veListaVault, vaultAmount);
+        if (burnAmount > 0) {
+            IERC20(lista).safeTransfer(deadAddress, burnAmount);
         }
         if (revenueAmount > 0) {
             IERC20(lista).safeTransfer(revenueReceiver, revenueAmount);
