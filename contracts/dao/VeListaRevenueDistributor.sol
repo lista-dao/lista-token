@@ -16,7 +16,7 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
     bytes32 public constant MANAGER = keccak256("MANAGER");
     bytes32 public constant BOT = keccak256("BOT");
     uint256 public constant PRECISION = 10000;
-    address public constant deadAddress = 0x000000000000000000000000000000000000dEaD;
+    address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -79,7 +79,7 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
     }
 
     /**
-     * @dev distributes the revenue to the revenue receiver and the veListaVault. only callable by bot.
+     * @dev distributes the revenue to the revenue receiver and the dead address. only callable by bot.
      */
     function distribute() public onlyRole(BOT) {
         uint256 balance = IERC20(lista).balanceOf(address(this));
@@ -91,7 +91,7 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
         uint256 revenueAmount = balance - burnAmount;
 
         if (burnAmount > 0) {
-            IERC20(lista).safeTransfer(deadAddress, burnAmount);
+            IERC20(lista).safeTransfer(DEAD_ADDRESS, burnAmount);
         }
         if (revenueAmount > 0) {
             IERC20(lista).safeTransfer(revenueReceiver, revenueAmount);
