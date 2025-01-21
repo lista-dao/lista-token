@@ -4,8 +4,8 @@ import hre from "hardhat";
 let token = "";
 const ROOT = "0x93f599435d274a0e423df9717e4d19c1595513874cedcc6ab8cb8b6d7afae9d5";
 const RECLAIM_DELAY = 0;
-const START_TIME = 1737446400; // Tue Jan 21 2025 08:00:00 GMT+0000
-const END_TIME = 1755763200; // Thu Aug 21 2025 08:00:00 GMT+0000
+const START_TIME = "1737617400"; // Thu Jan 23 2025 07:30:00 GMT+0000
+const END_TIME = "1755936000"; // Sat Aug 23 2025 08:00:00 GMT+0000
 
 async function main() {
   const MerkleVerifier = await ethers.getContractFactory("MerkleVerifier");
