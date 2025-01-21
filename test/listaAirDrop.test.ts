@@ -1,14 +1,14 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { MerkleTree } from "merkletreejs";
-import { mine } from "@nomicfoundation/hardhat-network-helpers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 function toWei(eth: string) {
-  return ethers.utils.parseEther(eth).toString();
+  return ethers.parseEther(eth).toString();
 }
 
 function leafHash(address: string, amount: string) {
-  return ethers.utils.solidityKeccak256(
+  return ethers.solidityPackedKeccak256(
     ["address", "uint256"],
     [address, amount]
   );
@@ -40,7 +40,7 @@ describe("ListaAirdrop", function () {
       leafHash(user4.address, toWei("101")), // user4 node
     ];
 
-    tree = new MerkleTree(leaves, ethers.utils.keccak256, {
+    tree = new MerkleTree(leaves, ethers.keccak256, {
       sortPairs: true,
     });
 
@@ -62,36 +62,38 @@ describe("ListaAirdrop", function () {
 
     // contract deploy treasury
     listaToken = await ethers.deployContract("ListaToken", [treasury.address]);
-    await listaToken.deployed();
+    await listaToken.waitForDeployment();
 
     const MerkleVerifier = await ethers.getContractFactory("MerkleVerifier");
     merkleVerifier = await MerkleVerifier.deploy();
-    await merkleVerifier.deployed();
+    await merkleVerifier.waitForDeployment();
 
+    // const startTime = 1737446400; // Tue Jan 21 2025 08:00:00 GMT+0000
+    // const endTime = 1755763200; // Thu Aug 21 2025 08:00:00 GMT+0000
+    const startTime = (await time.latest()) + 10;
+    const endTime = startTime + 6 * 30 * 24 * 60 * 60; // 6 months
     const reclaimDelay = 0;
-    const startBlock = (await ethers.provider.getBlockNumber()) + 20;
-    const endBlock = startBlock + 200;
     const ListaAirdrop = await ethers.getContractFactory("ListaAirdrop", {
       libraries: {
-        MerkleVerifier: merkleVerifier.address,
+        MerkleVerifier: merkleVerifier.target,
       },
     });
-    const fakeRoot = ethers.utils.formatBytes32String("");
+    const fakeRoot = ethers.encodeBytes32String("");
     listaAirdrop = await ListaAirdrop.deploy(
-      listaToken.address,
+      listaToken.target,
       fakeRoot, // bytes32
       reclaimDelay,
-      startBlock,
-      endBlock
+      startTime,
+      endTime
     );
-    await listaAirdrop.deployed();
+    await listaAirdrop.waitForDeployment();
 
     await listaToken
       .connect(treasury)
-      .transfer(listaAirdrop.address, toWei("10"));
+      .transfer(listaAirdrop.target, toWei("10"));
 
-    await listaAirdrop.setStartBlock(startBlock + 1);
-    expect(await listaAirdrop.startBlock()).to.equals(startBlock + 1);
+    await listaAirdrop.setStartTime(startTime + 1);
+    expect(await listaAirdrop.startTime()).to.equals(startTime + 1);
   });
 
   it("should work", async function () {
@@ -107,17 +109,17 @@ describe("ListaAirdrop", function () {
       )
     ).to.be.revertedWith("Airdrop not started or has ended");
 
-    // advance to start block
-    await mine(20);
+    // advance to start time
+    await time.increase(200);
 
     // shoule revert if incorrect proof provided
     await expect(
-      listaAirdrop.claim(
+       listaAirdrop.claim(
         user1.address,
         toWei("1"),
         proof2.map((p) => "0x" + p.data.toString("hex"))
       )
-    ).to.be.revertedWith("InvalidProof()");
+    ).to.be.revertedWithCustomError(merkleVerifier, "InvalidProof");
 
     // user1 can claim
     await expect(
@@ -162,8 +164,8 @@ describe("ListaAirdrop", function () {
       )
     ).to.be.revertedWith("Airdrop already claimed");
 
-    // advance to end block
-    await mine(30000);
+    // advance to end time
+    await time.increase(200 + 6 * 30 * 24 * 60 * 60);
 
     // user4 can't claim
     await expect(
@@ -178,37 +180,38 @@ describe("ListaAirdrop", function () {
   it("owner should be able to reclaim", async function () {
     const balanceBefore = await listaToken.balanceOf(owner.address);
     await listaAirdrop.connect(owner).reclaim(toWei("1"));
+
     expect(await listaToken.balanceOf(owner.address)).to.equals(
-      balanceBefore.add(toWei("1"))
+      balanceBefore + toWei("1")
     );
   });
 
   it("owner should not be able to set merkle root once claim started", async function () {
-    const newRoot = ethers.utils.formatBytes32String("");
+    const newRoot = ethers.encodeBytes32String("");
     await expect(listaAirdrop.setMerkleRoot(newRoot)).to.be.revertedWith(
       "Cannot change merkle root after airdrop has started"
     );
   });
 
-  it("owner should be not able to set start block after ended", async function () {
-    const startBlock = await listaAirdrop.startBlock();
-    await expect(listaAirdrop.setStartBlock(startBlock)).to.be.revertedWith(
-      "Start block already set"
+  it("owner should be not able to set start time after ended", async function () {
+    const startTime = await listaAirdrop.startTime();
+    await expect(listaAirdrop.setStartTime(startTime)).to.be.revertedWith(
+      "Start time already set"
     );
-    const newStartBlock = (await ethers.provider.getBlockNumber()) + 1;
-    await expect(listaAirdrop.setStartBlock(newStartBlock)).to.be.revertedWith(
-      "Invalid start block"
+    const newStartTime = (await time.latest()) + 100;
+    await expect(listaAirdrop.setStartTime(newStartTime)).to.be.revertedWith(
+      "Invalid start time"
     );
   });
 
-  it("owner should be able to set end block", async function () {
-    const endBlock = await listaAirdrop.endBlock();
-    await expect(listaAirdrop.setEndBlock(endBlock)).to.be.revertedWith(
-      "End block already set"
+  it("owner should be able to set end time", async function () {
+    const endTime = await listaAirdrop.endTime();
+    await expect(listaAirdrop.setEndTime(endTime)).to.be.revertedWith(
+      "End time already set"
     );
-    const newEndBlock = (await ethers.provider.getBlockNumber()) + 200;
-    await listaAirdrop.setEndBlock(newEndBlock);
+    const newEndTime = endTime + "0";
+    await listaAirdrop.setEndTime(newEndTime);
 
-    expect(await listaAirdrop.endBlock()).to.equals(newEndBlock);
+    expect(await listaAirdrop.endTime()).to.equals(newEndTime);
   });
 });
