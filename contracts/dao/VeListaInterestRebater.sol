@@ -97,9 +97,9 @@ contract VeListaInterestRebater is Initializable, AccessControlUpgradeable, Paus
     bytes32 leaf = keccak256(abi.encode(block.chainid, _account, _totalAmount));
     MerkleVerifier._verifyProof(leaf, merkleRoot, _proof);
 
+    uint256 amount = _totalAmount - claimed[_account];
     claimed[_account] = _totalAmount;
 
-    uint256 amount = _totalAmount - claimed[_account];
     IERC20(lisUSD).safeTransfer(_account, amount);
 
     emit Claimed(_account, amount, _totalAmount);
@@ -132,6 +132,8 @@ contract VeListaInterestRebater is Initializable, AccessControlUpgradeable, Paus
 
   /// @dev Revoke the pending merkle root by Manager
   function revokePendingMerkleRoot() external onlyRole(MANAGER) whenNotPaused {
+    require(pendingMerkleRoot != bytes32(0), "Pending merkle root is zero");
+
     pendingMerkleRoot = bytes32(0);
     lastSetTime = type(uint256).max;
 
