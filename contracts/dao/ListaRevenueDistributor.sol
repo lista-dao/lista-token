@@ -40,9 +40,7 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
 
     event TokenChanged(address token, bool isAdd);
 
-    event CostToAddressChanged(address costToAddress);
-
-    event CostToAddressWhitelisted(address costToAddress);
+    event CostToAddressChanged(address costToAddress, bool isAdd);
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
 
@@ -142,19 +140,33 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
      *
      * @param costs, array of Cost struct
      */
-    function distributeTokensWithCost(Cost[] memory costs)
-        external
-        onlyRole(MANAGER)
-    {
+    function distributeWithCosts(Cost[] memory costs) external onlyRole(MANAGER) {
         require(costs.length > 0, "invalid costs length");
         for (uint256 i = 0; i < costs.length; i++) {
             _distributeTokenWithCost(costs[i].token, costs[i].amount, costs[i].costTo);
         }
     }
 
+    /**
+     * @dev distribute tokens to autoBuybackAddress and revenueWalletAddress
+     *      according to distributeRate and cost amount will be sent to tokenCostToAddress
+     *
+     * @param tokens, token to distribute
+     * @param costs, amount directly to cost address
+     */
+    function distributeTokensWithCost(address[] memory tokens, uint256[] memory costs)
+        external
+        onlyRole(MANAGER)
+    {
+        require(tokens.length > 0 && tokens.length == costs.length, "invalid tokens and costs length");
+        for (uint256 i = 0; i < tokens.length; i++) {
+            _distributeTokenWithCost(tokens[i], costs[i], tokenCostToAddress);
+        }
+    }
+
     function _distributeTokenWithCost(address token, uint256 cost, address costTo) internal {
         require(tokenWhitelist[token], "token not whitelisted");
-        require(costToWhitelist[costTo], "costTo address not whitelisted");
+        require(costTo == tokenCostToAddress || costToWhitelist[costTo], "costTo address not whitelisted");
 
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance == 0) {
@@ -246,15 +258,30 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         require(_costToAddress != tokenCostToAddress, "costToAddress is the same");
 
         tokenCostToAddress = _costToAddress;
-        emit CostToAddressChanged(_costToAddress);
+        emit CostToAddressChanged(_costToAddress, true);
     }
 
+    /**
+     * @dev whitelist costToAddress
+     * @param _costToAddress costToAddress to whitelist
+     */
     function whitelistCostToAddress(address _costToAddress) external onlyRole(MANAGER) {
         require(_costToAddress != address(0), "costToAddress is the zero address");
         require(!costToWhitelist[_costToAddress], "costToAddress already whitelisted");
 
         costToWhitelist[_costToAddress] = true;
+        emit CostToAddressChanged(_costToAddress, true);
+    }
 
-        emit CostToAddressWhitelisted(_costToAddress);
+    /**
+     * @dev remove costToAddress from whitelist
+     * @param _costToAddress costToAddress to remove from whitelist
+     */
+    function removeCostToFromWhitelist(address _costToAddress) external onlyRole(MANAGER) {
+        require(_costToAddress != address(0), "costToAddress is the zero address");
+        require(costToWhitelist[_costToAddress], "costToAddress not whitelisted");
+
+        delete costToWhitelist[_costToAddress];
+        emit CostToAddressChanged(_costToAddress, false);
     }
 }
