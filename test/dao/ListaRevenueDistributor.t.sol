@@ -174,47 +174,68 @@ contract ListaRevenueDistributorTest is Test {
 
     function test_distributeTokenWithCost() public {
         deal(address(lisUSD), address(listaRevenueDistributor), 123e18);
+        address costTo = address(0x123456);
 
         assertEq(0, lista.balanceOf(autoBuybackAddress));
         assertEq(0, lista.balanceOf(revenueWalletAddress));
         assertEq(0, lista.balanceOf(listaToWalletAddress));
-        assertEq(0, lista.balanceOf(lisUSDCostToAddress));
+        assertEq(0, lista.balanceOf(costTo));
 
 
         vm.startPrank(manager);
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(lisUSD);
-        uint256[] memory costs = new uint256[](1);
-        costs[0] = 3e18;
-        listaRevenueDistributor.distributeTokensWithCost(tokens, costs);
+
+        listaRevenueDistributor.whitelistCostToAddress(costTo);
+        assertTrue(listaRevenueDistributor.costToWhitelist(costTo));
+
+        ListaRevenueDistributor.Cost memory _cost = ListaRevenueDistributor.Cost({
+            token: address(lisUSD),
+            amount: 3e18,
+            costTo: costTo
+        });
+
+        ListaRevenueDistributor.Cost[] memory costs = new ListaRevenueDistributor.Cost[](1);
+        costs[0] = _cost;
+
+        listaRevenueDistributor.distributeTokensWithCost(costs);
         vm.stopPrank();
 
         assertEq(0, lisUSD.balanceOf(listaToWalletAddress));
         assertEq(120e18 * 7e17 / 1e18, lisUSD.balanceOf(autoBuybackAddress));
         assertEq(120e18 - (120e18 * 7e17 / 1e18), lisUSD.balanceOf(revenueWalletAddress));
-        assertEq(3e18, lisUSD.balanceOf(lisUSDCostToAddress));
+        assertEq(3e18, lisUSD.balanceOf(costTo));
     }
 
     function test_distributeTokenWithCost_all_balance() public {
         deal(address(lisUSD), address(listaRevenueDistributor), 123e18);
+        address costTo = address(0x1234567);
 
         assertEq(0, lista.balanceOf(autoBuybackAddress));
         assertEq(0, lista.balanceOf(revenueWalletAddress));
         assertEq(0, lista.balanceOf(listaToWalletAddress));
-        assertEq(0, lista.balanceOf(lisUSDCostToAddress));
+        assertEq(0, lista.balanceOf(costTo));
 
 
         vm.startPrank(manager);
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(lisUSD);
-        uint256[] memory costs = new uint256[](1);
-        costs[0] = 125e18;
-        listaRevenueDistributor.distributeTokensWithCost(tokens, costs);
+
+        ListaRevenueDistributor.Cost memory _cost = ListaRevenueDistributor.Cost({
+            token: address(lisUSD),
+            amount: 123e18,
+            costTo: costTo
+        });
+
+        ListaRevenueDistributor.Cost[] memory costs = new ListaRevenueDistributor.Cost[](1);
+        costs[0] = _cost;
+
+        vm.expectRevert("costTo address not whitelisted");
+        listaRevenueDistributor.distributeTokensWithCost(costs);
+
+        listaRevenueDistributor.whitelistCostToAddress(costTo);
+        listaRevenueDistributor.distributeTokensWithCost(costs); // success
         vm.stopPrank();
 
         assertEq(0, lisUSD.balanceOf(listaToWalletAddress));
         assertEq(0, lisUSD.balanceOf(autoBuybackAddress));
         assertEq(0, lisUSD.balanceOf(revenueWalletAddress));
-        assertEq(123e18, lisUSD.balanceOf(lisUSDCostToAddress));
+        assertEq(123e18, lisUSD.balanceOf(costTo));
     }
 }
