@@ -139,12 +139,37 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
      *      according to distributeRate and cost amount will be sent to specified costTo address
      *
      * @param costs, array of Cost struct
+     * @param tokens, tokens to distribute
      */
-    function distributeWithCosts(Cost[] memory costs) external onlyRole(MANAGER) {
+    function distributeWithCosts(Cost[] memory costs, address[] memory tokens) external onlyRole(MANAGER) {
         require(costs.length > 0, "invalid costs length");
-        for (uint256 i = 0; i < costs.length; i++) {
-            _distributeTokenWithCost(costs[i].token, costs[i].amount, costs[i].costTo);
+        require(tokens.length > 0, "invalid tokens length");
+
+        // loop to process costs first
+        for (uint256 i = 0; i < costs.length; ++i) {
+            _processCost(costs[i]);
         }
+
+        // loop to distribute tokens according to ratio
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            _distributeToken(tokens[i]);
+        }
+    }
+
+    function _processCost(Cost memory cost) private {
+        address costToken = cost.token;
+        uint256 costAmount = cost.amount;
+        address costTo = cost.costTo;
+        require(tokenWhitelist[costToken], "cost token not whitelisted");
+        require(costTo == tokenCostToAddress || costToWhitelist[costTo], "costTo address not whitelisted");
+        require(costAmount > 0, "cost amount should be greater than 0");
+
+        uint256 balance = IERC20(costToken).balanceOf(address(this));
+        if (balance == 0) return; // return if no balance to process
+
+        uint256 transferAmount = Math.min(balance, costAmount);
+        IERC20(costToken).safeTransfer(costTo, transferAmount);
+        emit RevenueDistributedWithCost(costToken, 0, 0, balance, costAmount, costTo);
     }
 
     /**
