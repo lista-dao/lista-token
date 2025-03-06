@@ -185,13 +185,13 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
     {
         require(tokens.length > 0 && tokens.length == costs.length, "invalid tokens and costs length");
         for (uint256 i = 0; i < tokens.length; i++) {
-            _distributeTokenWithCost(tokens[i], costs[i], tokenCostToAddress);
+            _distributeTokenWithCost(tokens[i], costs[i]);
         }
     }
 
-    function _distributeTokenWithCost(address token, uint256 cost, address costTo) internal {
+    function _distributeTokenWithCost(address token, uint256 cost) internal {
         require(tokenWhitelist[token], "token not whitelisted");
-        require(costTo == tokenCostToAddress || costToWhitelist[costTo], "costTo address not whitelisted");
+        require(tokenCostToAddress != address(0), "reserve address not set");
 
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance == 0) {
@@ -199,8 +199,8 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         }
 
         if (balance <= cost) {
-            IERC20(token).safeTransfer(costTo, balance);
-            emit RevenueDistributedWithCost(token, 0, 0, balance, cost, costTo);
+            IERC20(token).safeTransfer(tokenCostToAddress, balance);
+            emit RevenueDistributedWithCost(token, 0, 0, balance, cost, tokenCostToAddress);
         } else {
             uint256 available = balance - cost;
             uint256 amount0 = available * distributeRate / RATE_DENOMINATOR;
@@ -218,10 +218,10 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
                 IERC20(token).safeTransfer(revenueWalletAddress, amount1);
             }
             if (cost > 0) {
-                IERC20(token).safeTransfer(costTo, cost);
+                IERC20(token).safeTransfer(tokenCostToAddress, cost);
             }
 
-            emit RevenueDistributedWithCost(token, amount0, amount1, cost, cost, costTo);
+            emit RevenueDistributedWithCost(token, amount0, amount1, cost, cost, tokenCostToAddress);
         }
     }
 
