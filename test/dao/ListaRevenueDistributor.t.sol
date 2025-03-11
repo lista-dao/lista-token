@@ -228,9 +228,10 @@ contract ListaRevenueDistributorTest is Test {
         assertEq(0, lista.balanceOf(costTo));
 
 
-        vm.startPrank(manager);
+        vm.startPrank(admin);
 
         listaRevenueDistributor.whitelistCostToAddress(costTo);
+        vm.stopPrank();
         assertTrue(listaRevenueDistributor.costToWhitelist(costTo));
 
         ListaRevenueDistributor.Cost memory _cost = ListaRevenueDistributor.Cost({
@@ -244,6 +245,7 @@ contract ListaRevenueDistributorTest is Test {
         address[] memory tokens = new address[](1);
         tokens[0] = address(lisUSD);
 
+        vm.startPrank(manager);
         listaRevenueDistributor.distributeWithCosts(costs, tokens);
         vm.stopPrank();
 
@@ -262,9 +264,6 @@ contract ListaRevenueDistributorTest is Test {
         assertEq(0, lista.balanceOf(listaToWalletAddress));
         assertEq(0, lista.balanceOf(costTo));
 
-
-        vm.startPrank(manager);
-
         ListaRevenueDistributor.Cost memory _cost = ListaRevenueDistributor.Cost({
             token: address(lisUSD),
             amount: 123e18,
@@ -276,10 +275,14 @@ contract ListaRevenueDistributorTest is Test {
         address[] memory tokens = new address[](1);
         tokens[0] = address(lisUSD);
 
+        vm.startPrank(manager);
         vm.expectRevert("costTo address not whitelisted");
         listaRevenueDistributor.distributeWithCosts(costs, tokens);
+        vm.stopPrank();
 
+        vm.prank(admin);
         listaRevenueDistributor.whitelistCostToAddress(costTo);
+        vm.startPrank(manager);
         listaRevenueDistributor.distributeWithCosts(costs, tokens); // success
         vm.stopPrank();
 

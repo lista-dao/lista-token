@@ -290,7 +290,7 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
      * @dev whitelist costToAddress
      * @param _costToAddress costToAddress to whitelist
      */
-    function whitelistCostToAddress(address _costToAddress) external onlyRole(MANAGER) {
+    function whitelistCostToAddress(address _costToAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_costToAddress != address(0), "costToAddress is the zero address");
         require(!costToWhitelist[_costToAddress], "costToAddress already whitelisted");
 
@@ -302,7 +302,7 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
      * @dev remove costToAddress from whitelist
      * @param _costToAddress costToAddress to remove from whitelist
      */
-    function removeCostToFromWhitelist(address _costToAddress) external onlyRole(MANAGER) {
+    function removeCostToFromWhitelist(address _costToAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_costToAddress != address(0), "costToAddress is the zero address");
         require(costToWhitelist[_costToAddress], "costToAddress not whitelisted");
 
