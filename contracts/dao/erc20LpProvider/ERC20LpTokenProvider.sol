@@ -62,7 +62,6 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     event Deposit(address indexed account, uint256 amount, uint256 lPAmount);
     event Withdrawal(address indexed owner, uint256 amount);
     event ChangeDelegateTo(address account, address oldDelegatee, address newDelegatee);
-    event SyncUserLp(address account, uint256 userLp);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
