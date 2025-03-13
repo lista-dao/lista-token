@@ -31,8 +31,6 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     bytes32 public constant MANAGER = keccak256("MANAGER");
     // pause role
     bytes32 public constant PAUSER = keccak256("PAUSER");
-    // proxy role
-    bytes32 public constant PROXY = keccak256("PROXY");
 
     /* ------------------ Variables ------------------ */
     // the original LP token such as PancakeSwap StablePool LP Token
@@ -75,7 +73,6 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     * @dev initialize function
     * @param _admin admin role address
     * @param _manager manager role address
-    * @param _proxy proxy role address
     * @param _pauser pauser role address
     * @param _lpToken LP token address
     * @param _token ERC20-LP token address
@@ -87,7 +84,6 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     function initialize(
         address _admin,
         address _manager,
-        address _proxy,
         address _pauser,
         address _lpToken,
         address _token,
@@ -98,7 +94,6 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     ) public initializer {
         require(_admin != address(0), "admin is the zero address");
         require(_manager != address(0), "manager is the zero address");
-        require(_proxy != address(0), "proxy is the zero address");
         require(_pauser != address(0), "pauser is the zero address");
         require(_lpToken != address(0), "lpToken is the zero address");
         require(_token != address(0), "token is the zero address");
@@ -115,7 +110,6 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
         // grant essential roles
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(MANAGER, _manager);
-        _grantRole(PROXY, _proxy);
         _grantRole(PAUSER, _pauser);
 
         token = _token;
@@ -342,11 +336,20 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     }
 
     /* ----------------------------------- LP re-balancing ----------------------------------- */
+
+    /**
+    * @dev sync user's lpToken balance to retain a consistent ratio with token balance
+    * @param _account user address to sync
+    */
     function syncUserLp(address _account) external {
         bool rebalanced = _rebalanceUserLp(_account);
         require(rebalanced, "already synced");
     }
 
+    /**
+    * @dev sync multiple user's lpToken balance to retain a consistent ratio with token balance
+    * @param _accounts user address to sync
+    */
     function bulkSyncUserLp(address[] calldata _accounts) external {
         for (uint256 i = 0; i < _accounts.length; i++) {
             _rebalanceUserLp(_accounts[i]);
