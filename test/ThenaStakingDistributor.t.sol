@@ -267,15 +267,97 @@ contract ThenaStakingDistributorTest is Test {
     }
 
     function test_syncLp() public {
-        // provide liquidity and get LP
-        addLiquidity(user1, 100 ether);
+
+        uint256 user1Lp = addLiquidity(user1, 100 ether);
+        vm.startPrank(user1);
+        lpToken.approve(address(tokenProvider), MAX_UINT256);
+        tokenProvider.deposit(user1Lp);
+        vm.stopPrank();
 
         // check is synced
         bool isSynced = tokenProvider.isUserLpSynced(user1);
         assertEq(isSynced, true);
 
+        // no need to sync if there is no change in exchange rate
         vm.expectRevert("already synced");
         tokenProvider.syncUserLp(user1);
+
+        // change exchange rate to simulate LP(wBNB):clisBNB rate changed
+        vm.startPrank(owner);
+        tokenProvider.changeExchangeRate(0.9 ether);
+
+        // out of synced
+        isSynced = tokenProvider.isUserLpSynced(user1);
+        assertEq(isSynced, false);
+
+        // do sync
+        tokenProvider.syncUserLp(user1);
+        isSynced = tokenProvider.isUserLpSynced(user1);
+        assertEq(isSynced, true);
+
+        // ------- Test bulk sync
+        vm.startPrank(owner);
+
+        vm.expectRevert("userLpRate invalid");
+        tokenProvider.changeUserLpRate(2 ether);
+
+        tokenProvider.changeUserLpRate(0.8 ether);
+        vm.stopPrank();
+
+        // out of synced again
+        isSynced = tokenProvider.isUserLpSynced(user1);
+        assertEq(isSynced, false);
+
+        // bulk sync
+        address[] memory users = new address[](1);
+        users[0] = user1;
+        tokenProvider.bulkSyncUserLp(users);
+
+        // should be synced
+        isSynced = tokenProvider.isUserLpSynced(user1);
+        assertEq(isSynced, true);
+    }
+
+    function test_changeReserveAddress() public {
+        uint256 user1Lp = addLiquidity(user1, 100 ether);
+        vm.startPrank(user1);
+        lpToken.approve(address(tokenProvider), MAX_UINT256);
+        tokenProvider.deposit(user1Lp);
+        vm.stopPrank();
+
+        address newReserve = address(0x444444);
+        vm.startPrank(owner);
+
+        address oldReserveAddress = tokenProvider.lpReserveAddress();
+        vm.expectRevert("lpTokenReserveAddress invalid");
+        tokenProvider.changeLpReserveAddress(oldReserveAddress);
+
+        tokenProvider.changeLpReserveAddress(newReserve);
+        vm.stopPrank();
+        assertEq(tokenProvider.lpReserveAddress(), newReserve);
+    }
+
+    function test_pauseAndResume() public {
+
+        address pauser = 0xEEfebb1546d88EA0909435DF6f615084DD3c5Bd8;
+
+        vm.startPrank(pauser);
+        slisBNBBNBThenaCorrelatedDistributor.pause();
+        assertTrue(slisBNBBNBThenaCorrelatedDistributor.paused(), "distributor should be paused");
+        vm.stopPrank();
+
+        // can't deposit
+        uint256 user1Lp = addLiquidity(user1, 100 ether);
+        vm.startPrank(user1);
+        lpToken.approve(address(tokenProvider), MAX_UINT256);
+        vm.expectRevert("Pausable: paused");
+        tokenProvider.deposit(user1Lp);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        slisBNBBNBThenaCorrelatedDistributor.togglePause();
+        assertFalse(slisBNBBNBThenaCorrelatedDistributor.paused(), "distributor should be unpaused");
+        vm.stopPrank();
     }
 
     function test_emergencyWithdraw() public {
