@@ -48,10 +48,6 @@ contract PancakeERC20LpProvidableListaDistributor is CommonListaDistributor, Ree
     // stake token pending reward for each account
     // account -> pending reward
     mapping(address => uint256) private stakeStoredPendingReward;
-    // compatibility mode
-    // @dev true : LP token can be deposited and withdrawn from user or tokenProvider
-    //      false: LP token can only be deposited and withdrawn from tokenProvider
-    bool public compatibilityMode;
 
     event StakeRewardClaimed(address indexed receiver, uint256 amount);
 
@@ -95,11 +91,6 @@ contract PancakeERC20LpProvidableListaDistributor is CommonListaDistributor, Ree
         symbol = string.concat("Lista LP ", IERC20Metadata(_lpToken).symbol(), " Distributor");
     }
 
-    modifier onlyInCompatibilityMode() {
-        require(compatibilityMode, "compatibility mode is disabled");
-        _;
-    }
-
     modifier onlyStakeVault() {
         require(msg.sender == stakeVault, "only stake vault can call this function");
         _;
@@ -126,27 +117,6 @@ contract PancakeERC20LpProvidableListaDistributor is CommonListaDistributor, Ree
         require(amount > 0, "Cannot withdraw zero");
         _withdraw(account, amount);
         _withdrawLp(account, amount);
-    }
-
-    /**
-     * @dev deposit LP token to get rewards
-     * @param amount amount of LP token
-     */
-    function deposit(uint256 amount) external onlyInCompatibilityMode {
-        require(amount > 0, "Cannot deposit zero");
-        _deposit(msg.sender, amount);
-        IERC20(lpToken).safeTransferFrom(msg.sender, address(this), amount);
-        _depositLp(msg.sender, amount);
-    }
-
-    /**
-     * @dev withdraw LP token
-     * @param amount amount of LP token
-     */
-    function withdraw(uint256 amount) external onlyInCompatibilityMode {
-        require(amount > 0, "Cannot withdraw zero");
-        _withdraw(msg.sender, amount);
-        _withdrawLp(msg.sender, amount);
     }
 
     // deposit lp to staking pool
@@ -323,15 +293,6 @@ contract PancakeERC20LpProvidableListaDistributor is CommonListaDistributor, Ree
     function setStakeVault(address _stakeVault) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_stakeVault != address(0), "stake vault is the zero address");
         stakeVault = _stakeVault;
-    }
-
-    /**
-     * @dev set compatibility mode
-     * @param _compatibilityMode compatibility mode
-     */
-    function setCompatibilityMode(bool _compatibilityMode) external onlyRole(MANAGER) {
-        require(compatibilityMode != _compatibilityMode, "compatibility mode is already set");
-        compatibilityMode = _compatibilityMode;
     }
 
     /**

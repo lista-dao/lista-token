@@ -42,10 +42,10 @@ contract ThenaERC20LpProvidableListaDistributor is CommonListaDistributor, Reent
     // stake token pending reward for each account
     // account -> pending reward
     mapping(address => uint256) private stakeStoredPendingReward;
-    // compatibility mode
-    // @dev true : LP token can be deposited and withdrawn from user or tokenProvider
-    //      false: LP token can only be deposited and withdrawn from tokenProvider
-    bool public compatibilityMode;
+    // tokenProvider mode
+    // @dev true : Only TokenProvider can deposit and withdraw LP token
+    //      false: Both user and TokenProvider can deposit and withdraw LP token
+    bool public tokenProviderMode;
 
     event StakeRewardClaimed(address indexed receiver, uint256 amount);
 
@@ -82,8 +82,8 @@ contract ThenaERC20LpProvidableListaDistributor is CommonListaDistributor, Reent
         symbol = string.concat("Lista LP ", IERC20Metadata(_lpToken).symbol(), " Distributor");
     }
 
-    modifier onlyInCompatibilityMode() {
-        require(compatibilityMode, "compatibility mode is disabled");
+    modifier whenNotInTokenProviderMode() {
+        require(!tokenProviderMode, "tokenProvider mode is enabled");
         _;
     }
 
@@ -119,7 +119,7 @@ contract ThenaERC20LpProvidableListaDistributor is CommonListaDistributor, Reent
      * @dev deposit LP token to get rewards
      * @param amount amount of LP token
      */
-    function deposit(uint256 amount) external onlyInCompatibilityMode {
+    function deposit(uint256 amount) external whenNotInTokenProviderMode {
         require(amount > 0, "Cannot deposit zero");
         _deposit(msg.sender, amount);
         IERC20(lpToken).safeTransferFrom(msg.sender, address(this), amount);
@@ -130,7 +130,7 @@ contract ThenaERC20LpProvidableListaDistributor is CommonListaDistributor, Reent
      * @dev withdraw LP token
      * @param amount amount of LP token
      */
-    function withdraw(uint256 amount) external onlyInCompatibilityMode {
+    function withdraw(uint256 amount) external whenNotInTokenProviderMode {
         require(amount > 0, "Cannot withdraw zero");
         _withdraw(msg.sender, amount);
         _withdrawLp(msg.sender, amount);
@@ -333,12 +333,12 @@ contract ThenaERC20LpProvidableListaDistributor is CommonListaDistributor, Reent
     }
 
     /**
-     * @dev set compatibility mode
-     * @param _compatibilityMode compatibility mode
+     * @dev set tokenProvider mode
+     * @param _tokenProviderMode tokenProvider mode
      */
-    function setCompatibilityMode(bool _compatibilityMode) external onlyRole(MANAGER) {
-        require(compatibilityMode != _compatibilityMode, "compatibility mode is already set");
-        compatibilityMode = _compatibilityMode;
+    function setTokenProviderMode(bool _tokenProviderMode) external onlyRole(MANAGER) {
+        require(tokenProviderMode != _tokenProviderMode, "tokenProvider mode is already set");
+        tokenProviderMode = _tokenProviderMode;
     }
 
     /* ------------------------ Helper functions ------------------------ */
