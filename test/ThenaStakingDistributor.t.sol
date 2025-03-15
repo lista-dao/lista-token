@@ -115,14 +115,13 @@ contract ThenaStakingDistributorTest is Test {
         vm.stopPrank();
 
         vm.startPrank(owner);
-        if (!slisBNBBNBThenaCorrelatedDistributor.compatibilityMode()) {
-            slisBNBBNBThenaCorrelatedDistributor.setCompatibilityMode(true);
+        if (slisBNBBNBThenaCorrelatedDistributor.tokenProviderMode()) {
+            slisBNBBNBThenaCorrelatedDistributor.setTokenProviderMode(false);
         }
         if (!slisBNBBNBThenaCorrelatedDistributor.hasRole(keccak256("TOKEN_PROVIDER"), address(tokenProvider))) {
             slisBNBBNBThenaCorrelatedDistributor.grantRole(keccak256("TOKEN_PROVIDER"), address(tokenProvider));
         }
         vm.stopPrank();
-
     }
 
 
@@ -145,16 +144,16 @@ contract ThenaStakingDistributorTest is Test {
         slisBNBBNBThenaCorrelatedDistributor.withdraw(user1Lp);
         vm.stopPrank();
 
-        // ----- disable compatibility
+        // ----- turn on token provider mode
         vm.prank(owner);
-        slisBNBBNBThenaCorrelatedDistributor.setCompatibilityMode(false);
+        slisBNBBNBThenaCorrelatedDistributor.setTokenProviderMode(true);
 
         vm.startPrank(user1);
 
         // user could not deposit and withdraw when compatibility mode disabled
-        vm.expectRevert("compatibility mode is disabled");
+        vm.expectRevert("tokenProvider mode is enabled");
         slisBNBBNBThenaCorrelatedDistributor.deposit(user1Lp);
-        vm.expectRevert("compatibility mode is disabled");
+        vm.expectRevert("tokenProvider mode is enabled");
         slisBNBBNBThenaCorrelatedDistributor.withdraw(user1Lp);
 
         // only provider can call depositFor()
@@ -167,10 +166,10 @@ contract ThenaStakingDistributorTest is Test {
     }
 
     function test_provider_deposit_and_withdraw() public {
-        // make sure compatibility mode is disabled
-        if (slisBNBBNBThenaCorrelatedDistributor.compatibilityMode()) {
+        // make sure tokenProvider mode is enabled
+        if (!slisBNBBNBThenaCorrelatedDistributor.tokenProviderMode()) {
             vm.prank(owner);
-            slisBNBBNBThenaCorrelatedDistributor.setCompatibilityMode(false);
+            slisBNBBNBThenaCorrelatedDistributor.setTokenProviderMode(true);
         }
         // provide liquidity and get LP
         uint256 user1Lp = addLiquidity(user1, 100 ether);
@@ -185,35 +184,40 @@ contract ThenaStakingDistributorTest is Test {
         uint256 u1Changed; // clisBNB gained by user1
         uint256 u2Changed; // clisBNB gained by user2
 
-        // --------- user1 deposit
+        // --------- user1 deposit half
         preU1Bal = clisBNB.balanceOf(user1);
+        // deposit
         lpToken.approve(address(tokenProvider), MAX_UINT256);
         tokenProvider.deposit(user1Lp/2);
         u1Changed = clisBNB.balanceOf(user1) - preU1Bal;
-        assertEq(u1Changed, holderLpAmt, "clisBNB gained should be equal to holderLpAmt");
+        assertEq(u1Changed, holderLpAmt, "user1 +holderLpAmt");
         assertEq(reservedLpAmt, tokenProvider.userReservedLp(user1), "reservedLpAmt should be equal to userReservedLp");
 
-        console.log("User 1 gained clisBNB");
 
         // --------- user1 deposit and delegate to user2
+        // @dev previous clisBNB at user1 mints to user2 too
+        (uint256 holderLpAmt2, ) = tokenToClisBNB(user1Lp);
+        preU1Bal = clisBNB.balanceOf(user1);
         preU2Bal = clisBNB.balanceOf(user2);
         tokenProvider.deposit(user1Lp/2, user2);
         u2Changed = clisBNB.balanceOf(user2) - preU2Bal;
-        assertEq(u2Changed, holderLpAmt, "clisBNB gained should be equal to holderLpAmt");
+        u1Changed = preU1Bal - clisBNB.balanceOf(user1);
+        assertEq(clisBNB.balanceOf(user1), 0, "User1 have no clisBNB left");
         assertEq(reservedLpAmt*2, tokenProvider.userReservedLp(user1), "reservedLpAmt should be equal to userReservedLp");
 
-        console.log("User 1 delegated clisBNB to user 2");
+        // @notice at this point, all clisBNB holding by user2
+        uint256 u2Bal = clisBNB.balanceOf(user2);
+        assertEq(u2Bal, tokenProvider.userLp(user1), "User2 gets all clisBNB");
 
-        // -------- user 1 withdraw 1/4
-        (uint256 quarterHolderLpAmt,) = tokenToClisBNB(user1Lp/4);
-        // burn delegatee first
+        // -------- user 1 withdraw 1/2
         preU1Bal = clisBNB.balanceOf(user1);
         preU2Bal = clisBNB.balanceOf(user2);
-        tokenProvider.withdraw(user1Lp/4);
+        tokenProvider.withdraw(user1Lp/2);
         u1Changed = preU1Bal - clisBNB.balanceOf(user1);
         u2Changed = preU2Bal - clisBNB.balanceOf(user2);
-        assertEq(u1Changed, 0, "User 1 should not burn any clisBNB");
-        assertEq(u2Changed, quarterHolderLpAmt, "User 2 should burn `quarterHolderLpAmt` of clisBNB");
+        assertEq(u1Changed, 0, "User 1 no clisBNB to burn");
+        assertEq(clisBNB.balanceOf(user1), 0, "User 1 no clisBNB left");
+        assertApproxEqAbs(u2Changed, holderLpAmt, 10000, "User 2 should left only half of clisBNB");
 
         // -------- user 1 further withdraw 1/2
         // that means user 2 have no clisBNB left
@@ -223,22 +227,19 @@ contract ThenaStakingDistributorTest is Test {
         tokenProvider.withdraw(user1Lp/2);
         u1Changed = preU1Bal - clisBNB.balanceOf(user1);
         u2Changed = preU2Bal - clisBNB.balanceOf(user2);
-        assertApproxEqAbs(
-            u1Changed, quarterHolderLpAmt, 10000,
-            "both user 1 and 2 should burn `halfHolderLpAmt` of clisBNB"
-        );
-        assertApproxEqAbs(
-            u2Changed, quarterHolderLpAmt, 10000,
-            "both user 1 and 2 should burn `halfHolderLpAmt` of clisBNB"
-        );
+        assertEq(u1Changed, 0, "both user 1 and 2 should burn `halfHolderLpAmt` of clisBNB");
+        assertApproxEqAbs(u2Changed, holderLpAmt, 10, "both user 1 and 2 should burn `halfHolderLpAmt` of clisBNB");
+        assertEq(clisBNB.balanceOf(user1), 0, "User 1 has no clisBNB left");
+        assertEq(clisBNB.balanceOf(user2), 0, "User 2 has no clisBNB left");
+
         vm.stopPrank();
     }
 
     function test_delegateAll() public {
-        // make sure compatibility mode is disabled
-        if (slisBNBBNBThenaCorrelatedDistributor.compatibilityMode()) {
+        // make sure tokenProvider mode is enabled
+        if (!slisBNBBNBThenaCorrelatedDistributor.tokenProviderMode()) {
             vm.prank(owner);
-            slisBNBBNBThenaCorrelatedDistributor.setCompatibilityMode(false);
+            slisBNBBNBThenaCorrelatedDistributor.setTokenProviderMode(true);
         }
         // provide liquidity and get LP
         uint256 user1Lp = addLiquidity(user1, 100 ether);
@@ -253,15 +254,17 @@ contract ThenaStakingDistributorTest is Test {
         tokenProvider.deposit(user1Lp, user2);
         uint256 u2Changed = clisBNB.balanceOf(user2) - preU2Bal;
         assertEq(u2Changed, holderLpAmt, "all clisBNB should be delegated to user2");
+        assertEq(clisBNB.balanceOf(user1), 0, "user1 should have no clisBNB left");
 
         address user3 = address(0x333333);
         // delegate to user3
         uint256 preU3Bal = clisBNB.balanceOf(user3);
         tokenProvider.delegateAllTo(user3);
         uint256 u3Changed = clisBNB.balanceOf(user3) - preU3Bal;
-        assertEq(u3Changed, holderLpAmt, "all clisBNB should be delegated to user3");
+//        assertEq(u3Changed, holderLpAmt, "all clisBNB should be delegated to user3");
         assertEq(clisBNB.balanceOf(user1), 0, "user1 should have no clisBNB left");
         assertEq(clisBNB.balanceOf(user2), 0, "user2 should have no clisBNB left");
+        assertEq(clisBNB.balanceOf(user3), holderLpAmt, "all clisBNB should be delegated to user3");
 
         vm.stopPrank();
     }
@@ -276,7 +279,7 @@ contract ThenaStakingDistributorTest is Test {
 
         // check is synced
         bool isSynced = tokenProvider.isUserLpSynced(user1);
-        assertEq(isSynced, true);
+        assertEq(isSynced, true, "lp synced 1");
 
         // no need to sync if there is no change in exchange rate
         vm.expectRevert("already synced");
@@ -284,29 +287,30 @@ contract ThenaStakingDistributorTest is Test {
 
         // change exchange rate to simulate LP(wBNB):clisBNB rate changed
         vm.startPrank(owner);
-        tokenProvider.changeExchangeRate(0.9 ether);
+        tokenProvider.setExchangeRate(0.99 ether);
 
         // out of synced
         isSynced = tokenProvider.isUserLpSynced(user1);
-        assertEq(isSynced, false);
+        assertEq(isSynced, false, "lp not synced 1");
 
         // do sync
         tokenProvider.syncUserLp(user1);
         isSynced = tokenProvider.isUserLpSynced(user1);
-        assertEq(isSynced, true);
+        assertEq(isSynced, true, "lp synced 1");
 
         // ------- Test bulk sync
         vm.startPrank(owner);
 
+        // userLpRate must < 1e18
         vm.expectRevert("userLpRate invalid");
-        tokenProvider.changeUserLpRate(2 ether);
+        tokenProvider.setUserLpRate(1 ether + 1);
 
-        tokenProvider.changeUserLpRate(0.8 ether);
+        tokenProvider.setUserLpRate(0.6 ether);
         vm.stopPrank();
 
         // out of synced again
         isSynced = tokenProvider.isUserLpSynced(user1);
-        assertEq(isSynced, false);
+        assertEq(isSynced, false, "lp not synced 2");
 
         // bulk sync
         address[] memory users = new address[](1);
@@ -315,7 +319,7 @@ contract ThenaStakingDistributorTest is Test {
 
         // should be synced
         isSynced = tokenProvider.isUserLpSynced(user1);
-        assertEq(isSynced, true);
+        assertEq(isSynced, true, "lp synced 3");
     }
 
     function test_changeReserveAddress() public {
@@ -330,9 +334,9 @@ contract ThenaStakingDistributorTest is Test {
 
         address oldReserveAddress = tokenProvider.lpReserveAddress();
         vm.expectRevert("lpTokenReserveAddress invalid");
-        tokenProvider.changeLpReserveAddress(oldReserveAddress);
+        tokenProvider.setLpReserveAddress(oldReserveAddress);
 
-        tokenProvider.changeLpReserveAddress(newReserve);
+        tokenProvider.setLpReserveAddress(newReserve);
         vm.stopPrank();
         assertEq(tokenProvider.lpReserveAddress(), newReserve);
     }
@@ -379,7 +383,7 @@ contract ThenaStakingDistributorTest is Test {
     function tokenToClisBNB(uint256 amount) public returns (uint256, uint256) {
         uint256 netLp = slisBNBBNBThenaCorrelatedDistributor.getLpToQuoteToken(amount);
         uint256 deltaLpAmount = netLp * tokenProvider.exchangeRate() / tokenProvider.RATE_DENOMINATOR();
-        uint256 deltaHolderLpAmount = deltaLpAmount * tokenProvider.userLpRate() / tokenProvider.RATE_DENOMINATOR();
+        uint256 deltaHolderLpAmount = netLp * tokenProvider.userLpRate() / tokenProvider.RATE_DENOMINATOR();
         uint256 deltaReserveLpAmount = deltaLpAmount - deltaHolderLpAmount;
         return (deltaHolderLpAmount, deltaReserveLpAmount);
     }
