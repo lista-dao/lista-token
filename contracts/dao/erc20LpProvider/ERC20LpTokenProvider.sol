@@ -15,8 +15,20 @@ import { IERC20LpProvidableDistributor } from "../interfaces/IERC20LpProvidableD
 
 /**
  * @title ERC20LpTokenProvider
- * 1. token to lpToken rate is not 1:1 and modifiable
- * 2. user's lpToken will be minted to itself(delegatee) and lpReserveAddress according to userLpRate
+ * @dev User gets ERC20-LP token from PancakeSwap or Thena by providing liquidity to the pool (mainly stableSwap or V2),
+ *      then user can stake those ERC20-LP to ListaDistributor through TokenProvider.
+ *
+ *      1. ERC20-LP = X amount of token0 + Y amount of token1
+ *      2. user stakes ERC20-LP
+ *      3. say token1:clisXXX = 1:exchangeRate
+ *      4. We can calculate how mush token1 worth of token0,
+ *         so we can get the total amount of token1 in ERC20-LP
+ *      5. user gets clisXXX as proof of staking ERC20-LP
+ *
+ *      In short: Staked ERC20-LP
+ *                   > x token0 + y token1
+ *                      > z token1
+ *                          > clisXXX (token1:clisXXX = 1:exchangeRate)
  */
 contract ERC20LpTokenProvider is IERC20TokenProvider,
     AccessControlUpgradeable,
@@ -33,15 +45,16 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     bytes32 public constant PAUSER = keccak256("PAUSER");
 
     /* ------------------ Variables ------------------ */
-    // the original LP token such as PancakeSwap StablePool LP Token
+    // the ERC20-LP Token such as PancakeSwap StablePool LP Token
     address public token;
-    // User will get this LP token as proof of e.g clisXXX
+    // User will get this LP token as proof of staking ERC20-LP, e.g clisXXX
     ILpToken public lpToken;
-    // the ERC20-LP Lista distributor that connects to this provider
+    // the ERC20-LP Lista distributor that binds with this provider
     IERC20LpProvidableDistributor public lpProvidableDistributor;
-    // account > delegation { delegateTo, amount }
-    mapping(address => Delegation) public delegation;
-    // user account > sum lpTokens of user including delegated part
+    // @dev delegatee fully holds user's lpToken, NO PARTIAL delegation
+    // account > delegatee
+    mapping(address => address) public delegation;
+    // user account > total amount of lpToken minted to user
     mapping(address => uint256) public userLp;
     // token to lpToken exchange rate
     uint128 public exchangeRate;
@@ -55,10 +68,10 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     uint256 public totalReservedLp;
 
     /* ------------------ Events ------------------ */
-    event SyncUserLpWithReserve(address account, uint256 userLp, uint256 reservedLp);
-    event ChangeExchangeRate(uint128 rate);
-    event ChangeUserLpRate(uint128 rate);
-    event ChangeLpReserveAddress(address newAddress);
+    event UserLpRebalanced(address account, uint256 userLp, uint256 reservedLp);
+    event ExchangeRateChanged(uint128 rate);
+    event UserLpRateChanged(uint128 rate);
+    event LpReserveAddressChanged(address newAddress);
     event Deposit(address indexed account, uint256 amount, uint256 lPAmount);
     event Withdrawal(address indexed owner, uint256 amount);
     event ChangeDelegateTo(address account, address oldDelegatee, address newDelegatee);
@@ -135,16 +148,8 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     nonReentrant
     returns (uint256)
     {
-        require(_amount > 0, "zero deposit amount");
-        // transfer token from user to this contract
-        IERC20(token).safeTransferFrom(msg.sender, address(this), _amount);
-        // deposit to distributor
-        uint256 userPartLp = _processBalanceChange(msg.sender, msg.sender, _amount, true);
-        // deposit to distributor
-        lpProvidableDistributor.depositFor(_amount, msg.sender);
-
-        emit Deposit(msg.sender, _amount, userPartLp);
-        return userPartLp;
+        // force delegatee to be msg.sender
+        return _deposit(_amount, msg.sender, msg.sender);
     }
 
     /**
@@ -159,23 +164,8 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     nonReentrant
     returns (uint256)
     {
-        require(_amount > 0, "zero deposit amount");
         require(_delegateTo != address(0), "delegateTo cannot be zero address");
-        require(_delegateTo != msg.sender, "delegateTo cannot be self");
-        require(
-            delegation[msg.sender].delegateTo == _delegateTo ||
-            delegation[msg.sender].amount == 0, // first time, clear old delegatee
-            "delegateTo is differ from the current one"
-        );
-        // transfer token from user to this contract
-        IERC20(token).safeTransferFrom(msg.sender, address(this), _amount);
-        // deposit to distributor
-        lpProvidableDistributor.depositFor(_amount, msg.sender);
-        // update balance
-        uint256 userPartLp = _processBalanceChange(msg.sender, _delegateTo, _amount, true);
-
-        emit Deposit(msg.sender, _amount, userPartLp);
-        return userPartLp;
+        return _deposit(_amount, msg.sender, _delegateTo);
     }
 
     /**
@@ -192,156 +182,49 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
         require(_amount > 0, "zero withdrawal amount");
         // withdraw from distributor
         lpProvidableDistributor.withdrawFor(_amount, msg.sender);
-        // update balance
-        uint256 userPartLp = _processBalanceChange(msg.sender, msg.sender, _amount, false);
+        // rebalance user's lpToken
+        (,uint256 latestLpBalance) = _rebalanceUserLp(msg.sender);
 
         emit Withdrawal(msg.sender, _amount);
-        return _amount;
+        return latestLpBalance;
     }
 
     /**
     * delegate all collateral tokens to given address
-    * @param _newDelegateTo new target address of collateral tokens
+    * @param newDelegatee new target address of collateral tokens
     */
-    function delegateAllTo(address _newDelegateTo)
+    function delegateAllTo(address newDelegatee)
     external
     whenNotPaused
     nonReentrant
     {
-        require(_newDelegateTo != address(0), "delegateTo cannot be zero address");
+        require(
+            newDelegatee != address(0) &&
+            newDelegatee != delegation[msg.sender],
+            "newDelegatee cannot be zero address or same as current delegatee"
+        );
+        // current delegatee
+        address oldDelegatee = delegation[msg.sender];
+        // current lp amount
+        uint256 lpAmount = userLp[msg.sender];
+        // burn all lpToken from account or delegatee
+        _safeBurnLp(oldDelegatee, lpAmount);
+        // mint all lpToken to new delegatee
+        lpToken.mint(newDelegatee, lpAmount);
+        // update delegatee record
+        delegation[msg.sender] = newDelegatee;
 
-        // get user total deposit
-        uint256 userTotalLp = userLp[msg.sender];
-        require(userTotalLp > 0, "zero lp to delegate");
-
-        Delegation storage currentDelegation = delegation[msg.sender];
-        address currentDelegateTo = currentDelegation.delegateTo;
-
-        // Step 1. burn all tokens
-        if (currentDelegation.amount > 0) {
-            // burn delegatee's token
-            lpToken.burn(currentDelegateTo, currentDelegation.amount);
-            // burn self's token
-            if (userTotalLp > currentDelegation.amount) {
-                _safeBurnLp(msg.sender, userTotalLp - currentDelegation.amount);
-            }
-        } else {
-            _safeBurnLp(msg.sender, userTotalLp);
-        }
-
-        // Step 2. save new delegatee and mint all tokens to delegatee
-        if (_newDelegateTo == msg.sender) {
-            // mint all to self
-            lpToken.mint(msg.sender, userTotalLp);
-            // remove delegatee
-            delete delegation[msg.sender];
-        } else {
-            // mint all to new delegatee
-            lpToken.mint(_newDelegateTo, userTotalLp);
-            // save delegatee's info
-            currentDelegation.delegateTo = _newDelegateTo;
-            currentDelegation.amount = userTotalLp;
-        }
-
-        emit ChangeDelegateTo(msg.sender, currentDelegateTo, _newDelegateTo);
+        emit ChangeDelegateTo(msg.sender, oldDelegatee, newDelegatee);
     }
 
-    /* ----------------------------------- Internal functions ----------------------------------- */
-    function _processBalanceChange(address account, address holder, uint256 amount, bool isDeposit) internal returns(uint256) {
-        // lpToken value holding by `amount` of token
-        uint256 netLp = lpProvidableDistributor.getLpToQuoteToken(amount);
-        // the actual LP converts to
-        uint256 deltaLpAmount = netLp * exchangeRate / RATE_DENOMINATOR;
-        // net change of user's lpToken
-        uint256 deltaHolderLpAmount = deltaLpAmount * userLpRate / RATE_DENOMINATOR;
-        // net change of reserve address's lpToken
-        uint256 deltaReserveLpAmount = deltaLpAmount - deltaHolderLpAmount;
 
-        // -------------- deposit --------------
-        if (isDeposit) {
-            // mint to account/holder
-            if (deltaHolderLpAmount > 0) {
-                // deposit to delegatee
-                if (account != holder) {
-                    // assign to the delegatee
-                    Delegation storage userDelegation = delegation[msg.sender];
-                    userDelegation.delegateTo = holder;
-                    userDelegation.amount += deltaHolderLpAmount;
-                }
-                // update balance and mint to holder
-                lpToken.mint(holder, deltaHolderLpAmount);
-                userLp[account] += deltaHolderLpAmount;
-            }
-            // mint to reserve address
-            if (deltaReserveLpAmount > 0) {
-                // mint to reserve address
-                lpToken.mint(lpReserveAddress, deltaReserveLpAmount);
-                userReservedLp[account] += deltaReserveLpAmount;
-                totalReservedLp += deltaReserveLpAmount;
-            }
-        }
-        // -------------- Withdrawal --------------
-        else {
-            // burn from account/delegatee
-            if (deltaHolderLpAmount > 0) {
-                Delegation storage userDelegation = delegation[msg.sender];
-                // burn delegatee's first
-                if (delegation[account].amount > 0) {
-                    uint256 delegatedAmount = delegation[account].amount;
-                    uint256 delegateeBurn = deltaHolderLpAmount > delegatedAmount ? delegatedAmount : deltaHolderLpAmount;
-                    // burn delegatee's token, update delegated amount
-                    lpToken.burn(delegation[account].delegateTo, delegateeBurn);
-                    delegation[account].amount -= delegateeBurn;
-                    // in case delegatee's holding is not enough
-                    // burn delegator's token
-                    if (deltaHolderLpAmount > delegateeBurn) {
-                        _safeBurnLp(account, deltaHolderLpAmount - delegateeBurn);
-                    }
-                } else {
-                    // no delegation, only burn from account
-                    _safeBurnLp(account, deltaHolderLpAmount);
-                }
-                // update balance
-                userLp[account] -= deltaHolderLpAmount;
-            }
-            // burn from reserve address
-            if (deltaReserveLpAmount > 0) {
-                // burn from reserve address
-                lpToken.burn(lpReserveAddress, deltaReserveLpAmount);
-                userReservedLp[account] -= deltaReserveLpAmount;
-                totalReservedLp -= deltaReserveLpAmount;
-            }
-        }
-        return deltaHolderLpAmount;
-    }
-
-    /**
-     * @notice note that the conversion between token and quoteToken is dynamic, and quoteToken is 1:1 to LP token
-     *         if the conversion rate changes, the LP token amount will be changed accordingly by rebalancing(),
-     *         then, user might not have enough LP token to burn
-     * @dev to make sure existing users who do not have enough lpToken can still burn
-     *      only the available amount excluding delegated part will be burned
-     * @param _account lp token holder
-     * @param _amount amount to burn
-     */
-    function _safeBurnLp(address _account, uint256 _amount) internal {
-        uint256 availableBalance = userLp[_account] - delegation[_account].amount;
-        if (_amount <= availableBalance) {
-            lpToken.burn(_account, _amount);
-        } else if (availableBalance > 0) {
-            // existing users do not have enough lpToken
-            lpToken.burn(_account, availableBalance);
-        }
-    }
-
-    /* ----------------------------------- LP re-balancing ----------------------------------- */
-
+    /* ----------------------- Lp Token Re-balancing ----------------------- */
     /**
     * @dev sync user's lpToken balance to retain a consistent ratio with token balance
     * @param _account user address to sync
     */
     function syncUserLp(address _account) external {
-        bool rebalanced = _rebalanceUserLp(_account);
+        (bool rebalanced,) = _rebalanceUserLp(_account);
         require(rebalanced, "already synced");
     }
 
@@ -361,82 +244,110 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
      */
     function isUserLpSynced(address account) external view returns (bool) {
         uint256 userStakedTokenAmount = lpProvidableDistributor.getUserLpTotalValueInQuoteToken(account);
-        uint256 expectedTotalLp = userStakedTokenAmount * exchangeRate / RATE_DENOMINATOR;
-        uint256 expectUserLp = expectedTotalLp * userLpRate / RATE_DENOMINATOR;
-        uint256 expectReservedLp = expectedTotalLp - expectUserLp;
+        uint256 newTotalLp = userStakedTokenAmount * exchangeRate / RATE_DENOMINATOR;
+        uint256 newUserLp = userStakedTokenAmount * userLpRate / RATE_DENOMINATOR;
+        uint256 newReservedLp = newTotalLp - newUserLp;
 
-        return userLp[account] == expectUserLp && userReservedLp[account] == expectReservedLp;
+        return userLp[account] == newUserLp && userReservedLp[account] == newReservedLp;
     }
 
+
+    /* ----------------------- Internal/Private functions  ----------------------- */
+
+    /**
+    * @dev deposit given amount of token to provider
+    * @param amount amount to deposit
+    * @param account user address
+    * @param holder holder address a.k.a the delegatee
+    */
+    function _deposit(uint256 amount, address account, address holder) private returns (uint256) {
+        require(amount > 0, "zero deposit amount");
+        // transfer token from user to this contract
+        IERC20(token).safeTransferFrom(account, address(this), amount);
+        // get current delegatee
+        address oldDelegatee = delegation[account];
+        // burn all lpToken from old delegatee
+        if (oldDelegatee != holder && oldDelegatee != address(0)) {
+            _safeBurnLp(oldDelegatee, userLp[account]);
+        }
+        // update delegatee
+        delegation[account] = holder;
+        // deposit to distributor
+        lpProvidableDistributor.depositFor(amount, account);
+        // rebalance user's lpToken
+        (,uint256 latestLpBalance) = _rebalanceUserLp(account);
+
+        emit Deposit(account, amount, latestLpBalance);
+        return latestLpBalance;
+    }
 
     /**
      * @dev mint/burn lpToken to sync user's lpToken with token balance
      * @param account user address to sync
      */
-    function _rebalanceUserLp(address account) internal returns (bool) {
+    function _rebalanceUserLp(address account) internal returns (bool, uint256) {
 
-        // The token amount of user staked at distributor
+        // @dev this variable represent the latest amount of lpToken that user should have
+        //      user stakes LP(e.g. PCS stableSwap, Thena LP) which the LP binds with a certain amount of token0 and token1
         uint256 userStakedTokenAmount = lpProvidableDistributor.getUserLpTotalValueInQuoteToken(account);
 
         // ---- [1] Estimated LP value
         // Total LP(Lista + User + Reserve)
-        uint256 expectedTotalLp = userStakedTokenAmount * exchangeRate / RATE_DENOMINATOR;
+        uint256 newTotalLp = userStakedTokenAmount * exchangeRate / RATE_DENOMINATOR;
         // User's LP
-        uint256 expectUserLp = expectedTotalLp * userLpRate / RATE_DENOMINATOR;
+        uint256 newUserLp = userStakedTokenAmount * userLpRate / RATE_DENOMINATOR;
         // Reserve's LP
-        uint256 expectReservedLp = expectedTotalLp - expectUserLp;
+        uint256 newReservedLp = newTotalLp - newUserLp;
 
         // ---- [2] Current user LP and reserved LP
-        uint256 currentUserLp = userLp[account];
-        uint256 currentReservedLp = userReservedLp[account];
+        uint256 oldUserLp = userLp[account];
+        uint256 oldReservedLp = userReservedLp[account];
 
         // LP balance unchanged
-        if (currentUserLp == expectUserLp && currentReservedLp == expectReservedLp) {
-            return false;
+        if (oldUserLp == newUserLp && oldReservedLp == newReservedLp) {
+            return (false, oldUserLp);
         }
 
         // ---- [3] handle user reserved LP
         // +/- reserved LP
-        if (currentReservedLp > expectReservedLp) {
-            lpToken.burn(lpReserveAddress, currentReservedLp - expectReservedLp);
-            userReservedLp[account] = expectReservedLp;
-            totalReservedLp -= (currentReservedLp - expectReservedLp);
-        } else if (currentReservedLp < expectReservedLp) {
-            lpToken.mint(lpReserveAddress, expectReservedLp - currentReservedLp);
-            userReservedLp[account] = expectReservedLp;
-            totalReservedLp += (expectReservedLp - currentReservedLp);
+        if (oldReservedLp > newReservedLp) {
+            _safeBurnLp(lpReserveAddress, oldReservedLp - newReservedLp);
+            totalReservedLp -= (oldReservedLp - newReservedLp);
+        } else if (oldReservedLp < newReservedLp) {
+            lpToken.mint(lpReserveAddress, newReservedLp - oldReservedLp);
+            totalReservedLp += (newReservedLp - oldReservedLp);
         }
+        userReservedLp[account] = newReservedLp;
 
         // ---- [4] handle user LP and delegation
-        Delegation storage userDelegation = delegation[account];
-        // current delegation
-        uint256 currentDelegatedLp = userDelegation.amount;
-        uint256 currentSelfLp = currentUserLp - currentDelegatedLp;
-        // expected delegation
-        uint256 expectedLpToDelegate = currentUserLp > 0 ? expectUserLp * currentDelegatedLp / currentUserLp : 0;
-        uint256 expectedSelfLp = expectUserLp - expectedLpToDelegate;
+        address holder = delegation[account];
+        // burn old lpToken amount from holder
+        _safeBurnLp(holder, oldUserLp);
+        // mint new lpToken amount to holder
+        lpToken.mint(holder, newUserLp);
+        // update user LP balance as new LP
+        userLp[account] = newUserLp;
 
-        // -/+ delegated LP
-        if (currentDelegatedLp > expectedLpToDelegate) {
-            lpToken.burn(userDelegation.delegateTo, currentDelegatedLp - expectedLpToDelegate);
-        } else if (currentDelegatedLp < expectedLpToDelegate) {
-            lpToken.mint(userDelegation.delegateTo, expectedLpToDelegate - currentDelegatedLp);
+        emit UserLpRebalanced(account, newUserLp, newReservedLp);
+
+        return (true, newUserLp);
+    }
+
+    /**
+     * @notice User's available lpToken might lower than the burn amount
+     *         due to the change of exchangeRate, ReservedLpRate or the value of the LP token fluctuates from time to time
+     *         i.e. userLp[account] might < lpToken.balanceOf(holder)
+     * @param holder lp token holder
+     * @param amount amount to burn
+     */
+    function _safeBurnLp(address holder, uint256 amount) internal {
+        uint256 availableBalance = lpToken.balanceOf(holder);
+        if (amount <= availableBalance) {
+            lpToken.burn(holder, amount);
+        } else if (availableBalance > 0) {
+            // existing users do not have enough lpToken
+            lpToken.burn(holder, availableBalance);
         }
-        // update delegation LP balance
-        userDelegation.amount = expectedLpToDelegate;
-
-        // -/+ self LP
-        if (currentSelfLp > expectedSelfLp) {
-            lpToken.burn(account, currentSelfLp - expectedSelfLp);
-        } else if (currentSelfLp < expectedSelfLp) {
-            lpToken.mint(account, expectedSelfLp - currentSelfLp);
-        }
-        // update user LP balance
-        userLp[account] = expectUserLp;
-
-        emit SyncUserLpWithReserve(account, expectUserLp, expectReservedLp);
-
-        return true;
     }
 
     /* ----------------------------------- Admin functions ----------------------------------- */
@@ -444,32 +355,32 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
      * change exchange rate
      * @param _exchangeRate new exchange rate
      */
-    function changeExchangeRate(uint128 _exchangeRate) external onlyRole(MANAGER) {
-        require(_exchangeRate > 0, "exchangeRate invalid");
+    function setExchangeRate(uint128 _exchangeRate) external onlyRole(MANAGER) {
+        require(_exchangeRate > 0 && _exchangeRate >= userLpRate, "exchangeRate invalid");
 
         exchangeRate = _exchangeRate;
-        emit ChangeExchangeRate(exchangeRate);
+        emit ExchangeRateChanged(exchangeRate);
     }
 
-    function changeUserLpRate(uint128 _userLpRate) external onlyRole(MANAGER) {
-        require(_userLpRate <= 1e18, "userLpRate invalid");
+    function setUserLpRate(uint128 _userLpRate) external onlyRole(MANAGER) {
+        require(_userLpRate <= 1e18 && _userLpRate < exchangeRate, "userLpRate invalid");
 
         userLpRate = _userLpRate;
-        emit ChangeUserLpRate(userLpRate);
+        emit UserLpRateChanged(userLpRate);
     }
 
     /**
      * change lpReserveAddress, all reserved lpToken will be burned from original address and be minted to new address
      * @param _lpTokenReserveAddress new lpTokenReserveAddress
      */
-    function changeLpReserveAddress(address _lpTokenReserveAddress) external onlyRole(MANAGER) {
+    function setLpReserveAddress(address _lpTokenReserveAddress) external onlyRole(MANAGER) {
         require(_lpTokenReserveAddress != address(0) && _lpTokenReserveAddress != lpReserveAddress, "lpTokenReserveAddress invalid");
         if (totalReservedLp > 0) {
             lpToken.burn(lpReserveAddress, totalReservedLp);
             lpToken.mint(_lpTokenReserveAddress, totalReservedLp);
         }
         lpReserveAddress = _lpTokenReserveAddress;
-        emit ChangeLpReserveAddress(lpReserveAddress);
+        emit LpReserveAddressChanged(lpReserveAddress);
     }
 
     /**
@@ -492,7 +403,4 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
      */
     function _authorizeUpgrade(address _newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
     }
-
-    // storage gap, declared fields: 5/50
-    uint256[45] __gap;
 }
