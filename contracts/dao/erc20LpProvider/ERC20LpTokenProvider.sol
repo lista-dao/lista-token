@@ -21,14 +21,19 @@ import { IERC20LpProvidableDistributor } from "../interfaces/IERC20LpProvidableD
  *      1. ERC20-LP = X amount of token0 + Y amount of token1
  *      2. user stakes ERC20-LP
  *      3. say token1:clisXXX = 1:exchangeRate
- *      4. We can calculate how mush token1 worth of token0,
+ *      4. We can calculate how much token1 worth of token0,
  *         so we can get the total amount of token1 in ERC20-LP
  *      5. user gets clisXXX as proof of staking ERC20-LP
  *
  *      In short: Staked ERC20-LP
  *                   > x token0 + y token1
  *                      > z token1
- *                          > clisXXX (token1:clisXXX = 1:exchangeRate)
+ *                          > A clisXXX (token1:clisXXX = 1:exchangeRate)
+ *
+ *     Finally:
+ *     User got `userLpRate` * A clisXXX,
+ *     A * (1 - userLpRate) clisXXX reserved for ListaDAO
+ *
  */
 contract ERC20LpTokenProvider is IERC20TokenProvider,
     AccessControlUpgradeable,
