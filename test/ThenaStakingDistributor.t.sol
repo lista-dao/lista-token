@@ -121,6 +121,8 @@ contract ThenaStakingDistributorTest is Test {
         if (!slisBNBBNBThenaCorrelatedDistributor.hasRole(keccak256("TOKEN_PROVIDER"), address(tokenProvider))) {
             slisBNBBNBThenaCorrelatedDistributor.grantRole(keccak256("TOKEN_PROVIDER"), address(tokenProvider));
         }
+        tokenProvider.setUserLpRate(0.8 ether);
+        tokenProvider.setExchangeRate(0.9 ether);
         vm.stopPrank();
     }
 
@@ -191,7 +193,7 @@ contract ThenaStakingDistributorTest is Test {
         tokenProvider.deposit(user1Lp/2);
         u1Changed = clisBNB.balanceOf(user1) - preU1Bal;
         assertEq(u1Changed, holderLpAmt, "user1 +holderLpAmt");
-        assertEq(reservedLpAmt, tokenProvider.userReservedLp(user1), "reservedLpAmt should be equal to userReservedLp");
+        assertApproxEqAbs(reservedLpAmt, tokenProvider.userReservedLp(user1), 2000, "reservedLpAmt should be equal to userReservedLp");
 
 
         // --------- user1 deposit and delegate to user2
@@ -203,7 +205,7 @@ contract ThenaStakingDistributorTest is Test {
         u2Changed = clisBNB.balanceOf(user2) - preU2Bal;
         u1Changed = preU1Bal - clisBNB.balanceOf(user1);
         assertEq(clisBNB.balanceOf(user1), 0, "User1 have no clisBNB left");
-        assertEq(reservedLpAmt*2, tokenProvider.userReservedLp(user1), "reservedLpAmt should be equal to userReservedLp");
+        assertApproxEqAbs(reservedLpAmt*2, tokenProvider.userReservedLp(user1), 2000,  "reservedLpAmt should be equal to userReservedLp");
 
         // @notice at this point, all clisBNB holding by user2
         uint256 u2Bal = clisBNB.balanceOf(user2);
@@ -217,7 +219,7 @@ contract ThenaStakingDistributorTest is Test {
         u2Changed = preU2Bal - clisBNB.balanceOf(user2);
         assertEq(u1Changed, 0, "User 1 no clisBNB to burn");
         assertEq(clisBNB.balanceOf(user1), 0, "User 1 no clisBNB left");
-        assertApproxEqAbs(u2Changed, holderLpAmt, 10000, "User 2 should left only half of clisBNB");
+        assertApproxEqAbs(u2Changed, holderLpAmt, 2000, "User 2 should left only half of clisBNB");
 
         // -------- user 1 further withdraw 1/2
         // that means user 2 have no clisBNB left
@@ -253,8 +255,8 @@ contract ThenaStakingDistributorTest is Test {
         lpToken.approve(address(tokenProvider), MAX_UINT256);
         tokenProvider.deposit(user1Lp, user2);
         uint256 u2Changed = clisBNB.balanceOf(user2) - preU2Bal;
-        assertEq(u2Changed, holderLpAmt, "all clisBNB should be delegated to user2");
         assertEq(clisBNB.balanceOf(user1), 0, "user1 should have no clisBNB left");
+        assertEq(u2Changed, holderLpAmt, "all clisBNB should be delegated to user2");
 
         address user3 = address(0x333333);
         // delegate to user3
