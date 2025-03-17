@@ -205,14 +205,14 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
         );
         // current delegatee
         address oldDelegatee = delegation[msg.sender];
-        // current lp amount
-        uint256 lpAmount = userLp[msg.sender];
         // burn all lpToken from account or delegatee
-        _safeBurnLp(oldDelegatee, lpAmount);
-        // mint all lpToken to new delegatee
-        lpToken.mint(newDelegatee, lpAmount);
+        _safeBurnLp(oldDelegatee, userLp[msg.sender]);
         // update delegatee record
         delegation[msg.sender] = newDelegatee;
+        // clear user's lpToken record
+        userLp[msg.sender] = 0;
+        // rebalance user's lpToken
+        _rebalanceUserLp(msg.sender);
 
         emit ChangeDelegateTo(msg.sender, oldDelegatee, newDelegatee);
     }
@@ -260,21 +260,26 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     * @param account user address
     * @param holder holder address a.k.a the delegatee
     */
-    function _deposit(uint256 amount, address account, address holder) private returns (uint256) {
+    function _deposit(uint256 amount, address account, address holder) internal returns (uint256) {
         require(amount > 0, "zero deposit amount");
-        // transfer token from user to this contract
+
+        // --- [1] transfer token from user to this contract
         IERC20(token).safeTransferFrom(account, address(this), amount);
-        // get current delegatee
+        // deposit to distributor
+        lpProvidableDistributor.depositFor(amount, account);
+
+        // --- [2] get current delegatee
         address oldDelegatee = delegation[account];
         // burn all lpToken from old delegatee
         if (oldDelegatee != holder && oldDelegatee != address(0)) {
             _safeBurnLp(oldDelegatee, userLp[account]);
+            // clear user's lpToken record
+            userLp[account] = 0;
         }
         // update delegatee
         delegation[account] = holder;
-        // deposit to distributor
-        lpProvidableDistributor.depositFor(amount, account);
-        // rebalance user's lpToken
+
+        // --- [3] rebalance user's lpToken
         (,uint256 latestLpBalance) = _rebalanceUserLp(account);
 
         emit Deposit(account, amount, latestLpBalance);
@@ -308,8 +313,7 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
             return (false, oldUserLp);
         }
 
-        // ---- [3] handle user reserved LP
-        // +/- reserved LP
+        // ---- [3] handle reserved LP
         if (oldReservedLp > newReservedLp) {
             _safeBurnLp(lpReserveAddress, oldReservedLp - newReservedLp);
             totalReservedLp -= (oldReservedLp - newReservedLp);
@@ -321,10 +325,11 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
 
         // ---- [4] handle user LP and delegation
         address holder = delegation[account];
-        // burn old lpToken amount from holder
-        _safeBurnLp(holder, oldUserLp);
-        // mint new lpToken amount to holder
-        lpToken.mint(holder, newUserLp);
+        if (oldUserLp > newUserLp) {
+            _safeBurnLp(holder, oldUserLp - newUserLp);
+        } else if (oldUserLp < newUserLp) {
+            lpToken.mint(holder, newUserLp - oldUserLp);
+        }
         // update user LP balance as new LP
         userLp[account] = newUserLp;
 
