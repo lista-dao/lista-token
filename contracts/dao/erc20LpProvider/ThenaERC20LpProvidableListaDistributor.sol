@@ -199,8 +199,6 @@ contract ThenaERC20LpProvidableListaDistributor is CommonListaDistributor, Reent
         // deposit to staking contract to earn reward
         IERC20(lpToken).safeApprove(staking, amount);
         IStaking(staking).deposit(lpToken, amount);
-
-        emit LPTokenDeposited(lpToken, _account, amount);
     }
 
     // withdraw lp from staking pool
@@ -214,8 +212,6 @@ contract ThenaERC20LpProvidableListaDistributor is CommonListaDistributor, Reent
         _updateStakeReward(_account, balance, supply);
 
         IStaking(staking).withdraw(_account, lpToken, amount);
-
-        emit LPTokenWithdrawn(address(lpToken), _account, amount);
     }
 
     // when account do write operation, update reward
