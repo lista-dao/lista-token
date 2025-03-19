@@ -19,6 +19,8 @@ interface IStableSwap {
   function remove_liquidity_imbalance(uint256[2] memory amounts, uint256 max_burn_amount) external;
 
   function get_virtual_price() external view returns (uint256);
+
+  function get_dy(uint256 i, uint256 j, uint256 dx) external view returns (uint256);
 }
 
 interface IStableSwapPoolInfo {
