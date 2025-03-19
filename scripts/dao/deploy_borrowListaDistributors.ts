@@ -2,8 +2,11 @@ import { deployProxy } from "../tasks";
 import hre from "hardhat";
 
 const collateralConfigs: any[] = [{
-  symbol: 'cemBTC BorrowListaDAODistributor',
-  lpToken: '0x4510aa2b3efd13bBFD78C9BfdE764F224ecc7f50',
+  symbol: 'USDF BorrowListaDAODistributor',
+  lpToken: '0x5A110fC00474038f6c02E89C707D638602EA44B5',
+}, {
+  symbol: 'asUSDF BorrowListaDAODistributor',
+  lpToken: '0x917AF46B3C3c6e1Bb7286B9F59637Fb7C65851Fb',
 }]
 
 async function main() {
@@ -36,8 +39,11 @@ async function main() {
     );
     console.log(`BorrowListaDistributor loop done, ${collateralConfig.symbol} deployed to: ${address}`);
 
-    // const contract = await hre.ethers.getContractAt("ListaVault", listaVault);
-    // await contract.registerDistributor(address);
+    if (hre.network.name === "bscTestnet") {
+      const vaultContract = await hre.ethers.getContractAt("ListaVault", listaVault);
+      await vaultContract.registerDistributor(address);
+      console.log(`BorrowListaDistributor register to ListaVault done`);
+    }
   }
 
   console.log(`BorrowListaDistributor all done`);
