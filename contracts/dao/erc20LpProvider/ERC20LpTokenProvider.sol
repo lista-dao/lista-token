@@ -302,7 +302,7 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
         uint256 userStakedTokenAmount = lpProvidableDistributor.getUserLpTotalValueInQuoteToken(account);
 
         // ---- [1] Estimated LP value
-        // Total LP(Lista + User + Reserve)
+        // Total LP(User + Reserve)
         uint256 newTotalLp = userStakedTokenAmount * exchangeRate / RATE_DENOMINATOR;
         // User's LP
         uint256 newUserLp = userStakedTokenAmount * userLpRate / RATE_DENOMINATOR;
@@ -373,7 +373,7 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
     }
 
     function setUserLpRate(uint128 _userLpRate) external onlyRole(MANAGER) {
-        require(_userLpRate <= 1e18 && _userLpRate < exchangeRate, "userLpRate invalid");
+        require(_userLpRate <= 1e18 && _userLpRate <= exchangeRate, "userLpRate invalid");
 
         userLpRate = _userLpRate;
         emit UserLpRateChanged(userLpRate);
