@@ -116,7 +116,7 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
         require(_token != address(0), "token is the zero address");
         require(_lpProvidableDistributor != address(0), "_lpProvidableDistributor is the zero address");
         require(_lpReserveAddress != address(0), "lpReserveAddress is the zero address");
-        require(_exchangeRate > 0, "exchangeRate invalid");
+        require(_exchangeRate > 0 && _exchangeRate >= userLpRate, "exchangeRate invalid");
         require(_userLpRate <= 1e18, "too big rate number");
 
         __Pausable_init();
@@ -330,6 +330,10 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
 
         // ---- [4] handle user LP and delegation
         address holder = delegation[account];
+        // account as the default delegatee if holder is not set
+        if(holder == address(0)) {
+            holder = account;
+        }
         if (oldUserLp > newUserLp) {
             _safeBurnLp(holder, oldUserLp - newUserLp);
         } else if (oldUserLp < newUserLp) {
