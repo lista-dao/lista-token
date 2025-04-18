@@ -276,7 +276,12 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
         // --- [2] get current delegatee
         address oldDelegatee = delegation[account];
         // burn all lpToken from old delegatee
-        if (oldDelegatee != holder && oldDelegatee != address(0)) {
+        // if delegatee is changed
+        if (oldDelegatee != holder) {
+            // handle zero-address(e.g. first deposit)
+            if (oldDelegatee == address(0)) {
+                oldDelegatee = account;
+            }
             _safeBurnLp(oldDelegatee, userLp[account]);
             // clear user's lpToken record
             userLp[account] = 0;
@@ -333,6 +338,8 @@ contract ERC20LpTokenProvider is IERC20TokenProvider,
         // account as the default delegatee if holder is not set
         if(holder == address(0)) {
             holder = account;
+            // handle zero-address
+            delegation[account] = holder;
         }
         if (oldUserLp > newUserLp) {
             _safeBurnLp(holder, oldUserLp - newUserLp);
