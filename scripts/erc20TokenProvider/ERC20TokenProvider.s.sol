@@ -20,11 +20,13 @@ contract DeployERC20LpTokenProviderScript is Script {
         console.log("Pauser: %s", pauser);
 
         // clisBNB
-        address lpToken = 0x3dC5a40119B85d5f2b06eEC86a6d36852bd9aB52;
+        address lpToken = 0x4b30fcAA7945fE9fDEFD2895aae539ba102Ed6F6;
         // slisBNB/BNB LP
-        address token = 0xbf6e4489C2242466533EACb42b584B1C02033148;
-        address lpProvidableDistributor = 0xca42be4dc67F7FF14CD5116DF807872a2E5A814F;
-        address lpReserveAddress = deployer;
+        address token = 0x3685502Ea3EA4175FB5cBB5344F74D2138A96708;
+        // Thena slisBNB/WBNB correlated
+        address lpProvidableDistributor = 0xFf5ed1E64aCA62c822B178FFa5C36B40c112Eb00;
+        // LP Reserve Address
+        address lpReserveAddress = 0xD57E5321e67607Fab38347D96394e0E58509C506;
         uint128 exchangeRate = 930000000000000000; // 0.93
         uint128 userLpRate = 900000000000000000; // 0.9
 
