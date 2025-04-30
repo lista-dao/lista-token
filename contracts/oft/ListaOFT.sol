@@ -1,56 +1,70 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "../interfaces/IERC2612.sol";
-import "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFT.sol";
-import "./TransferLimiter.sol";
-import "./PausableAlt.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@layerzerolabs/oft-evm-upgradeable/contracts/oft/OFTUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import "./TransferLimiter.sol";
 
-contract ListaOFT is TransferLimiter, OFT, IERC2612, PausableAlt {
-  // --- EIP 2612 Data ---
-  bytes32 public constant PERMIT_TYPE_HASH =
-  keccak256(
-    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
-  );
-  // version for EIP 712
-  string public constant EIP712_VERSION = "1";
-  // domain type hash for EIP 712
-  bytes32 public constant EIP712_DOMAIN =
-  keccak256(
-    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-  );
+contract ListaOFT is
+OFTUpgradeable,
+TransferLimiter,
+ERC20PermitUpgradeable,
+AccessControlUpgradeable,
+PausableUpgradeable,
+UUPSUpgradeable
+{
+  // --- Roles ---
+  // pause role
+  bytes32 public constant PAUSER = keccak256("PAUSER");
+  // manager role
+  bytes32 public constant MANAGER = keccak256("MANAGER");
 
-  // domain separator for EIP 712
-  bytes32 private DOMAIN_SEPARATOR;
-
-  // @dev Mapping from (owner) => (next valid nonce) for EIP-712 signatures.
-  mapping(address => uint256) private _nonces;
-
-  // --- Functions ---
-  constructor(
-    string memory _name,
-    string memory _symbol,
-    TransferLimit[] memory _transferLimitConfigs,
-    address _lzEndpoint,
-    address _owner
-  ) OFT(_name, _symbol, _lzEndpoint, _owner) {
-    bytes32 hashedName = keccak256(bytes(_name));
-    bytes32 hashedVersion = keccak256(bytes(EIP712_VERSION));
-    DOMAIN_SEPARATOR = keccak256(
-      abi.encode(
-        EIP712_DOMAIN,
-        hashedName,
-        hashedVersion,
-        block.chainid,
-        address(this)
-      )
-    );
-    _setTransferLimitConfigs(_transferLimitConfigs);
+  constructor(address _lzEndpoint) OFTUpgradeable(_lzEndpoint) {
+    _disableInitializers();
   }
 
-  //  --- Transfer Limiter functionality ---
+  /**
+   * @dev Initializes the ListaOFT
+   * @param _admin The address of the admin.
+   * @param _manager The address of the manager.
+   * @param _pauser The address of the pauser.
+   * @param _name The name of the token.
+   * @param _symbol The symbol of the token.
+   * @param _delegate The delegate capable of making OApp configurations inside of the endpoint.
+   */
+  function initialize(
+    address _admin,
+    address _manager,
+    address _pauser,
+    string memory _name,
+    string memory _symbol,
+    address _delegate
+  ) external initializer {
+    require(
+      _admin != address(0) &&
+      _manager != address(0) &&
+      _pauser != address(0) &&
+      _delegate != address(0), "zero address provided"
+    );
+    __OFT_init(_name, _symbol, _delegate);
+    __Ownable_init();
+    __AccessControl_init();
+    __Pausable_init();
+    __ERC20Permit_init(_name);
+    __UUPSUpgradeable_init();
 
+    _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+    _grantRole(MANAGER, _manager);
+    _grantRole(PAUSER, _pauser);
+  }
+
+  /* ============================
+   Transfer Limiter functionality
+  ============================ */
   /**
    * @dev Sets the transfer limit configurations based on TransferLimit array. Only callable by the owner or the rate limiter.
    * @param _transferLimitConfigs An array of TransferLimit structures defining the transfer limits.
@@ -93,63 +107,25 @@ contract ListaOFT is TransferLimiter, OFT, IERC2612, PausableAlt {
     return super._debit(_from, _amountLD, _minAmountLD, _dstEid);
   }
 
-  // --- EIP 2612 functionality ---
-  function permit(
-    address owner,
-    address spender,
-    uint256 amount,
-    uint256 deadline,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
-  ) external override {
-    require(block.timestamp <= deadline, "ERC20Permit: expired deadline");
-    bytes32 digest = keccak256(
-      abi.encodePacked(
-        "\x19\x01",
-        DOMAIN_SEPARATOR,
-        keccak256(
-          abi.encode(
-            PERMIT_TYPE_HASH,
-            owner,
-            spender,
-            amount,
-            _nonces[owner]++,
-            deadline
-          )
-        )
-      )
-    );
-    address recoveredAddress = ECDSA.recover(digest, v, r, s);
-    require(recoveredAddress == owner, "ERC20Permit: invalid signature");
-    _approve(owner, spender, amount);
+  /* ============================
+          Admin Functions
+  ============================ */
+  /**
+   * @dev Flips the pause state
+   */
+  function togglePause() external onlyRole(MANAGER) {
+    paused() ? _unpause() : _pause();
   }
 
   /**
-   * @dev Returns the current nonce for `owner`. This value must be
-     * included whenever a signature is generated for {permit}.
-     *
-     * Every successful call to {permit} increases ``owner``'s nonce by one. This
-     * prevents a signature from being used multiple times.
-     */
-  function nonces(address owner) external view override returns (uint256) {
-    return _nonces[owner];
+   * @dev pause the contract
+   */
+  function pause() external onlyRole(PAUSER) {
+    _pause();
   }
 
-  /**
-   * @dev Updates the domain separator with the latest chain id.
-     */
-  function updateDomainSeparator() external {
-    bytes32 hashedName = keccak256(bytes(name()));
-    bytes32 hashedVersion = keccak256(bytes(EIP712_VERSION));
-    DOMAIN_SEPARATOR = keccak256(
-      abi.encode(
-        EIP712_DOMAIN,
-        hashedName,
-        hashedVersion,
-        block.chainid,
-        address(this)
-      )
-    );
-  }
+  /* ============================
+         Internal Functions
+  ============================ */
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }

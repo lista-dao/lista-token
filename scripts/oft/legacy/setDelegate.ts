@@ -1,4 +1,5 @@
 import hre, { ethers } from "hardhat";
+// eslint-disable-next-line node/no-missing-import
 import { getChainByNetworkName } from "./utils";
 
 async function main() {
@@ -8,7 +9,7 @@ async function main() {
   const Contract = await ethers.getContractFactory(chain.contract);
   const contract = Contract.attach(chain.oft);
   // set multi sig
-  const tx = await contract.setDelegate(chain.owner);
+  const tx = await contract.setDelegate(chain.delegator);
   console.log("tx hash: ", tx.hash);
   await tx.wait(3);
   console.log(`Delegator is set for OFT at chain ${chain.network}`);

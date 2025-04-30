@@ -14,10 +14,18 @@ remappings=[
     "@openzeppelin/contracts-upgradeable=./node_modules/@openzeppelin/contracts-upgradeable",
     "@chainlink/contracts=./node_modules/@chainlink/contracts",
     "@layerzerolabs/lz-evm-protocol-v2/contracts=./node_modules/@layerzerolabs/lz-evm-protocol-v2/contracts",
-    "@layerzerolabs/lz-evm-messagelib-v2/contracts=./node_modules/@layerzerolabs/lz-evm-messagelib-v2/contracts",
     "@layerzerolabs/lz-evm-oapp-v2/contracts=./node_modules/@layerzerolabs/lz-evm-oapp-v2/contracts",
     "@layerzerolabs/lz-evm-v1-0.7/contracts=./node_modules/@layerzerolabs/lz-evm-v1-0.7/contracts",
     "solidity-bytes-utils/contracts=./node_modules/solidity-bytes-utils/contracts",
+    "@layerzerolabs/oapp-evm-upgradeable/=lib/devtools/packages/oapp-evm-upgradeable/",
+    "@layerzerolabs/oft-evm/=lib/devtools/packages/oft-evm/",
+    "@layerzerolabs/oft-evm-upgradeable/=lib/devtools/packages/oft-evm-upgradeable/",
+    "@layerzerolabs/oapp-evm/=lib/devtools/packages/oapp-evm/",
+    "@layerzerolabs/lz-evm-protocol-v2/=lib/layerzero-v2/packages/layerzero-v2/evm/protocol/",
+    "@layerzerolabs/test-devtools-evm-foundry/=lib/devtools/packages/test-devtools-evm-foundry/",
+    "@layerzerolabs/lz-evm-messagelib-v2/=lib/layerzero-v2/packages/layerzero-v2/evm/messagelib/",
+    "@layerzerolabs/lz-evm-oapp-v2/=lib/devtools/packages/oapp-evm/",
+    "@layerzerolabs/lz-evm-v1-0.7=lib/LayerZero-v1/"
 ]
 
 [rpc_endpoints]
