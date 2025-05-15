@@ -2,11 +2,8 @@ import { deployProxy } from "../tasks";
 import hre from "hardhat";
 
 const collateralConfigs: any[] = [{
-  symbol: 'USDF CollateralListaDistributor',
-  lpToken: '0x5A110fC00474038f6c02E89C707D638602EA44B5',
-}, {
-  symbol: 'asUSDF CollateralListaDistributor',
-  lpToken: '0x917AF46B3C3c6e1Bb7286B9F59637Fb7C65851Fb',
+  symbol: 'USD1 CollateralListaDistributor',
+  lpToken: '0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d',
 }]
 
 async function main() {
