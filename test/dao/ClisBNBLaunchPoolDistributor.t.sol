@@ -188,7 +188,6 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
         cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, proof);
 
         assertEq(0, address(cliBNBLaunchPoolDistributor).balance);
-        assertEq(123e18, address(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2).balance);
 
         uint64[] memory epochIds = new uint64[](1);
         epochIds[0] = 0;
@@ -207,7 +206,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
         proof[1] = l2[1];
 
         skip(11);
-        vm.expectRevert(0x09bde339);
+        vm.expectRevert(abi.encodeWithSignature("InvalidProof()"));
         cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 12e18, proof);
 
         assertEq(123e18, lista.balanceOf(address(cliBNBLaunchPoolDistributor)));

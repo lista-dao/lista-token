@@ -6,15 +6,15 @@ import {VeLista} from "../contracts/VeLista.sol";
 import {ListaToken} from "../contracts/ListaToken.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {VeListaDistributor} from "../contracts/VeListaDistributor.sol";
 import {MockERC20} from "../contracts/mock/MockERC20.sol";
 
 
 contract VeListaDistributorTest is Test {
-    VeLista public veLista = VeLista(0x51075B00313292db08f3450f91fCA53Db6Bd0D11);
-    ListaToken public lista = ListaToken(0x90b94D605E069569Adf33C0e73E26a83637c94B1);
-    ProxyAdmin public proxyAdmin = ProxyAdmin(0xc78f64Cd367bD7d2922088669463FCEE33f50b7c);
-    VeListaDistributor public distributor = VeListaDistributor(0x97976D0A346f6c195Dd41628717f59A3a874B86D);
+    VeLista public veLista;
+    ListaToken public lista;
+    VeListaDistributor public distributor;
     MockERC20 public token1;
     MockERC20 public token2;
 
@@ -30,8 +30,19 @@ contract VeListaDistributorTest is Test {
     address listaUser = 0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06;
 
     function setUp() public {
+
+        lista = new ListaToken(listaUser);
+
+        VeLista veListaImpl = new VeLista();
+        ERC1967Proxy veListaProxy = new ERC1967Proxy(
+            address(veListaImpl),
+            abi.encodeWithSelector(veListaImpl.initialize.selector, manager, manager, block.timestamp / 1 weeks * 1 weeks, address(lista), manager)
+        );
+        veLista = VeLista(address(veListaProxy));
+
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
+
         token1 = new MockERC20(manager, "token1", "token1");
         token2 = new MockERC20(manager, "token2", "token2");
 
@@ -41,10 +52,10 @@ contract VeListaDistributorTest is Test {
         vm.stopPrank();
 
         vm.startPrank(manager);
+        token1.setMinter(manager);
+        token2.setMinter(manager);
         token1.mint(manager, 1_000_000_000 ether);
         token2.mint(manager, 1_000_000_000 ether);
-        token1.approve(address(distributor), MAX_UINT);
-        token2.approve(address(distributor), MAX_UINT);
         vm.stopPrank();
 
         vm.prank(user1);
@@ -53,9 +64,20 @@ contract VeListaDistributorTest is Test {
         vm.prank(user2);
         lista.approve(address(veLista), MAX_UINT);
 
-        address impl = address(new VeListaDistributor());
+        VeListaDistributor veListaDistributorImpl = new VeListaDistributor();
         vm.prank(proxyAdminOwner);
-        proxyAdmin.upgrade(ITransparentUpgradeableProxy(address(distributor)), impl);
+
+        ERC1967Proxy distributorProxy = new ERC1967Proxy(
+          address(veListaDistributorImpl),
+          abi.encodeWithSelector(veListaDistributorImpl.initialize.selector, manager, manager, address(veLista))
+        );
+
+        distributor = VeListaDistributor(address(distributorProxy));
+
+        vm.startPrank(manager);
+        token1.approve(address(distributor), MAX_UINT);
+        token2.approve(address(distributor), MAX_UINT);
+        vm.stopPrank();
 
         skip(100 weeks);
     }
@@ -75,6 +97,10 @@ contract VeListaDistributorTest is Test {
     }
 
     function test_depositReward() public {
+        vm.startPrank(user1);
+        veLista.lock(1 ether, 52, true);
+        vm.stopPrank();
+
         VeListaDistributor.TokenAmount[] memory tokens = new VeListaDistributor.TokenAmount[](2);
         tokens[0].token = address(token1);
         tokens[0].amount = 100 ether;

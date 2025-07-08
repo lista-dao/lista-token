@@ -42,6 +42,7 @@ contract VeListaRewardsCourierTest is Test {
     // @dev grant BOT role to `bot`
     veListaRewardsCourier.grantRole(veListaRewardsCourier.BOT(), bot);
     veListaRewardsCourier.grantRole(veListaRewardsCourier.DEFAULT_ADMIN_ROLE(), multiSig);
+    veListaRewardsCourier.grantRole(veListaRewardsCourier.OPERATOR(), multiSig);
 
     // create rewards token array
     tokens.push(IVeListaDistributor.TokenAmount(address(lista), 11e18));
@@ -68,7 +69,7 @@ contract VeListaRewardsCourierTest is Test {
 
   function test_rechargeRewards() public {
     // mock timestamp ahead one week
-    vm.warp(veLista.startTime() + week * 1 weeks);
+    vm.warp(veLista.startTime() + uint256(week) * 1 weeks);
     // @dev Simulate the recharge
     vm.prank(multiSig);
     veListaRewardsCourier.rechargeRewards(week, tokens);
@@ -90,7 +91,7 @@ contract VeListaRewardsCourierTest is Test {
 
   function test_deliverRewards() public {
     // mock timestamp ahead one week
-    vm.warp(veLista.startTime() + (week + 1) * 1 weeks);
+    vm.warp(veLista.startTime() + (uint256(week) + 1) * 1 weeks);
 
     // recharge rewards first
     vm.prank(multiSig);
@@ -129,7 +130,7 @@ contract VeListaRewardsCourierTest is Test {
 
   function test_revoke_rewards() public {
     // mock timestamp ahead one week
-    vm.warp(veLista.startTime() + week * 1 weeks);
+    vm.warp(veLista.startTime() + uint256(week) * 1 weeks);
     vm.startPrank(multiSig);
     // @dev token recharged to VeListaRewardsCourier
     veListaRewardsCourier.rechargeRewards(week, tokens);
@@ -141,7 +142,7 @@ contract VeListaRewardsCourierTest is Test {
 
     // @dev someone tries to revoke rewards, it should fail
     vm.prank(makeAddr("someone"));
-    vm.expectRevert("AccessControl: account 0x69979820b003b34127eadba93bd51caac2f768db is missing role 0x0000000000000000000000000000000000000000000000000000000000000000");
+    vm.expectRevert("AccessControl: account 0x69979820b003b34127eadba93bd51caac2f768db is missing role 0x523a704056dcd17bcf83bed8b68c59416dac1119be77755efe3bde0a64e46e0c");
     veListaRewardsCourier.revokeRewards();
 
     // @dev multiSig revoke rewards

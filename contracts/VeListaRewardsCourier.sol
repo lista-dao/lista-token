@@ -31,6 +31,7 @@ contract VeListaRewardsCourier is Initializable, AccessControlUpgradeable {
 
   // --- roles
   bytes32 public constant BOT = keccak256("BOT");
+  bytes32 public constant OPERATOR = keccak256("OPERATOR");
 
   /**
     * @dev initialize the contract
@@ -54,19 +55,20 @@ contract VeListaRewardsCourier is Initializable, AccessControlUpgradeable {
     * @param _week rewards week
     * @param _tokens rewards token info
     */
-  function rechargeRewards(uint16 _week, IVeListaDistributor.TokenAmount[] memory _tokens) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function rechargeRewards(uint16 _week, IVeListaDistributor.TokenAmount[] memory _tokens) external onlyRole(OPERATOR) {
     require(rewardsDeliveredForWeek, "Pending rewards delivery for the week");
     require(_tokens.length > 0, "No rewards to recharge");
     // mark rewards as not delivered
     rewardsDeliveredForWeek = false;
     week = _week;
-    tokens = _tokens;
+    delete tokens;
     // moves token from sender to this contract
     for (uint8 i = 0; i < _tokens.length; ++i) {
       // validate if token is registered and non-zero amount
       require(veListaDistributor.rewardTokenIndexes(_tokens[i].token) > 0, "Token is not registered");
       require(_tokens[i].amount > 0, "Invalid token amount");
       IERC20(_tokens[i].token).safeTransferFrom(msg.sender, address(this), _tokens[i].amount);
+      tokens.push(_tokens[i]);
     }
     emit RewardsRecharged(_week, _tokens);
   }
@@ -90,7 +92,7 @@ contract VeListaRewardsCourier is Initializable, AccessControlUpgradeable {
     * @dev revoke rewards in-case any need before rewards delivered to veListaDistributor
     *      extract rewards and send it back to the original sender
     */
-  function revokeRewards() external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function revokeRewards() external onlyRole(OPERATOR) {
     require(!rewardsDeliveredForWeek, "Rewards already delivered for the week");
     rewardsDeliveredForWeek = true;
     for (uint256 i = 0; i < tokens.length; i++) {

@@ -5,12 +5,11 @@ import {Test, console} from "forge-std/Test.sol";
 import {VeLista} from "../contracts/VeLista.sol";
 import {ListaToken} from "../contracts/ListaToken.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract VeListaTest is Test {
-    VeLista public veLista = VeLista(0x51075B00313292db08f3450f91fCA53Db6Bd0D11);
-    ListaToken public lista = ListaToken(0x90b94D605E069569Adf33C0e73E26a83637c94B1);
-    ProxyAdmin public proxyAdmin = ProxyAdmin(0xc78f64Cd367bD7d2922088669463FCEE33f50b7c);
+    VeLista public veLista;
+    ListaToken public lista;
     uint256 MAX_UINT = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
 
     address manager = 0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232;
@@ -22,6 +21,16 @@ contract VeListaTest is Test {
     address listaUser = 0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06;
 
     function setUp() public {
+
+        lista = new ListaToken(listaUser);
+
+        VeLista veListaImpl = new VeLista();
+        ERC1967Proxy veListaProxy = new ERC1967Proxy(
+            address(veListaImpl),
+            abi.encodeWithSelector(veListaImpl.initialize.selector, manager, manager, block.timestamp / 1 weeks * 1 weeks, address(lista), manager)
+        );
+        veLista = VeLista(address(veListaProxy));
+
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
 
@@ -30,9 +39,6 @@ contract VeListaTest is Test {
         lista.transfer(user2, 20000 ether);
         vm.stopPrank();
 
-        address impl = address(new VeLista());
-        vm.prank(proxyAdminOwner);
-        proxyAdmin.upgrade(ITransparentUpgradeableProxy(address(veLista)), impl);
         skip(100 weeks);
     }
 

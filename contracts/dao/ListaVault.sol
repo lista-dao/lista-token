@@ -55,6 +55,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     // manager role
     bytes32 public constant MANAGER = keccak256("MANAGER");
     bytes32 public constant PAUSER = keccak256("PAUSER");
+    bytes32 public constant OPERATOR = keccak256("OPERATOR");
 
     // paused flag
     bool public paused;
@@ -112,7 +113,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @param amount amount of token
      * @param week week number
      */
-    function depositRewards(uint256 amount, uint16 week) onlyRole(MANAGER) external {
+    function depositRewards(uint256 amount, uint16 week) onlyRole(OPERATOR) external {
         require(amount > 0, "Amount must be greater than 0");
         require(week > veLista.getCurrentWeek(), "week must be greater than current week");
 
@@ -128,7 +129,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @param ids distributor ids
      * @param percent distributor percent
      */
-    function setWeeklyDistributorPercent(uint16 week, uint16[] memory ids, uint256[] memory percent) onlyRole(MANAGER) external {
+    function setWeeklyDistributorPercent(uint16 week, uint16[] memory ids, uint256[] memory percent) onlyRole(OPERATOR) external {
         require(week > veLista.getCurrentWeek(), "week must be greater than current week");
         require(ids.length > 0 && ids.length == percent.length, "ids and percent length mismatch");
         uint256 totalPercent;
