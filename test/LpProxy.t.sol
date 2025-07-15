@@ -46,7 +46,7 @@ contract LpProxyTest is Test {
     uint256 MAX_UINT256 = type(uint256).max;
 
     function setUp() public {
-        vm.createSelectFork("bsc-main");
+        vm.createSelectFork("bsc");
 
         deal(user1, 100 ether);
         deal(address(token0), user1, 10001 ether);

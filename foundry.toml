@@ -21,5 +21,9 @@ remappings=[
 ]
 
 [rpc_endpoints]
-bsc-test = "https://data-seed-prebsc-1-s1.binance.org:8545/"
-bsc-main = "https://bsc-dataseed.binance.org/"
+bsc-test = "${BSC_TESTNET_RPC_URL}"
+bsc = "${BSC_RPC_URL}"
+
+[etherscan]
+bsc-test = { key = "${BSCSCAN_API_KEY}" }
+bsc = { key = "${BSCSCAN_API_KEY}" }

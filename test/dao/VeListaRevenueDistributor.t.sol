@@ -19,7 +19,7 @@ contract VeListaRevenueDistributortTest is Test {
 
 
     function setUp() public {
-        vm.createSelectFork("bsc-main");
+        vm.createSelectFork("bsc");
 
         VeListaRevenueDistributor veListaRevenueDistributorImpl = new VeListaRevenueDistributor();
 
