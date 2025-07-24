@@ -16,4 +16,13 @@ interface IBuyback {
   }
 
   function buyback(address _1inchRouter, bytes calldata _data) external;
+
+  function buyback(
+    address router,
+    address tokenIn,
+    address tokenOut,
+    uint256 amountIn,
+    uint256 amountOutMin,
+    bytes calldata swapData
+  ) external;
 }
