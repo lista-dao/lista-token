@@ -23,7 +23,7 @@ contract LpProxyTest is Test {
 
     address owner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
 
-    address proxyAdminOwner = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
+    address proxyAdminOwner = 0x07D274a68393E8b8a2CCf19A2ce4Ba3518735253;
     ProxyAdmin proxyAdmin = ProxyAdmin(0x87fD7d3D119C1e11cEf73f20e227e152ce35F103);
     ProxyAdmin listaVaultProxyAdmin = ProxyAdmin(0xd6cd036133cbf6a275B7700fF7B41887A9d5FCAe);
 
@@ -46,7 +46,7 @@ contract LpProxyTest is Test {
     uint256 MAX_UINT256 = type(uint256).max;
 
     function setUp() public {
-        vm.createSelectFork("bsc-main");
+        vm.createSelectFork("bsc");
 
         deal(user1, 100 ether);
         deal(address(token0), user1, 10001 ether);

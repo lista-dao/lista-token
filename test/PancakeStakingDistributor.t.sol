@@ -22,7 +22,7 @@ contract PancakeStakingDistributorTest is Test {
 
   address owner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
 
-  address proxyAdminOwner = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
+  address proxyAdminOwner = 0x07D274a68393E8b8a2CCf19A2ce4Ba3518735253;
   ProxyAdmin proxyAdmin = ProxyAdmin(0x87fD7d3D119C1e11cEf73f20e227e152ce35F103);
 
   address user1 = address(0x1111);
@@ -44,7 +44,7 @@ contract PancakeStakingDistributorTest is Test {
   uint256 MAX_UINT256 = type(uint256).max;
 
   function setUp() public {
-    vm.createSelectFork("bsc-main");
+    vm.createSelectFork("bsc");
 
     deal(user1, 100 ether);
     deal(address(token0), user1, 10001 ether);
@@ -156,7 +156,7 @@ contract PancakeStakingDistributorTest is Test {
     PancakeStaking pancakeStaking = PancakeStaking(0xE31f0BcE1F825A8e27f2Cc30B54af19DA2978f10);
 
     ProxyAdmin proxyAdminPancakeStaking = ProxyAdmin(0x9b100B82F3a4E98397ac80Ea49E5e58c78DaaeC6);
-    address proxyAdminPancakeStakingOwner = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
+    address proxyAdminPancakeStakingOwner = 0x07D274a68393E8b8a2CCf19A2ce4Ba3518735253;
 
     PancakeStaking pancakeStakingNewImpl = new PancakeStaking();
     vm.startPrank(proxyAdminPancakeStakingOwner);

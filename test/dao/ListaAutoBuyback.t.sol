@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import "../../../contracts/dao/ListaAutoBuyback.sol";
+import "../../contracts/dao/ListaAutoBuyback.sol";
 
 contract ListaAutoBuyBackTest is Test {
     address admin = address(0x1A11AA);

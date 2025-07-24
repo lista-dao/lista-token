@@ -10,6 +10,7 @@ import "../contracts/dao/ERC20LpListaDistributor.sol";
 import "../contracts/dao/ListaVault.sol";
 import "../contracts/mock/MockERC20.sol";
 import "../contracts/dao/interfaces/IDistributor.sol";
+import {MockStaking} from "./mock/MockStaking.sol";
 
 contract ERC20LpListaDistributorTest is Test {
     VeLista public veLista = VeLista(0x51075B00313292db08f3450f91fCA53Db6Bd0D11);
@@ -19,6 +20,8 @@ contract ERC20LpListaDistributorTest is Test {
     ListaVault listaVault;
     MockERC20 lpToken;
     ERC20LpListaDistributor erc20Distributor;
+    MockStaking mockStaking;
+    MockERC20 rewardToken;
 
     address manager = 0xeA71Ec772B5dd5aF1D15E31341d6705f9CB86232;
     address user1 = 0x5a97ba0b0B18a618966303371374EBad4960B7D9;
@@ -27,11 +30,15 @@ contract ERC20LpListaDistributorTest is Test {
     address proxyAdminOwner = 0x6616EF47F4d997137a04C2AD7FF8e5c228dA4f06;
 
     function setUp() public {
+        vm.createSelectFork("https://bsc-testnet-dataseed.bnbchain.org");
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
 
+        mockStaking = new MockStaking();
+
         vm.startPrank(manager);
         lpToken = new MockERC20(manager, "LisUSD-BNB lp", "LisUSD-BNB lp");
+        lpToken.setMinter(manager);
         lpToken.mint(manager, 1_000_000_000 ether);
         vm.stopPrank();
 
@@ -58,6 +65,14 @@ contract ERC20LpListaDistributorTest is Test {
 
         vm.prank(user2);
         lpToken.approve(address(erc20Distributor), MAX_UINT);
+
+        vm.startPrank(manager);
+        listaVault.grantRole(listaVault.OPERATOR(), manager);
+        erc20Distributor.setStaking(address(mockStaking));
+        rewardToken = new MockERC20(manager, "Reward Token", "RWD");
+        mockStaking.registerPool(address(lpToken), address(rewardToken), address(0), address(erc20Distributor));
+        vm.stopPrank();
+
     }
 
     function test_depositRewards() public {
@@ -91,7 +106,7 @@ contract ERC20LpListaDistributorTest is Test {
         ids[0] = id;
         uint256[] memory percents = new uint256[](1);
         percents[0] = 1e18;
-        //listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
+        listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
 
         lista.approve(address(listaVault), MAX_UINT);
         listaVault.depositRewards(100 ether, currentWeek+1);
@@ -151,7 +166,7 @@ contract ERC20LpListaDistributorTest is Test {
         ids[0] = id;
         uint256[] memory percents = new uint256[](1);
         percents[0] = 1e18;
-        //listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
+        listaVault.setWeeklyDistributorPercent(currentWeek+1, ids, percents);
 
         vm.stopPrank();
 
