@@ -108,7 +108,7 @@ contract VeListaRewardsCourierV2Test is Test {
         vm.warp(rewardWeekTimestamp + 1 weeks);
         vm.prank(bot);
         veListaRewardsCourierV2.deliverRewards();
-        assertEq(veListaRewardsCourierV2.rewardsDeliveredForWeek(rewardWeek - 1), true);
+        assertEq(veListaRewardsCourierV2.rewardsDeliveredForWeek(veLista.getCurrentWeek() - 1), true);
 
         // @dev deliver once again, it should fail
         vm.prank(bot);

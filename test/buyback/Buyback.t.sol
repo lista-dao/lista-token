@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import "../../contracts/buyback/Buyback.sol";
+import "../interfaces/IPancakeRouter.sol";
 
 contract BuybackTest is Test {
   /**
@@ -22,6 +23,8 @@ contract BuybackTest is Test {
   address tokenIn = 0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5; // lisUSD
   address oneInchNativeToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
   address tokenOut = 0x55d398326f99059fF775485246999027B3197955; // USDT
+  address pancakeRouter = 0x13f4EA83D0bd40E75C8222255bc855a974568Dd4;
+  address WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c; // WBNB
 
   Buyback buyback;
   address buybackImpl;
@@ -125,7 +128,7 @@ contract BuybackTest is Test {
   function test_invalid_1Inch_parameters() public {
     vm.startPrank(bot);
 
-    vm.expectRevert("Invalid 1Inch router");
+    vm.expectRevert("router not whitelisted");
     buyback.buyback(bot, "0x");
 
     vm.expectRevert("Invalid 1Inch function selector");
@@ -171,27 +174,27 @@ contract BuybackTest is Test {
   // test change oneInch router whitelist
   function test_change_oneInch_router_whitelist() public {
     vm.startPrank(manager);
-    vm.expectRevert("Invalid 1Inch router");
-    buyback.add1InchRouterWhitelist(address(0));
+    vm.expectRevert("Invalid router address");
+    buyback.setRouterWhitelist(address(0), true);
 
-    vm.expectRevert("Already whitelisted");
-    buyback.add1InchRouterWhitelist(oneInchRouter);
+    vm.expectRevert("whitelist same status");
+    buyback.setRouterWhitelist(oneInchRouter, true);
 
     address oneInchRouter2 = makeAddr("1InchRouter2");
-    buyback.add1InchRouterWhitelist(oneInchRouter2);
-    assertTrue(buyback.oneInchRouterWhitelist(oneInchRouter2));
+    buyback.setRouterWhitelist(oneInchRouter2, true);
+    assertTrue(buyback.routerWhitelist(oneInchRouter2));
 
-    buyback.remove1InchRouterWhitelist(oneInchRouter2);
-    assertFalse(buyback.oneInchRouterWhitelist(oneInchRouter2));
+    buyback.setRouterWhitelist(oneInchRouter2, false);
+    assertFalse(buyback.routerWhitelist(oneInchRouter2));
     vm.stopPrank();
 
     // only manager can change oneInch router whitelist
     vm.startPrank(admin);
     vm.expectRevert();
-    buyback.add1InchRouterWhitelist(oneInchRouter2);
+    buyback.setRouterWhitelist(oneInchRouter2, false);
 
     vm.expectRevert();
-    buyback.remove1InchRouterWhitelist(oneInchRouter);
+    buyback.setRouterWhitelist(oneInchRouter, true);
     vm.stopPrank();
   }
 
@@ -300,5 +303,59 @@ contract BuybackTest is Test {
       result[i] = data[start + i];
     }
     return result;
+  }
+
+  function test_swapRouterNotInWhiteList() public {
+    vm.startPrank(bot);
+    vm.expectRevert("router not whitelisted");
+    buyback.buyback(pancakeRouter, tokenIn, tokenOut, 1 ether, 0, "");
+    vm.stopPrank();
+  }
+
+  function test_swapTokenNotInWhiteList() public {
+    vm.startPrank(bot);
+    vm.expectRevert("token not whitelisted");
+    buyback.buyback(oneInchRouter, address(0), tokenOut, 1 ether, 0, "");
+
+    vm.expectRevert("token not whitelisted");
+    buyback.buyback(oneInchRouter, tokenIn, tokenIn, 1 ether, 0, "");
+    vm.stopPrank();
+  }
+
+  function test_swapPancakeRouterERC20() public {
+    vm.startPrank(manager);
+    buyback.setRouterWhitelist(pancakeRouter, true);
+    vm.stopPrank();
+
+    IPancakeRouter.ExactInputParams memory params = IPancakeRouter.ExactInputParams({
+      path: abi.encodePacked(tokenIn, uint24(500), tokenOut),
+      recipient: buyback.receiver(),
+      amountIn: 1 ether,
+      amountOutMinimum: 0
+    });
+    bytes memory data = abi.encodeWithSelector(IPancakeRouter.exactInput.selector, params);
+
+    vm.startPrank(bot);
+    buyback.buyback(pancakeRouter, tokenIn, tokenOut, 1 ether, 0, data);
+    vm.stopPrank();
+  }
+
+  function test_swapPancakeRouterNative() public {
+    vm.deal(address(buyback), 1 ether);
+    vm.startPrank(manager);
+    buyback.setRouterWhitelist(pancakeRouter, true);
+    vm.stopPrank();
+
+    IPancakeRouter.ExactInputParams memory params = IPancakeRouter.ExactInputParams({
+      path: abi.encodePacked(WBNB, uint24(500), tokenOut),
+      recipient: buyback.receiver(),
+      amountIn: 1 ether,
+      amountOutMinimum: 0
+    });
+    bytes memory data = abi.encodeWithSelector(IPancakeRouter.exactInput.selector, params);
+
+    vm.startPrank(bot);
+    buyback.buyback(pancakeRouter, buyback.SWAP_NATIVE_TOKEN_ADDRESS(), tokenOut, 1 ether, 0, data);
+    vm.stopPrank();
   }
 }
