@@ -665,11 +665,6 @@
   resolved "https://registry.npmjs.org/@layerzerolabs/lz-evm-v1-0.7/-/lz-evm-v1-0.7-2.3.29.tgz"
   integrity sha512-Vsqk0VBih1GTAzmfiwBo/MfU9qHn8x5E3OiLhZoi7cCIDmqF3v2gCldcSrMdUdb9k/TT2zifL4lnxVU2rO+Zkw==
 
-"@layerzerolabs/toolbox-foundry@^0.1.5":
-  version "0.1.7"
-  resolved "https://registry.npmjs.org/@layerzerolabs/toolbox-foundry/-/toolbox-foundry-0.1.7.tgz"
-  integrity sha512-vVFaOADxcXwHYSuHqQ+n7jpUzJAqUO9mH+S82EmDReiN13RKTt1rCj6JEu1JcHj3TlujbuyGtrX7fxZAmOC6Hg==
-
 "@ljharb/resumer@~0.0.1":
   version "0.0.1"
   resolved "https://registry.npmjs.org/@ljharb/resumer/-/resumer-0.0.1.tgz"

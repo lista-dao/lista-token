@@ -66,7 +66,6 @@
     "@layerzerolabs/lz-evm-messagelib-v2": "^2.3.8",
     "@layerzerolabs/lz-evm-protocol-v2": "^2.3.8",
     "@layerzerolabs/lz-evm-v1-0.7": "^2.3.19",
-    "@layerzerolabs/toolbox-foundry": "^0.1.5",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
