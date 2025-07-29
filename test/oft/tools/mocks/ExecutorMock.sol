@@ -11,7 +11,7 @@ import { IExecutorFeeLib } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/i
 // @dev oz4/5 breaking change... path
 import { WorkerMock as Worker } from "./WorkerMock.sol";
 // @dev oz4/5 breaking change... upgradeable reentrancy
-import { ReentrancyGuard } from "@openzeppelin/contracts/Security/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract ExecutorMock is Worker, ReentrancyGuard, IExecutor {
     using PacketV1Codec for bytes;
