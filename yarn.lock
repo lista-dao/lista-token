@@ -4069,10 +4069,6 @@ draft-js@^0.10.5:
     immutable "~3.7.4"
     object-assign "^4.1.0"
 
-"ds-test@github:dapphub/ds-test":
-  version "1.0.0"
-  resolved "git+ssh://git@github.com/dapphub/ds-test.git#e282159d5170298eb2455a6c05280ab5a73a4ef0"
-
 duplexer3@^0.1.4:
   version "0.1.5"
   resolved "https://registry.npmjs.org/duplexer3/-/duplexer3-0.1.5.tgz"
@@ -5392,11 +5388,6 @@ forever-agent@~0.6.1:
   version "0.6.1"
   resolved "https://registry.npmjs.org/forever-agent/-/forever-agent-0.6.1.tgz"
   integrity sha512-j0KLYPhm6zeac4lz3oJ3o65qvgQCcPubiyotZrXqEaG4hNagNYO8qdlUrX5vwqv9ohqeT/Z3j6+yW067yWWdUw==
-
-forge-std@^1.1.2:
-  version "1.1.2"
-  resolved "https://registry.npmjs.org/forge-std/-/forge-std-1.1.2.tgz"
-  integrity sha512-Wfb0iAS9PcfjMKtGpWQw9mXzJxrWD62kJCUqqLcyuI0+VRtJ3j20XembjF3kS20qELYdXft1vD/SPFVWVKMFOw==
 
 form-data-encoder@1.7.1:
   version "1.7.1"
@@ -9848,14 +9839,6 @@ solidity-ast@^0.4.51:
   integrity sha512-qeEU/r/K+V5lrAw8iswf2/yfWAnSGs3WKPHI+zAFKFjX0dIBVXEU/swQ8eJQYHf6PJWUZFO2uWV4V1wEOkeQbA==
   dependencies:
     array.prototype.findlast "^1.2.2"
-
-solidity-bytes-utils@^0.8.2:
-  version "0.8.2"
-  resolved "https://registry.npmjs.org/solidity-bytes-utils/-/solidity-bytes-utils-0.8.2.tgz"
-  integrity sha512-cqXPYAV2auhpdKSTPuqji0CwpSceZDu95CzqSM/9tDJ2MoMaMsdHTpOIWtVw31BIqqGPNmIChCswzbw0tHaMTw==
-  dependencies:
-    ds-test "github:dapphub/ds-test"
-    forge-std "^1.1.2"
 
 solidity-comments-extractor@^0.0.8:
   version "0.0.8"
