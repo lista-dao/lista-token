@@ -168,7 +168,7 @@ contract Buyback is
     uint256 amountIn,
     uint256 amountOutMin,
     bytes calldata swapData
-  ) external onlyRole(BOT) {
+  ) external onlyRole(BOT) nonReentrant whenNotPaused {
     require(tokenInWhitelist[_tokenIn], "token not whitelisted");
     require(tokenOut == _tokenOut, "token not whitelisted");
     require(routerWhitelist[router], "router not whitelisted");
@@ -182,6 +182,10 @@ contract Buyback is
     }
     (bool success, ) = router.call{ value: isNativeTokenIn ? amountIn : 0 }(swapData);
     require(success, "swap failed");
+
+    if (!isNativeTokenIn) {
+      IERC20(_tokenIn).safeApprove(router, 0);
+    }
 
     uint256 actualAmountIn = beforeTokenIn - _getTokenBalance(_tokenIn, address(this));
     uint256 actualAmountOut = _getTokenBalance(_tokenOut, receiver) - beforeTokenOut;
@@ -211,7 +215,7 @@ contract Buyback is
     require(_router != address(0), "Invalid router address");
     require(routerWhitelist[_router] != status, "whitelist same status");
     routerWhitelist[_router] = status;
-    emit RouterChanged(_router, true);
+    emit RouterChanged(_router, status);
   }
 
   /**
