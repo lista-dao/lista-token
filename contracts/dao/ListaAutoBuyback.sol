@@ -15,8 +15,17 @@ import "../buyback/library/RevertReasonParser.sol";
   * @dev result of swap will be sent to receiver address to distribute to users
   */
 contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
-
     using SafeERC20 for IERC20;
+
+    struct SwapDescription {
+        address srcToken;
+        address dstToken;
+        address payable srcReceiver;
+        address payable dstReceiver;
+        uint256 amount;
+        uint256 minReturnAmount;
+        uint256 flags;
+    }
 
     event BoughtBack(address indexed tokenIn, uint256 amountIn, uint256 amountOut);
     event BoughtBack(
@@ -93,6 +102,14 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         require(_amountIn > 0, "amountIn is zero");
         require(routerWhitelist[_1inchRouter], "router not whitelisted");
         require(_getFunctionSelector(_data) == SWAP_FUNCTION_SELECTOR, "invalid function selector of _data");
+        require(tokenWhitelist[_tokenIn], "token in not whitelisted");
+        (, SwapDescription memory swapDesc, ) = abi.decode(_data[4:], (address, SwapDescription, bytes));
+
+        require(_tokenIn == swapDesc.srcToken, "Invalid swap input token");
+        require(tokenWhitelist[swapDesc.dstToken], "token out not whitelisted");
+        require(address(swapDesc.dstReceiver) == defaultReceiver, "Invalid receiver");
+        require(swapDesc.amount > 0, "Invalid swap input amount");
+
         require(_extractDstReceiver(_data) == defaultReceiver, "invalid dst receiver of _data");
         require(IERC20(_tokenIn).balanceOf(address(this)) >= _amountIn, "insufficient balance");
         // Approves the 1inch router contract to spend the specified amount of _tokenIn
@@ -106,6 +123,7 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         }
 
         (uint256 amountOut,) = abi.decode(result, (uint256, uint256));
+        require(amountOut >= swapDesc.minReturnAmount, "insufficient output amount");
         uint256 today = block.timestamp / DAY * DAY;
         dailyBought[today] = dailyBought[today] + amountOut;
 
@@ -113,41 +131,44 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
     }
 
     /// @dev buy back tokens using router
-    /// @param router The address of the router.
-    /// @param tokenIn The address of the input token.
-    /// @param tokenOut The address of the output token.
-    /// @param amountIn The amount to sell.
-    /// @param amountOutMin The minimum amount to receive.
-    /// @param swapData The swap data.
+    /// @param _router The address of the router.
+    /// @param _tokenIn The address of the input token.
+    /// @param _tokenOut The address of the output token.
+    /// @param _amountIn The amount to sell.
+    /// @param _amountOutMin The minimum amount to receive.
+    /// @param _swapData The swap data.
     function buyback(
-        address router,
-        address tokenIn,
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        bytes calldata swapData
+        address _router,
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        bytes calldata _swapData
     ) external onlyRole(BOT) {
-        require(tokenWhitelist[tokenIn], "token not whitelisted");
-        require(tokenWhitelist[tokenOut], "token not whitelisted");
-        require(routerWhitelist[router], "router not whitelisted");
+        require(tokenWhitelist[_tokenIn], "token not whitelisted");
+        require(tokenWhitelist[_tokenOut], "token not whitelisted");
+        require(routerWhitelist[_router], "router not whitelisted");
 
-        uint256 beforeTokenIn = _getTokenBalance(tokenIn, address(this));
-        uint256 beforeTokenOut = _getTokenBalance(tokenOut, defaultReceiver);
+        uint256 beforeTokenIn = _getTokenBalance(_tokenIn, address(this));
+        uint256 beforeTokenOut = _getTokenBalance(_tokenOut, defaultReceiver);
 
-        bool isNativeTokenIn = (tokenIn == SWAP_NATIVE_TOKEN_ADDRESS);
+        bool isNativeTokenIn = (_tokenIn == SWAP_NATIVE_TOKEN_ADDRESS);
         if (!isNativeTokenIn) {
-            IERC20(tokenIn).safeApprove(router, amountIn);
+            IERC20(_tokenIn).safeApprove(_router, _amountIn);
         }
-        (bool success, ) = router.call{value: isNativeTokenIn ? amountIn : 0}(swapData);
+        (bool success, ) = _router.call{value: isNativeTokenIn ? _amountIn : 0}(_swapData);
         require(success, "swap failed");
+        if (!isNativeTokenIn) {
+            IERC20(_tokenIn).safeApprove(_router, 0);
+        }
 
-        uint256 actualAmountIn = beforeTokenIn - _getTokenBalance(tokenIn, address(this));
-        uint256 actualAmountOut = _getTokenBalance(tokenOut, defaultReceiver) - beforeTokenOut;
+        uint256 actualAmountIn = beforeTokenIn - _getTokenBalance(_tokenIn, address(this));
+        uint256 actualAmountOut = _getTokenBalance(_tokenOut, defaultReceiver) - beforeTokenOut;
 
-        require(actualAmountIn <= amountIn, "exceed amount in");
-        require(actualAmountOut >= amountOutMin, "not enough profit");
+        require(actualAmountIn <= _amountIn, "exceed amount in");
+        require(actualAmountOut >= _amountOutMin, "not enough profit");
 
-        emit BoughtBack(router, tokenIn, tokenOut, actualAmountIn, actualAmountOut);
+        emit BoughtBack(_router, _tokenIn, _tokenOut, actualAmountIn, actualAmountOut);
     }
 
     function adminTransfer(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -175,7 +196,7 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         require(_router != address(0), "Invalid router address");
         require(routerWhitelist[_router] != status, "whitelist same status");
         routerWhitelist[_router] = status;
-        emit RouterChanged(_router, true);
+        emit RouterChanged(_router, status);
     }
 
     /// @dev sets the token whitelist.
