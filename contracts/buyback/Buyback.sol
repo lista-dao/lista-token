@@ -155,45 +155,45 @@ contract Buyback is
   }
 
   /// @dev buy back tokens using router
-  /// @param router The address of the router.
+  /// @param _router The address of the router.
   /// @param _tokenIn The address of the input token.
   /// @param _tokenOut The address of the output token.
-  /// @param amountIn The amount to sell.
-  /// @param amountOutMin The minimum amount to receive.
-  /// @param swapData The swap data.
+  /// @param _amountIn The amount to sell.
+  /// @param _amountOutMin The minimum amount to receive.
+  /// @param _swapData The swap data.
   function buyback(
-    address router,
+    address _router,
     address _tokenIn,
     address _tokenOut,
-    uint256 amountIn,
-    uint256 amountOutMin,
-    bytes calldata swapData
+    uint256 _amountIn,
+    uint256 _amountOutMin,
+    bytes calldata _swapData
   ) external onlyRole(BOT) nonReentrant whenNotPaused {
     require(tokenInWhitelist[_tokenIn], "token not whitelisted");
     require(tokenOut == _tokenOut, "token not whitelisted");
-    require(routerWhitelist[router], "router not whitelisted");
+    require(routerWhitelist[_router], "router not whitelisted");
 
     uint256 beforeTokenIn = _getTokenBalance(_tokenIn, address(this));
     uint256 beforeTokenOut = _getTokenBalance(_tokenOut, receiver);
 
     bool isNativeTokenIn = (_tokenIn == SWAP_NATIVE_TOKEN_ADDRESS);
     if (!isNativeTokenIn) {
-      IERC20(_tokenIn).safeApprove(router, amountIn);
+      IERC20(_tokenIn).safeApprove(_router, _amountIn);
     }
-    (bool success, ) = router.call{ value: isNativeTokenIn ? amountIn : 0 }(swapData);
+    (bool success, ) = _router.call{ value: isNativeTokenIn ? _amountIn : 0 }(_swapData);
     require(success, "swap failed");
 
     if (!isNativeTokenIn) {
-      IERC20(_tokenIn).safeApprove(router, 0);
+      IERC20(_tokenIn).safeApprove(_router, 0);
     }
 
     uint256 actualAmountIn = beforeTokenIn - _getTokenBalance(_tokenIn, address(this));
     uint256 actualAmountOut = _getTokenBalance(_tokenOut, receiver) - beforeTokenOut;
 
-    require(actualAmountIn <= amountIn, "exceed amount in");
-    require(actualAmountOut >= amountOutMin, "not enough profit");
+    require(actualAmountIn <= _amountIn, "exceed amount in");
+    require(actualAmountOut >= _amountOutMin, "not enough profit");
 
-    emit BoughtBack(router, _tokenIn, _tokenOut, actualAmountIn, actualAmountOut);
+    emit BoughtBack(_router, _tokenIn, _tokenOut, actualAmountIn, actualAmountOut);
   }
 
   /**
