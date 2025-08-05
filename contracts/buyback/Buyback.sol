@@ -174,7 +174,7 @@ contract Buyback is
     require(routerWhitelist[_router], "router not whitelisted");
 
     uint256 beforeTokenIn = _getTokenBalance(_tokenIn, address(this));
-    uint256 beforeTokenOut = _getTokenBalance(_tokenOut, receiver);
+    uint256 beforeTokenOut = _getTokenBalance(_tokenOut, address(this));
 
     bool isNativeTokenIn = (_tokenIn == SWAP_NATIVE_TOKEN_ADDRESS);
     if (!isNativeTokenIn) {
@@ -188,10 +188,12 @@ contract Buyback is
     }
 
     uint256 actualAmountIn = beforeTokenIn - _getTokenBalance(_tokenIn, address(this));
-    uint256 actualAmountOut = _getTokenBalance(_tokenOut, receiver) - beforeTokenOut;
+    uint256 actualAmountOut = _getTokenBalance(_tokenOut, address(this)) - beforeTokenOut;
 
     require(actualAmountIn <= _amountIn, "exceed amount in");
     require(actualAmountOut >= _amountOutMin, "not enough profit");
+
+    IERC20(_tokenOut).safeTransfer(receiver, actualAmountOut);
 
     emit BoughtBack(_router, _tokenIn, _tokenOut, actualAmountIn, actualAmountOut);
   }
