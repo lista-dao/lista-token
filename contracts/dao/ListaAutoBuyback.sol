@@ -150,7 +150,7 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         require(routerWhitelist[_router], "router not whitelisted");
 
         uint256 beforeTokenIn = _getTokenBalance(_tokenIn, address(this));
-        uint256 beforeTokenOut = _getTokenBalance(_tokenOut, defaultReceiver);
+        uint256 beforeTokenOut = _getTokenBalance(_tokenOut, address(this));
 
         bool isNativeTokenIn = (_tokenIn == SWAP_NATIVE_TOKEN_ADDRESS);
         if (!isNativeTokenIn) {
@@ -163,10 +163,12 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         }
 
         uint256 actualAmountIn = beforeTokenIn - _getTokenBalance(_tokenIn, address(this));
-        uint256 actualAmountOut = _getTokenBalance(_tokenOut, defaultReceiver) - beforeTokenOut;
+        uint256 actualAmountOut = _getTokenBalance(_tokenOut, address(this)) - beforeTokenOut;
 
         require(actualAmountIn <= _amountIn, "exceed amount in");
         require(actualAmountOut >= _amountOutMin, "not enough profit");
+
+        IERC20(_tokenOut).safeTransfer(defaultReceiver, actualAmountOut);
 
         emit BoughtBack(_router, _tokenIn, _tokenOut, actualAmountIn, actualAmountOut);
     }
