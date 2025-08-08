@@ -183,6 +183,22 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         emit AdminTransfer(_token, _amount);
     }
 
+    /**
+     * @dev allow bot to withdraw token to the defaultReceiver address
+     * @param _token token address
+     * @param _amount token amount
+     */
+    function withdraw(address _token, uint256 _amount) external onlyRole(BOT) {
+        require(tokenWhitelist[_token] || _token == SWAP_NATIVE_TOKEN_ADDRESS, "Token not whitelisted");
+        require(_amount > 0, "Invalid amount");
+        if (_token == SWAP_NATIVE_TOKEN_ADDRESS) {
+            (bool success, ) = payable(defaultReceiver).call{ value: _amount }("");
+            require(success, "Withdraw failed");
+        } else {
+            IERC20(_token).safeTransfer(defaultReceiver, _amount);
+        }
+    }
+
     function changeDefaultReceiver(address _receiver) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_receiver != address(0), "_receiver is the zero address");
         require(_receiver != defaultReceiver, "_receiver is the same");
