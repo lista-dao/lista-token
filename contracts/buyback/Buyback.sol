@@ -259,6 +259,25 @@ contract Buyback is
   }
 
   /**
+   * @dev allows bot to withdraw tokens to the receiver address
+   * @param _token token address
+   * @param _amount token amount
+   */
+  function withdraw(address _token, uint256 _amount) external onlyRole(BOT) {
+    require(
+      tokenInWhitelist[_token] || _token == SWAP_NATIVE_TOKEN_ADDRESS || _token == tokenOut,
+      "Token not whitelisted"
+    );
+    require(_amount > 0, "Invalid amount");
+    if (_token == SWAP_NATIVE_TOKEN_ADDRESS) {
+      (bool success, ) = payable(receiver).call{ value: _amount }("");
+      require(success, "Withdraw failed");
+    } else {
+      IERC20(_token).safeTransfer(receiver, _amount);
+    }
+  }
+
+  /**
    * @dev pause the contract
    */
   function pause() external onlyRole(PAUSER) {

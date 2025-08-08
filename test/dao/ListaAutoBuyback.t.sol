@@ -225,4 +225,23 @@ contract ListaAutoBuyBackTest is Test {
         listaAutoBuyBack.buyback(pancakeRouter, listaAutoBuyBack.SWAP_NATIVE_TOKEN_ADDRESS(), USDT, 1 ether, 0, data);
         vm.stopPrank();
     }
+
+    function test_withdraw() public {
+        deal(lisUSD, address(listaAutoBuyBack), 1 ether);
+        vm.deal(address(listaAutoBuyBack), 1 ether);
+        vm.startPrank(admin);
+        listaAutoBuyBack.setTokenWhitelist(lisUSD, true);
+        vm.stopPrank();
+
+        uint256 lisUSDBefore = IERC20(lisUSD).balanceOf(listaAutoBuyBack.defaultReceiver());
+        uint256 bnbBefore = listaAutoBuyBack.defaultReceiver().balance;
+
+        vm.startPrank(bot);
+        listaAutoBuyBack.withdraw(lisUSD, 1 ether);
+        assertEq(IERC20(lisUSD).balanceOf(listaAutoBuyBack.defaultReceiver()) - lisUSDBefore, 1 ether, "lisUSD withdraw failed");
+
+        listaAutoBuyBack.withdraw(listaAutoBuyBack.SWAP_NATIVE_TOKEN_ADDRESS(), 1 ether);
+        assertEq(listaAutoBuyBack.defaultReceiver().balance - bnbBefore, 1 ether, "BNB withdraw failed");
+        vm.stopPrank();
+    }
 }

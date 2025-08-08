@@ -358,4 +358,20 @@ contract BuybackTest is Test {
     buyback.buyback(pancakeRouter, buyback.SWAP_NATIVE_TOKEN_ADDRESS(), tokenOut, 1 ether, 0, data);
     vm.stopPrank();
   }
+
+  function test_withdraw() public {
+    deal(tokenIn, address(buyback), 1 ether);
+    vm.deal(address(buyback), 1 ether);
+
+    uint256 lisUSDBefore = IERC20(tokenIn).balanceOf(buyback.receiver());
+    uint256 bnbBefore = buyback.receiver().balance;
+
+    vm.startPrank(bot);
+    buyback.withdraw(tokenIn, 1 ether);
+    assertEq(IERC20(tokenIn).balanceOf(buyback.receiver()) - lisUSDBefore, 1 ether, "lisUSD withdraw failed");
+
+    buyback.withdraw(buyback.SWAP_NATIVE_TOKEN_ADDRESS(), 1 ether);
+    assertEq(buyback.receiver().balance - bnbBefore, 1 ether, "BNB withdraw failed");
+    vm.stopPrank();
+  }
 }
