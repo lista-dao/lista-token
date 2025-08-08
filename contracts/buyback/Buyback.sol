@@ -35,8 +35,8 @@ contract Buyback is
   address public constant SWAP_NATIVE_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
   /* ============ State Variables ============ */
-  // 1Inch router whitelist
-  mapping(address => bool) public oneInchRouterWhitelist;
+  // swap router whitelist
+  mapping(address => bool) public routerWhitelist;
   // swap input token whitelist
   mapping(address => bool) public tokenInWhitelist;
   // swap output token
@@ -48,8 +48,15 @@ contract Buyback is
 
   /* ============ Events ============ */
   event BoughtBack(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut);
+  event BoughtBack(
+    address indexed pair,
+    address indexed tokenIn,
+    address indexed tokenOut,
+    uint256 amountIn,
+    uint256 amountOut
+  );
   event ReceiverChanged(address indexed receiver);
-  event OneInchRouterChanged(address indexed oneInchRouter, bool added);
+  event RouterChanged(address indexed router, bool added);
   event TokenInChanged(address indexed token, bool added);
   event EmergencyWithdraw(address token, uint256 amount);
 
@@ -99,7 +106,7 @@ contract Buyback is
     _grantRole(PAUSER, _pauser);
     _grantRole(BOT, _bot);
 
-    oneInchRouterWhitelist[_1InchRouter] = true;
+    routerWhitelist[_1InchRouter] = true;
     tokenOut = _tokenOut;
     receiver = _receiver;
   }
@@ -115,7 +122,7 @@ contract Buyback is
     address _1inchRouter,
     bytes calldata _data
   ) external override onlyRole(BOT) nonReentrant whenNotPaused {
-    require(oneInchRouterWhitelist[_1inchRouter], "Invalid 1Inch router");
+    require(routerWhitelist[_1inchRouter], "router not whitelisted");
     require(bytes4(_data[0:4]) == SWAP_FUNCTION_SELECTOR, "Invalid 1Inch function selector");
 
     (, SwapDescription memory swapDesc, ) = abi.decode(_data[4:], (address, SwapDescription, bytes));
@@ -147,6 +154,50 @@ contract Buyback is
     emit BoughtBack(address(swapDesc.srcToken), address(swapDesc.dstToken), swapDesc.amount, amountOut);
   }
 
+  /// @dev buy back tokens using router
+  /// @param _router The address of the router.
+  /// @param _tokenIn The address of the input token.
+  /// @param _tokenOut The address of the output token.
+  /// @param _amountIn The amount to sell.
+  /// @param _amountOutMin The minimum amount to receive.
+  /// @param _swapData The swap data.
+  function buyback(
+    address _router,
+    address _tokenIn,
+    address _tokenOut,
+    uint256 _amountIn,
+    uint256 _amountOutMin,
+    bytes calldata _swapData
+  ) external onlyRole(BOT) nonReentrant whenNotPaused {
+    require(tokenInWhitelist[_tokenIn], "token not whitelisted");
+    require(tokenOut == _tokenOut, "token not whitelisted");
+    require(routerWhitelist[_router], "router not whitelisted");
+
+    uint256 beforeTokenIn = _getTokenBalance(_tokenIn, address(this));
+    uint256 beforeTokenOut = _getTokenBalance(_tokenOut, address(this));
+
+    bool isNativeTokenIn = (_tokenIn == SWAP_NATIVE_TOKEN_ADDRESS);
+    if (!isNativeTokenIn) {
+      IERC20(_tokenIn).safeApprove(_router, _amountIn);
+    }
+    (bool success, ) = _router.call{ value: isNativeTokenIn ? _amountIn : 0 }(_swapData);
+    require(success, "swap failed");
+
+    if (!isNativeTokenIn) {
+      IERC20(_tokenIn).safeApprove(_router, 0);
+    }
+
+    uint256 actualAmountIn = beforeTokenIn - _getTokenBalance(_tokenIn, address(this));
+    uint256 actualAmountOut = _getTokenBalance(_tokenOut, address(this)) - beforeTokenOut;
+
+    require(actualAmountIn <= _amountIn, "exceed amount in");
+    require(actualAmountOut >= _amountOutMin, "not enough profit");
+
+    IERC20(_tokenOut).safeTransfer(receiver, actualAmountOut);
+
+    emit BoughtBack(_router, _tokenIn, _tokenOut, actualAmountIn, actualAmountOut);
+  }
+
   /**
    * @dev change receiver
    * @param _receiver - Address of the receiver
@@ -159,27 +210,14 @@ contract Buyback is
     emit ReceiverChanged(_receiver);
   }
 
-  /**
-   * @dev add 1Inch router to whitelist
-   * @param _1InchRouter - Address of the 1Inch router
-   */
-  function add1InchRouterWhitelist(address _1InchRouter) external onlyRole(MANAGER) {
-    require(_1InchRouter != address(0), "Invalid 1Inch router");
-    require(!oneInchRouterWhitelist[_1InchRouter], "Already whitelisted");
-
-    oneInchRouterWhitelist[_1InchRouter] = true;
-    emit OneInchRouterChanged(_1InchRouter, true);
-  }
-
-  /**
-   * @dev remove 1Inch router from whitelist
-   * @param _1InchRouter - Address of the 1Inch router
-   */
-  function remove1InchRouterWhitelist(address _1InchRouter) external onlyRole(MANAGER) {
-    require(oneInchRouterWhitelist[_1InchRouter], "1Inch router is not in whitelist");
-
-    delete oneInchRouterWhitelist[_1InchRouter];
-    emit OneInchRouterChanged(_1InchRouter, false);
+  /// @dev sets the router whitelist.
+  /// @param _router The address of the router.
+  /// @param status The status of the router.
+  function setRouterWhitelist(address _router, bool status) external onlyRole(MANAGER) {
+    require(_router != address(0), "Invalid router address");
+    require(routerWhitelist[_router] != status, "whitelist same status");
+    routerWhitelist[_router] = status;
+    emit RouterChanged(_router, status);
   }
 
   /**
@@ -239,4 +277,12 @@ contract Buyback is
   // /* ============ Internal Functions ============ */
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+  function _getTokenBalance(address _token, address account) internal view returns (uint256) {
+    if (_token == SWAP_NATIVE_TOKEN_ADDRESS) {
+      return account.balance;
+    } else {
+      return IERC20(_token).balanceOf(account);
+    }
+  }
 }
