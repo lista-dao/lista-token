@@ -127,10 +127,14 @@ contract LpProxy is OwnableUpgradeable {
         address[] memory distributors,
         address[] memory providers,
         uint256[][] memory tokenIds) external {
-        // legacy function, kept for compatibility
+        // backward compatible
         claimAll(distributors);
-        // claim pcsV3Lp rewards
-        IPancakeSwapV3LpStakingVault(pcsV3LpVault).batchClaimRewardsWithProxy(msg.sender, distributors, tokenIds);
+        // claim pcsV3Lp rewards if any
+        if (providers.length > 0) {
+            require(providers.length == tokenIds.length, "Invalid providers/tokenIds length");
+            // claim pcsV3Lp rewards
+            IPancakeSwapV3LpStakingVault(pcsV3LpVault).batchClaimRewardsWithProxy(msg.sender, distributors, tokenIds);
+        }
     }
 
     /**
