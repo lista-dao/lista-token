@@ -14,11 +14,12 @@ contract LpProxy is OwnableUpgradeable {
     address cakeVault;
     // thena vault address
     address thenaVault;
-    // PancakeSwap V3 staking vault
-    address pcsV3LpVault;
-
+    
     // distributor address -> vault address
     mapping(address => address) public distributorToVault;
+
+    // PancakeSwap V3 staking vault
+    address pcsV3LpVault;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
