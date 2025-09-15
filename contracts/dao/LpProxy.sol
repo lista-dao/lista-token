@@ -3,6 +3,7 @@ pragma solidity ^0.8.10;
 import "./interfaces/IStaking.sol";
 import "./interfaces/IStakingVault.sol";
 import "./interfaces/IStakingVault.sol";
+import "./interfaces/IPancakeSwapV3LpStakingVault.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
@@ -13,6 +14,8 @@ contract LpProxy is OwnableUpgradeable {
     address cakeVault;
     // thena vault address
     address thenaVault;
+    // PancakeSwap V3 staking vault
+    address pcsV3LpVault;
 
     // distributor address -> vault address
     mapping(address => address) public distributorToVault;
@@ -60,10 +63,19 @@ contract LpProxy is OwnableUpgradeable {
     }
 
     /**
+      * @dev set pcsV3Lp vault address
+      * @param _pcsV3LpVault pcsV3Lp vault address
+     */
+    function setPcsV3LpVault(address _pcsV3LpVault) external onlyOwner {
+        require(_pcsV3LpVault != address(0), "pcsV3LpVault cannot be zero address");
+        pcsV3LpVault = _pcsV3LpVault;
+    }
+
+    /**
       * @dev claim all rewards
       * @param distributors distributor addresses
      */
-    function claimAll(address[] memory distributors) external {
+    function claimAll(address[] memory distributors) public {
         address account = msg.sender;
         // claim lista rewards
         IStakingVault(listaVault).batchClaimRewardsWithProxy(account, distributors);
@@ -103,7 +115,26 @@ contract LpProxy is OwnableUpgradeable {
                 IStakingVault(thenaVault).batchClaimRewardsWithProxy(account, thenaDistributors);
             }
         }
+    }
 
+    /**
+      * @dev claim all rewards including pcsV3Lp rewards
+      * @param distributors distributor addresses
+      * @param providers providers addresses
+      * @param tokenIds token ids for each provider
+     */
+    function claimAll(
+        address[] memory distributors,
+        address[] memory providers,
+        uint256[][] memory tokenIds) external {
+        // backward compatible
+        claimAll(distributors);
+        // claim pcsV3Lp rewards if any
+        if (providers.length > 0) {
+            require(providers.length == tokenIds.length, "Invalid providers/tokenIds length");
+            // claim pcsV3Lp rewards
+            IPancakeSwapV3LpStakingVault(pcsV3LpVault).batchClaimRewardsWithProxy(msg.sender, providers, tokenIds);
+        }
     }
 
     /**
