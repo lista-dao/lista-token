@@ -57,6 +57,9 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
     // token => unclaimedAmount
     mapping(address => uint256) public totalUnclaimedAmount;
 
+    // OPERATOR role
+    bytes32 public constant OPERATOR = keccak256("OPERATOR");
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -111,7 +114,7 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
      * @param _totalAmount Total amount of the reward epoch
      */
     function setEpochMerkleRoot(uint64 _epochId, bytes32 _merkleRoot, address _token, uint256 _startTime, uint256 _endTime, uint256 _totalAmount)
-        external onlyRole(DEFAULT_ADMIN_ROLE)
+        external onlyRole(OPERATOR)
     {
         require(_epochId == nextEpochId, "Invalid epochId");
         require(_merkleRoot != bytes32(0), "Invalid merkle root");
@@ -136,7 +139,7 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
      * @dev Revoke the reward of the given epoch;
      * @param _epochId Id of epoch
      */
-    function revokeEpoch(uint64 _epochId) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function revokeEpoch(uint64 _epochId) external onlyRole(OPERATOR) {
         Epoch storage epoch = epochs[_epochId];
         require(epoch.startTime > block.timestamp, "Epoch already started");
         require(epoch.totalAmount > 0, "Invalid epochId");

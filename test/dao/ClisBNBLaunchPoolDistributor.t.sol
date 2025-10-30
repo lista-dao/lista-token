@@ -17,6 +17,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
     address defaultReceiver = 0x78Ab74C7EC3592B5298CB912f31bD8Fb80A57DC0;
     address proxyAdminOwner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
     address oneInchRouter = 0x111111125421cA6dc452d289314280a0f8842A65;
+    address operator;
 
     ClisBNBLaunchPoolDistributor cliBNBLaunchPoolDistributor;
 
@@ -33,6 +34,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
     bytes32[] public l2;
 
     function setUp() public {
+        operator = makeAddr("operator");
         mainnet = vm.createSelectFork("https://bsc-dataseed.binance.org");
 
         chainid = block.chainid;
@@ -70,6 +72,10 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
         );
 
         cliBNBLaunchPoolDistributor = ClisBNBLaunchPoolDistributor(payable(address(clisBNBLPDistributorProxy)));
+
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.grantRole(cliBNBLaunchPoolDistributor.OPERATOR(), operator);
+        vm.stopPrank();
     }
 
     function test_setUp() public {
@@ -91,7 +97,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
         ClisBNBLaunchPoolDistributor.Epoch[] memory before = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
         assertEq(0, before[0].startTime);
 
-        vm.startPrank(admin);
+        vm.startPrank(operator);
         cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1737e18);
         vm.stopPrank();
 
@@ -109,7 +115,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
         ClisBNBLaunchPoolDistributor.Epoch[] memory before = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
         assertEq(0, before[0].startTime);
 
-        vm.startPrank(admin);
+        vm.startPrank(operator);
         cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, address(0), block.timestamp + 10, block.timestamp + 1000, 1737e18);
         vm.stopPrank();
 
@@ -122,7 +128,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
     }
 
     function test_setEpochMerkleRoot_invalid_epochId() public {
-        vm.startPrank(admin);
+        vm.startPrank(operator);
         vm.expectRevert("Invalid epochId");
         cliBNBLaunchPoolDistributor.setEpochMerkleRoot(1, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1737e18);
         vm.stopPrank();
@@ -130,7 +136,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
 
     function test_setEpochMerkleRoot_acl() public {
         vm.startPrank(bot);
-        vm.expectRevert("AccessControl: account 0x00000000000000000000000000000000003a11aa is missing role 0x0000000000000000000000000000000000000000000000000000000000000000");
+        vm.expectRevert("AccessControl: account 0x00000000000000000000000000000000003a11aa is missing role 0x523a704056dcd17bcf83bed8b68c59416dac1119be77755efe3bde0a64e46e0c");
         cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1737e18);
         vm.stopPrank();
     }
@@ -138,7 +144,42 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
     function test_revokeEpoch_ok() public {
         test_setEpochMerkleRoot_ok();
 
-        vm.startPrank(admin);
+        vm.startPrank(operator);
+        cliBNBLaunchPoolDistributor.revokeEpoch(0);
+        vm.stopPrank();
+
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+
+        assertEq(bytes32(0), actual[0].merkleRoot);
+        assertEq(0, actual[0].startTime);
+        assertEq(0, actual[0].endTime);
+        assertEq(0, actual[0].totalAmount);
+    }
+
+    function test_operatorSetEpochMerkleRoot_ok() public {
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory before = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(0, before[0].startTime);
+
+        vm.startPrank(operator);
+        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1737e18);
+        vm.stopPrank();
+
+        ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(root, actual[0].merkleRoot);
+        assertEq(address(lista), actual[0].token);
+        assertEq(block.timestamp + 10, actual[0].startTime);
+        assertEq(block.timestamp + 1000, actual[0].endTime);
+        assertEq(1737e18, actual[0].totalAmount);
+    }
+
+    function test_operatorRevokeEpoch_ok() public {
+        test_setEpochMerkleRoot_ok();
+
+        vm.startPrank(operator);
         cliBNBLaunchPoolDistributor.revokeEpoch(0);
         vm.stopPrank();
 
