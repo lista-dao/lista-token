@@ -6,8 +6,10 @@ import "forge-std/console.sol";
 
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import "../../contracts/dao/ClisBNBLaunchPoolDistributor.sol";
+import "../../contracts/utils/BatchManagementUtils.sol";
 
 contract ClisBNBLaunchPoolDistributorTest is Test {
 
@@ -20,6 +22,7 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
     address operator;
 
     ClisBNBLaunchPoolDistributor cliBNBLaunchPoolDistributor;
+    BatchManagementUtils batchManagementUtils;
 
     uint256 mainnet;
 
@@ -73,9 +76,28 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
 
         cliBNBLaunchPoolDistributor = ClisBNBLaunchPoolDistributor(payable(address(clisBNBLPDistributorProxy)));
 
+        BatchManagementUtils batchUtilsImpl = new BatchManagementUtils();
+        ERC1967Proxy batchUtilsProxy = new ERC1967Proxy(
+            address(batchUtilsImpl),
+            abi.encodeWithSelector(
+                batchManagementUtils.initialize.selector,
+                admin,
+                manager
+            )
+        );
+        batchManagementUtils = BatchManagementUtils(address(batchUtilsProxy));
+
+        vm.startPrank(manager);
+        batchManagementUtils.setDistributor(address(cliBNBLaunchPoolDistributor), true);
+        vm.stopPrank();
+
         vm.startPrank(admin);
         cliBNBLaunchPoolDistributor.grantRole(cliBNBLaunchPoolDistributor.OPERATOR(), operator);
+        cliBNBLaunchPoolDistributor.grantRole(cliBNBLaunchPoolDistributor.OPERATOR(), address(batchManagementUtils));
         vm.stopPrank();
+
+
+
     }
 
     function test_setUp() public {
@@ -263,5 +285,34 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
 
         vm.expectRevert("User already claimed");
         cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, proof);
+    }
+
+    function test_batch_setEpochMerkleRoot_ok() public {
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory before = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(0, before[0].startTime);
+
+        BatchManagementUtils.MerkleRootInfo[] memory infos = new BatchManagementUtils.MerkleRootInfo[](1);
+        infos[0] = BatchManagementUtils.MerkleRootInfo({
+            distributor: address(cliBNBLaunchPoolDistributor),
+            epochId: 0,
+            merkleRoot: root,
+            token: address(lista),
+            startTime: block.timestamp + 10,
+            endTime: block.timestamp + 1000,
+            totalAmount: 1737e18
+        });
+
+        vm.startPrank(operator);
+        batchManagementUtils.batchSetEpochMerkleRoot(infos);
+        vm.stopPrank();
+
+        ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(root, actual[0].merkleRoot);
+        assertEq(address(lista), actual[0].token);
+        assertEq(block.timestamp + 10, actual[0].startTime);
+        assertEq(block.timestamp + 1000, actual[0].endTime);
+        assertEq(1737e18, actual[0].totalAmount);
     }
 }
