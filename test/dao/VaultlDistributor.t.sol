@@ -15,6 +15,7 @@ import "../../contracts/mock/MockERC20.sol";
 contract VaultDistributorTest is Test {
 
     address admin;
+    address manager;
     address bot;
     address proxyAdminOwner;
     address operator;
@@ -40,6 +41,7 @@ contract VaultDistributorTest is Test {
         vm.createSelectFork("https://bsc-dataseed.binance.org");
 
         admin = makeAddr("admin");
+        manager = makeAddr("manager");
         bot = makeAddr("bot");
         proxyAdminOwner = makeAddr("proxyAdminOwner");
         operator = makeAddr("operator");
@@ -76,7 +78,7 @@ contract VaultDistributorTest is Test {
         TransparentUpgradeableProxy vaultDistributorProxy = new TransparentUpgradeableProxy(
             address(vaultDistributorImpl),
             proxyAdminOwner,
-            abi.encodeWithSelector(vaultDistributorImpl.initialize.selector, admin, address(lpToken))
+            abi.encodeWithSelector(vaultDistributorImpl.initialize.selector, admin, manager, address(lpToken))
         );
 
         vaultDistributor = VaultDistributor(payable(address(vaultDistributorProxy)));

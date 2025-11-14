@@ -4,16 +4,17 @@ pragma solidity ^0.8.10;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 import "../MerkleVerifier.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title VaultDistributor
  * @author Lista
  * @dev Distribute rewards to users based on their lp balance which is calculated by off chain service
  */
-contract VaultDistributor is Initializable, AccessControlUpgradeable {
+contract VaultDistributor is UUPSUpgradeable, AccessControlUpgradeable {
 
     using SafeERC20 for IERC20;
 
@@ -60,7 +61,7 @@ contract VaultDistributor is Initializable, AccessControlUpgradeable {
     // LP token address
     address public lpToken;
 
-    // OPERATOR role
+    bytes32 public constant MANAGER = keccak256("MANAGER");
     bytes32 public constant OPERATOR = keccak256("OPERATOR");
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -72,11 +73,12 @@ contract VaultDistributor is Initializable, AccessControlUpgradeable {
      * @param _admin Address of the admin
      * @param _lpToken Address of the LP token
      */
-    function initialize(address _admin, address _lpToken) external initializer {
+    function initialize(address _admin, address _manager, address _lpToken) external initializer {
         require(_admin != address(0), "Invalid admin address");
         require(_lpToken != address(0), "Invalid lp token address");
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
+        _setupRole(MANAGER, _manager);
 
         lpToken = _lpToken;
     }
@@ -169,7 +171,7 @@ contract VaultDistributor is Initializable, AccessControlUpgradeable {
      * @dev Collect unclaimed rewards amount of the given ended epoch
      * @param _epochId Id of epoch
      */
-    function collectUnclaimed(uint64 _epochId) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function collectUnclaimed(uint64 _epochId) external onlyRole(MANAGER) {
         Epoch storage epoch = epochs[_epochId];
         require(epoch.totalAmount > 0, "Invalid epochId");
         require(epoch.unclaimedAmount > 0, "No unclaimed amount");
@@ -188,7 +190,7 @@ contract VaultDistributor is Initializable, AccessControlUpgradeable {
      * @dev Transfer the given amount to the admin
      * @param _amount Amount to transfer
      */
-    function adminTransfer(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function adminTransfer(address _token, uint256 _amount) external onlyRole(MANAGER) {
         require(_amount > 0, "Invalid amount");
         _transferTo(msg.sender, _token, _amount);
     }
@@ -206,4 +208,5 @@ contract VaultDistributor is Initializable, AccessControlUpgradeable {
         return _epochs;
     }
 
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }
