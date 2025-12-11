@@ -258,7 +258,7 @@ contract VotingIncentive is AccessControlUpgradeable, PausableUpgradeable, Reent
   // ------------------------------------- //
 
   /**
-   * @dev Whiltelist an asset for voting incentives; zero address to whitelist native token (BNB)
+   * @dev Whitelist an asset for voting incentives; zero address to whitelist native token (BNB)
    * @param _asset address of the asset
    * @param _whitelist true/false; true to whitelist, false to remove from whitelist
    */
