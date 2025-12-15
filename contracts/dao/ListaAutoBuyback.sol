@@ -145,21 +145,54 @@ contract ListaAutoBuyback is Initializable, AccessControlUpgradeable {
         uint256 _amountOutMin,
         bytes calldata _swapData
     ) external onlyRole(BOT) {
+        _buyback(_router, _router, _tokenIn, _tokenOut, _amountIn, _amountOutMin, _swapData);
+    }
+
+    /// @dev buy back tokens using router
+    /// @param _router The address of the router.
+    /// @param _spender The address of the spender (usually the router).
+    /// @param _tokenIn The address of the input token.
+    /// @param _tokenOut The address of the output token.
+    /// @param _amountIn The amount to sell.
+    /// @param _amountOutMin The minimum amount to receive.
+    /// @param _swapData The swap data.
+    function buyback(
+        address _router,
+        address _spender,
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        bytes calldata _swapData
+    ) external onlyRole(BOT) {
+        _buyback(_router, _spender, _tokenIn, _tokenOut, _amountIn, _amountOutMin, _swapData);
+    }
+
+    function _buyback(
+        address _router,
+        address _spender,
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        bytes calldata _swapData
+    ) private {
         require(tokenWhitelist[_tokenIn], "token not whitelisted");
         require(tokenWhitelist[_tokenOut], "token not whitelisted");
         require(routerWhitelist[_router], "router not whitelisted");
+        require(routerWhitelist[_spender], "spender not whitelisted");
 
         uint256 beforeTokenIn = _getTokenBalance(_tokenIn, address(this));
         uint256 beforeTokenOut = _getTokenBalance(_tokenOut, address(this));
 
         bool isNativeTokenIn = (_tokenIn == SWAP_NATIVE_TOKEN_ADDRESS);
         if (!isNativeTokenIn) {
-            IERC20(_tokenIn).safeApprove(_router, _amountIn);
+            IERC20(_tokenIn).safeApprove(_spender, _amountIn);
         }
         (bool success, ) = _router.call{value: isNativeTokenIn ? _amountIn : 0}(_swapData);
         require(success, "swap failed");
         if (!isNativeTokenIn) {
-            IERC20(_tokenIn).safeApprove(_router, 0);
+            IERC20(_tokenIn).safeApprove(_spender, 0);
         }
 
         uint256 actualAmountIn = beforeTokenIn - _getTokenBalance(_tokenIn, address(this));
