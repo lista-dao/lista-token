@@ -57,7 +57,7 @@ contract Buyback is
   );
   event BoughtBack(
     address indexed pair,
-    address  spender,
+    address spender,
     address indexed tokenIn,
     address indexed tokenOut,
     uint256 amountIn,
@@ -177,7 +177,7 @@ contract Buyback is
     uint256 _amountOutMin,
     bytes calldata _swapData
   ) external onlyRole(BOT) nonReentrant whenNotPaused {
-   _buyback(_router, _router, _tokenIn, _tokenOut, _amountIn, _amountOutMin, _swapData);
+    _buyback(_router, _router, _tokenIn, _tokenOut, _amountIn, _amountOutMin, _swapData);
   }
 
   /// @dev buy back tokens using router
