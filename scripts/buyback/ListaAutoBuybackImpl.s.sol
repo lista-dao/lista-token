@@ -4,16 +4,16 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import { Buyback } from "../../contracts/buyback/Buyback.sol";
+import { ListaAutoBuyback } from "../../contracts/dao/ListaAutoBuyback.sol";
 
-contract BuybackImplScript is Script {
+contract ListaAutoBuybackImplScript is Script {
   function setUp() public {}
 
   function run() public {
     uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
 
     vm.startBroadcast(deployerPrivateKey);
-    Buyback buyback = new Buyback();
+    ListaAutoBuyback buyback = new ListaAutoBuyback();
     vm.stopBroadcast();
     console.log("Buyback implementation address: %s", address(buyback));
   }
