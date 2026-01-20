@@ -36,10 +36,19 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
     string public constant symbol = "veLista"; // symbol
     bytes32 public constant MANAGER = keccak256("MANAGER"); // manager role
 
+    mapping(address => bool) public earlyClaimBlacklist; // early claim blacklist
+    uint256 public freePenaltyStartTime; // free penalty start time
+    uint256 public freePenaltyEndTime; // free penalty end time
+
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
+    }
+
+    modifier freePenaltyPeriodNotStart() {
+        require(freePenaltyStartTime == 0 || block.timestamp < freePenaltyStartTime, "free penalty period start");
+        _;
     }
 
     /**
@@ -98,7 +107,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
      * @param week number of weeks to lock
      * @param autoLock auto lock status
      */
-    function lock(uint256 amount, uint16 week, bool autoLock) external {
+    function lock(uint256 amount, uint16 week, bool autoLock) freePenaltyPeriodNotStart external {
         require(amount >= 1e16, "lock amount must be greater or equal than 0.01");
         address _account = msg.sender;
         require(accountData[_account].locked == 0, "locked amount must be 0");
@@ -111,7 +120,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
      * @param week the number of weeks to extend the lock
      * @param autoLock auto lock status
      */
-    function relockUnclaimed(uint16 week, bool autoLock) external {
+    function relockUnclaimed(uint16 week, bool autoLock) freePenaltyPeriodNotStart external {
         address _account = msg.sender;
         require(balanceOf(_account) == 0, "already locked");
 
@@ -192,7 +201,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
      * @param _account the account to increase the lock amount
      * @param _amount amount of token to increase
      */
-    function increaseAmountFor(address _account, uint256 _amount) public {
+    function increaseAmountFor(address _account, uint256 _amount) freePenaltyPeriodNotStart public {
         uint256 oldWeight = balanceOf(_account);
         require(oldWeight > 0, "no lock data");
         require(_amount > 0, "invalid amount");
@@ -251,7 +260,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
      * @dev extend number of weeks to lock
      * @param _week number of weeks to increase of the lock
      */
-    function extendWeek(uint16 _week) external {
+    function extendWeek(uint16 _week) freePenaltyPeriodNotStart external {
         require(_week > 0, "invalid lock week");
         require(_week <= MAX_LOCK_WEEKS, "exceeds MAX_LOCK_WEEKS");
         address _account = msg.sender;
@@ -521,6 +530,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
      * @return claimed amount after penalty
      */
     function earlyClaim() external returns (uint256) {
+        require(!earlyClaimBlacklist[msg.sender], "early claim is blacklisted");
         address _account = msg.sender;
         AccountData storage _accountData = accountData[_account];
         uint256 weight = balanceOf(_account);
@@ -532,16 +542,7 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
         _writeTotalWeight();
         uint16 currentWeek = lastUpdateTotalWeek; // lastUpdateTotalWeek is current week after _writeTotalWeight()
 
-        uint256 penalty;
-        if (!autoLock) {
-            uint16 remainWeek = _accountData.lastLockWeek + _accountData.lockWeeks - currentWeek;
-            if (remainWeek == 0) {
-                remainWeek = 1;
-            }
-            penalty = _accountData.locked * uint256(remainWeek) / uint256(MAX_LOCK_WEEKS);
-        } else {
-            penalty = _accountData.locked * uint256(_accountData.lockWeeks) / uint256(MAX_LOCK_WEEKS);
-        }
+        uint256 penalty = getPenalty(_account);
         totalPenalty += penalty;
 
         uint256 amount = _accountData.locked - penalty;
@@ -714,7 +715,10 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
      * @param _account account address
      * @return penalty of account
      */
-    function getPenalty(address _account) external view returns (uint256) {
+    function getPenalty(address _account) public view returns (uint256) {
+        if (freePenaltyStartTime > 0 && block.timestamp >= freePenaltyStartTime && block.timestamp <= freePenaltyEndTime) {
+            return 0;
+        }
         uint16 currentWeek = getCurrentWeek();
         AccountData memory _accountData = accountData[_account];
 
@@ -756,5 +760,28 @@ contract VeLista is IVeLista, Initializable, AccessControlUpgradeable {
             }
         }
         return locked;
+    }
+
+    /**
+     * @dev set early claim blacklist status for an account, only manager can call this function
+     * @param _account account address
+     * @param _blacklist blacklist status
+     */
+    function setEarlyClaimBlacklist(address _account, bool _blacklist) external onlyRole(MANAGER) {
+        require(earlyClaimBlacklist[_account] != _blacklist, "already set");
+        earlyClaimBlacklist[_account] = _blacklist;
+        emit EarlyClaimBlacklistUpdated(_account, _blacklist);
+    }
+
+    /**
+     * @dev set free penalty period, only manager can call this function
+     * @param _startTime free penalty start time
+     * @param _endTime free penalty end time
+     */
+    function setFreePenaltyPeriod(uint256 _startTime, uint256 _endTime) external onlyRole(MANAGER) {
+        require(_startTime < _endTime, "invalid time period");
+        freePenaltyStartTime = _startTime;
+        freePenaltyEndTime = _endTime;
+        emit FreePenaltyPeriodSet(_startTime, _endTime);
     }
 }

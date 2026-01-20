@@ -78,4 +78,6 @@ interface IVeLista {
     event EnableAutoLock(address indexed account);
     event PenaltyClaimed(address indexed account, uint256 amount);
     event PenaltyReceiverChanged(address indexed newReceiver);
+    event EarlyClaimBlacklistUpdated(address account, bool isBlacklisted);
+    event FreePenaltyPeriodSet(uint256 start, uint256 end);
 }
