@@ -30,7 +30,7 @@ contract VeListaRevenueDistributor is Initializable, AccessControlUpgradeable, U
      * @param _bot the address of the bot.
      * @param _revenueReceiver the address of the revenue receiver.
      * @param _lista the address of the lista contract.
-     * @param _burnPercentage the percentage of revenue to be sent to the dead addrress.
+     * @param _burnPercentage the percentage of revenue to be sent to the dead address.
      */
     function initialize(
         address _admin,
