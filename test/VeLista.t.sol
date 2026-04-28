@@ -572,4 +572,129 @@ contract VeListaTest is Test {
         balance = veLista.balanceOfAtWeek(user1, lastWeek);
         assertEq(balance, lockAmount*lockWeek, "weeks 4 balance");
     }
+
+    function test_setFreePenaltyPeriod() public {
+        uint256 currentTime = block.timestamp;
+        skip(10);
+        vm.startPrank(manager);
+        vm.expectRevert(bytes("invalid time period"));
+        veLista.setFreePenaltyPeriod(currentTime + 10, currentTime + 10);
+        veLista.setFreePenaltyPeriod(currentTime + 10, currentTime + 11);
+        vm.stopPrank();
+
+        assertEq(veLista.freePenaltyStartTime(), currentTime + 10, "freePenaltyPeriodStart");
+        assertEq(veLista.freePenaltyEndTime(), currentTime + 11, "freePenaltyPeriodEnd");
+    }
+
+    function test_setEarlyClaimBlacklist() public {
+        vm.startPrank(manager);
+        veLista.setEarlyClaimBlacklist(user1, true);
+        assertTrue(veLista.earlyClaimBlacklist(user1), "blacklist not set");
+        vm.expectRevert(bytes("already set"));
+        veLista.setEarlyClaimBlacklist(user1, true);
+        veLista.setEarlyClaimBlacklist(user1, false);
+        assertFalse(veLista.earlyClaimBlacklist(user1), "blacklist not removed");
+        vm.stopPrank();
+    }
+
+    function test_earlyClaimDuringFreePenaltyPeriod() public {
+        uint256 lockAmount = 100 ether;
+        uint16 lockWeek = 10;
+
+        uint256 startTotalSupply = veLista.totalSupply();
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+        veLista.lock(lockAmount, lockWeek, false);
+        vm.stopPrank();
+
+        uint256 user1VeListaBalance = veLista.balanceOf(user1);
+        assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
+        uint256 totalSupply = veLista.totalSupply();
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
+        uint256 user1ListaBalance = lista.balanceOf(user1);
+        assertEq(user1ListaBalance, 10000 ether - 100 ether, "weeks 0 user1ListaBalance");
+
+        vm.startPrank(manager);
+        uint256 currentTime = block.timestamp;
+        veLista.setFreePenaltyPeriod(currentTime + 1 days, currentTime + 3 days);
+        vm.stopPrank();
+
+        skip(1 days);
+
+        vm.prank(user1);
+        veLista.earlyClaim();
+
+        user1VeListaBalance = veLista.balanceOf(user1);
+        assertEq(user1VeListaBalance, 0, "weeks 2 days user1VeListaBalance");
+        totalSupply = veLista.totalSupply();
+        assertEq(totalSupply, startTotalSupply, "weeks 2 days totalSupply");
+
+        user1ListaBalance = lista.balanceOf(user1);
+        assertEq(user1ListaBalance, 10000 ether, "weeks 2 days user1ListaBalance");
+    }
+
+    function test_earlyClaimAfterFreePenaltyPeriod() public {
+        uint256 lockAmount = 100 ether;
+        uint16 lockWeek = 10;
+
+        uint256 startTotalSupply = veLista.totalSupply();
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+        veLista.lock(lockAmount, lockWeek, false);
+        vm.stopPrank();
+
+        uint256 user1VeListaBalance = veLista.balanceOf(user1);
+        assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
+        uint256 totalSupply = veLista.totalSupply();
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
+        uint256 user1ListaBalance = lista.balanceOf(user1);
+        assertEq(user1ListaBalance, 10000 ether - 100 ether, "weeks 0 user1ListaBalance");
+
+        vm.startPrank(manager);
+        uint256 currentTime = block.timestamp;
+        veLista.setFreePenaltyPeriod(currentTime + 1 days, currentTime + 3 days);
+        vm.stopPrank();
+
+        skip(4 days);
+
+        vm.prank(user1);
+        veLista.earlyClaim();
+
+        user1VeListaBalance = veLista.balanceOf(user1);
+        assertEq(user1VeListaBalance, 0, "weeks 4 days user1VeListaBalance");
+        totalSupply = veLista.totalSupply();
+        assertEq(totalSupply, startTotalSupply, "weeks 4 days totalSupply");
+
+        user1ListaBalance = lista.balanceOf(user1);
+        uint256 penalty = 100 ether * lockWeek / veLista.MAX_LOCK_WEEKS();
+        assertEq(user1ListaBalance, 10000 ether - penalty, "weeks 4 days user1ListaBalance");
+    }
+
+    function test_earlyClaimBlacklisted() public {
+        uint256 lockAmount = 100 ether;
+        uint16 lockWeek = 10;
+
+        uint256 startTotalSupply = veLista.totalSupply();
+        vm.startPrank(user1);
+        lista.approve(address(veLista), MAX_UINT);
+        veLista.lock(lockAmount, lockWeek, false);
+        vm.stopPrank();
+
+        uint256 user1VeListaBalance = veLista.balanceOf(user1);
+        assertEq(user1VeListaBalance, lockAmount*lockWeek, "weeks 0 user1VeListaBalance");
+        uint256 totalSupply = veLista.totalSupply();
+        assertEq(totalSupply, startTotalSupply+lockAmount*lockWeek, "weeks 0 totalSupply");
+        uint256 user1ListaBalance = lista.balanceOf(user1);
+        assertEq(user1ListaBalance, 10000 ether - 100 ether, "weeks 0 user1ListaBalance");
+
+        vm.startPrank(manager);
+        veLista.setEarlyClaimBlacklist(user1, true);
+        vm.stopPrank();
+
+        skip(1 weeks);
+
+        vm.prank(user1);
+        vm.expectRevert(bytes("early claim is blacklisted"));
+        veLista.earlyClaim();
+    }
 }
