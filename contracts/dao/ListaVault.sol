@@ -27,6 +27,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     event Paused(address account);
     event Unpaused(address account);
     event EmissionVotingSet(address emissionVoting);
+    event DistributorBlacklistUpdated(uint16 indexed distributorId, bool blacklisted);
 
     // lista token address
     IERC20 public token;
@@ -61,6 +62,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     bool public paused;
     // emission voting address
     IEmissionVoting public emissionVoting;
+    // blacklisted distributor ids — receive zero new emissions
+    mapping(uint16 => bool) public distributorBlacklist;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -142,6 +145,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         }
         for (uint16 i = 0; i < ids.length; ++i) {
             require(idToDistributor[ids[i]] != address(0), "distributor not registered");
+            require(!distributorBlacklist[ids[i]], "distributor blacklisted");
             require(weeklyDistributorPercent[week][ids[i]] == 0, "distributor percent already set");
             weeklyDistributorPercent[week][ids[i]] = percent[i];
             totalPercent += percent[i];
@@ -165,6 +169,20 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         require(IDistributor(distributor).notifyRegisteredId(distributorId), "distributor registration failed");
         emit NewDistributorRegistered(distributor, distributorId);
         return distributorId;
+    }
+
+    /**
+     * @dev set blacklist state for a distributor id. Blacklisted ids receive
+     *      zero new emissions and cannot be set in setWeeklyDistributorPercent.
+     *      Already-allocated balances are not affected.
+     * @param id distributor id
+     * @param blacklisted true to blacklist, false to remove from blacklist
+     */
+    function setDistributorBlacklist(uint16 id, bool blacklisted) external onlyRole(MANAGER) {
+        require(idToDistributor[id] != address(0), "distributor not registered");
+        require(distributorBlacklist[id] != blacklisted, "blacklist state unchanged");
+        distributorBlacklist[id] = blacklisted;
+        emit DistributorBlacklistUpdated(id, blacklisted);
     }
 
     /**
@@ -260,6 +278,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @return emissions
      */
     function getDistributorWeeklyEmissions(uint16 id, uint16 week) public view returns (uint256) {
+        // blacklisted ids receive zero emissions regardless of percent or voting weight
+        if (distributorBlacklist[id]) return 0;
         // emission voting contract not set OR override voting result
         if (emissionVoting == IEmissionVoting(address(0)) || weeklyDistributorPercent[week][0] == 1) {
             uint256 pct = weeklyDistributorPercent[week][id];
