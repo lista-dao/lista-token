@@ -82,6 +82,12 @@ contract EmissionVotingTest is Test {
     listaToken.approve(address(vault), type(uint256).max);
     vault.depositRewards(weeklyEmission, veLista.getCurrentWeek() + 1);
     console.logString("Rewards deposited.");
+    // Deployed VeLista enforces freePenaltyPeriodNotStart on lock(); push the
+    // start time past test horizon so locks succeed under the upgraded impl.
+    (bool ok, ) = address(veLista).call(
+      abi.encodeWithSignature("setFreePenaltyPeriod(uint256,uint256)", block.timestamp + 365 days, block.timestamp + 730 days)
+    );
+    require(ok, "setFreePenaltyPeriod failed");
     vm.stopPrank();
 
     deal(address(listaToken), multiSig, 10000e18);
