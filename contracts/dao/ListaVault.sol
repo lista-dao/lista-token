@@ -172,17 +172,22 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @dev set blacklist state for a distributor id. Blacklisted ids receive
+     * @dev batch-set blacklist state for distributor ids. Blacklisted ids receive
      *      zero new emissions and cannot be set in setWeeklyDistributorPercent.
-     *      Already-allocated balances are not affected.
-     * @param id distributor id
-     * @param blacklisted true to blacklist, false to remove from blacklist
+     *      Already-allocated balances are not affected. Ids already in the target
+     *      state are skipped silently (no event); the whole batch is idempotent.
+     * @param ids distributor ids
+     * @param blacklisted true to blacklist all, false to remove all from blacklist
      */
-    function setDistributorBlacklist(uint16 id, bool blacklisted) external onlyRole(MANAGER) {
-        require(idToDistributor[id] != address(0), "distributor not registered");
-        require(distributorBlacklist[id] != blacklisted, "blacklist state unchanged");
-        distributorBlacklist[id] = blacklisted;
-        emit DistributorBlacklistUpdated(id, blacklisted);
+    function batchSetDistributorBlacklist(uint16[] memory ids, bool blacklisted) external onlyRole(MANAGER) {
+        require(ids.length > 0, "ids is empty");
+        for (uint16 i = 0; i < ids.length; ++i) {
+            require(idToDistributor[ids[i]] != address(0), "distributor not registered");
+            if (distributorBlacklist[ids[i]] != blacklisted) {
+                distributorBlacklist[ids[i]] = blacklisted;
+                emit DistributorBlacklistUpdated(ids[i], blacklisted);
+            }
+        }
     }
 
     /**

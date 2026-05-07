@@ -70,48 +70,68 @@ contract ListaVaultTest is Test {
 
     // ---------- access control ----------
 
-    function test_setDistributorBlacklist_revertsForNonManager() public {
+    function test_batchSetDistributorBlacklist_revertsForNonManager() public {
         vm.prank(attacker);
         vm.expectRevert(); // AccessControl reverts with role-specific message
-        vault.setDistributorBlacklist(id1, true);
+        vault.batchSetDistributorBlacklist(_one(id1), true);
     }
 
-    function test_setDistributorBlacklist_managerCanSet() public {
+    function test_batchSetDistributorBlacklist_managerCanSet() public {
         vm.expectEmit(true, false, false, true, address(vault));
         emit ListaVault.DistributorBlacklistUpdated(id1, true);
 
         vm.prank(vaultAdmin);
-        vault.setDistributorBlacklist(id1, true);
+        vault.batchSetDistributorBlacklist(_one(id1), true);
 
         assertTrue(vault.distributorBlacklist(id1));
     }
 
-    function test_setDistributorBlacklist_canUnblacklist() public {
+    function test_batchSetDistributorBlacklist_canUnblacklist() public {
         vm.startPrank(vaultAdmin);
-        vault.setDistributorBlacklist(id1, true);
-        vault.setDistributorBlacklist(id1, false);
+        vault.batchSetDistributorBlacklist(_one(id1), true);
+        vault.batchSetDistributorBlacklist(_one(id1), false);
         vm.stopPrank();
 
         assertFalse(vault.distributorBlacklist(id1));
     }
 
+    function test_batchSetDistributorBlacklist_appliesToAllIds() public {
+        uint16[] memory ids = new uint16[](2);
+        ids[0] = id1;
+        ids[1] = id2;
+
+        vm.prank(vaultAdmin);
+        vault.batchSetDistributorBlacklist(ids, true);
+
+        assertTrue(vault.distributorBlacklist(id1));
+        assertTrue(vault.distributorBlacklist(id2));
+    }
+
     // ---------- validation ----------
 
-    function test_setDistributorBlacklist_revertsOnUnregisteredId() public {
+    function test_batchSetDistributorBlacklist_revertsOnEmptyArray() public {
+        uint16[] memory ids = new uint16[](0);
+        vm.prank(vaultAdmin);
+        vm.expectRevert("ids is empty");
+        vault.batchSetDistributorBlacklist(ids, true);
+    }
+
+    function test_batchSetDistributorBlacklist_revertsOnUnregisteredId() public {
         uint16 unregisteredId = vault.distributorId() + 1;
         vm.prank(vaultAdmin);
         vm.expectRevert("distributor not registered");
-        vault.setDistributorBlacklist(unregisteredId, true);
+        vault.batchSetDistributorBlacklist(_one(unregisteredId), true);
     }
 
-    function test_setDistributorBlacklist_revertsWhenStateUnchanged() public {
+    function test_batchSetDistributorBlacklist_skipsNoOpIdsSilently() public {
+        // ids already in target state are skipped — no revert, no event
         vm.startPrank(vaultAdmin);
-        vm.expectRevert("blacklist state unchanged");
-        vault.setDistributorBlacklist(id1, false); // already false
+        vault.batchSetDistributorBlacklist(_one(id1), false); // already false → silent
+        assertFalse(vault.distributorBlacklist(id1));
 
-        vault.setDistributorBlacklist(id1, true);
-        vm.expectRevert("blacklist state unchanged");
-        vault.setDistributorBlacklist(id1, true); // already true
+        vault.batchSetDistributorBlacklist(_one(id1), true);
+        vault.batchSetDistributorBlacklist(_one(id1), true);  // already true → silent
+        assertTrue(vault.distributorBlacklist(id1));
         vm.stopPrank();
     }
 
@@ -119,7 +139,7 @@ contract ListaVaultTest is Test {
 
     function test_setWeeklyDistributorPercent_revertsForBlacklistedId() public {
         vm.prank(vaultAdmin);
-        vault.setDistributorBlacklist(id1, true);
+        vault.batchSetDistributorBlacklist(_one(id1), true);
 
         uint16 nextWeek = veLista.getCurrentWeek() + 1;
         uint16[] memory ids = new uint16[](1);
@@ -134,8 +154,8 @@ contract ListaVaultTest is Test {
 
     function test_setWeeklyDistributorPercent_succeedsAfterUnblacklist() public {
         vm.startPrank(vaultAdmin);
-        vault.setDistributorBlacklist(id1, true);
-        vault.setDistributorBlacklist(id1, false);
+        vault.batchSetDistributorBlacklist(_one(id1), true);
+        vault.batchSetDistributorBlacklist(_one(id1), false);
         vm.stopPrank();
 
         uint16 nextWeek = veLista.getCurrentWeek() + 1;
@@ -167,7 +187,7 @@ contract ListaVaultTest is Test {
         assertGt(vault.getDistributorWeeklyEmissions(id1, nextWeek), 0);
 
         vm.prank(vaultAdmin);
-        vault.setDistributorBlacklist(id1, true);
+        vault.batchSetDistributorBlacklist(_one(id1), true);
 
         assertEq(vault.getDistributorWeeklyEmissions(id1, nextWeek), 0);
         // d2 still gets its share
@@ -190,7 +210,7 @@ contract ListaVaultTest is Test {
         vm.warp(block.timestamp + 8 days);
 
         vm.prank(vaultAdmin);
-        vault.setDistributorBlacklist(id1, true);
+        vault.batchSetDistributorBlacklist(_one(id1), true);
 
         // d1 calls allocate; should receive 0
         vm.prank(address(d1));
@@ -218,5 +238,12 @@ contract ListaVaultTest is Test {
         uint256 got = vault.allocateNewEmissions(id1);
         assertEq(got, expected);
         assertEq(vault.allocated(address(d1)), expected);
+    }
+
+    // ---------- helpers ----------
+
+    function _one(uint16 id) internal pure returns (uint16[] memory a) {
+        a = new uint16[](1);
+        a[0] = id;
     }
 }
