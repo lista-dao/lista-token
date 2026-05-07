@@ -264,101 +264,90 @@ contract ListaVaultUnitTest is Test {
         assertEq(vault.weeklyDistributorPercent(NEXT_WEEK, id1), 5e17);
     }
 
-    // ---------- gate: getDistributorWeeklyEmissions, no emissionVoting ----------
+    // ---------- preserve historical entitlement ----------
+    //
+    // Blacklist enforcement is at the input only — setWeeklyDistributorPercent
+    // reverts on blacklisted ids. getDistributorWeeklyEmissions does NOT
+    // short-circuit, so emissions allocated in past weeks remain claimable.
 
-    function test_getDistributorWeeklyEmissions_zeroForBlacklistedNoVoting() public {
+    function test_getDistributorWeeklyEmissions_returnsHistoricalAfterBlacklist_percentPath() public {
         _setPercents(id1, 4e17, id2, 6e17);
-
-        // sanity before blacklist
-        assertEq(vault.getDistributorWeeklyEmissions(id1, NEXT_WEEK), 400e18);
-        assertEq(vault.getDistributorWeeklyEmissions(id2, NEXT_WEEK), 600e18);
-
-        vm.prank(manager);
-        vault.batchSetDistributorBlacklist(_one(id1), true);
-
-        assertEq(vault.getDistributorWeeklyEmissions(id1, NEXT_WEEK), 0);
-        // d2's share is unchanged — leftover stays in vault
-        assertEq(vault.getDistributorWeeklyEmissions(id2, NEXT_WEEK), 600e18);
-    }
-
-    // ---------- gate: getDistributorWeeklyEmissions, voting set + percent override ----------
-
-    function test_getDistributorWeeklyEmissions_zeroForBlacklistedWithPercentOverride() public {
-        // emissionVoting set, but operator also set percents — override path
-        vm.prank(admin);
-        vault.setEmissionVoting(address(emissionVoting));
-        _setPercents(id1, 4e17, id2, 6e17);
-        // weights set so we can prove blacklist takes priority over voting too
-        emissionVoting.setWeights(NEXT_WEEK, 1000, id1, 500, id2, 500);
-
-        // override path active (weeklyDistributorPercent[NEXT_WEEK][0] == 1)
-        // d1 should still receive percent-based amount
         assertEq(vault.getDistributorWeeklyEmissions(id1, NEXT_WEEK), 400e18);
 
         vm.prank(manager);
         vault.batchSetDistributorBlacklist(_one(id1), true);
 
-        assertEq(vault.getDistributorWeeklyEmissions(id1, NEXT_WEEK), 0);
+        // historical percent stays claimable
+        assertEq(vault.getDistributorWeeklyEmissions(id1, NEXT_WEEK), 400e18);
+        assertEq(vault.getDistributorWeeklyEmissions(id2, NEXT_WEEK), 600e18);
     }
 
-    // ---------- gate: getDistributorWeeklyEmissions, voting path ----------
-
-    function test_getDistributorWeeklyEmissions_zeroForBlacklistedInVotingPath() public {
+    function test_getDistributorWeeklyEmissions_returnsHistoricalAfterBlacklist_votingPath() public {
         vm.prank(admin);
         vault.setEmissionVoting(address(emissionVoting));
-        // do NOT call setWeeklyDistributorPercent — voting path is active
         emissionVoting.setWeights(NEXT_WEEK, 1000, id1, 400, id2, 600);
 
-        // sanity: voting path returns weight-proportional amount
         assertEq(vault.getDistributorWeeklyEmissions(id1, NEXT_WEEK), 400e18);
-        assertEq(vault.getDistributorWeeklyEmissions(id2, NEXT_WEEK), 600e18);
 
         vm.prank(manager);
         vault.batchSetDistributorBlacklist(_one(id1), true);
 
-        assertEq(vault.getDistributorWeeklyEmissions(id1, NEXT_WEEK), 0);
+        // voting-path entitlement also preserved — voters' choice prevails
+        assertEq(vault.getDistributorWeeklyEmissions(id1, NEXT_WEEK), 400e18);
         assertEq(vault.getDistributorWeeklyEmissions(id2, NEXT_WEEK), 600e18);
     }
 
     // ---------- downstream: allocateNewEmissions ----------
 
-    function test_allocateNewEmissions_zeroForBlacklisted() public {
-        _setPercents(id1, 1e18, id2, 0); // d1 gets 100%
+    function test_allocateNewEmissions_preservesHistoricalAfterBlacklist() public {
+        // OPERATOR sets percent BEFORE blacklist
+        _setPercents(id1, 1e18, id2, 0);
 
-        // advance to NEXT_WEEK so allocate has something to credit
+        // advance and blacklist — past entitlement must still flow
         veLista.setCurrentWeek(NEXT_WEEK);
-
         vm.prank(manager);
         vault.batchSetDistributorBlacklist(_one(id1), true);
 
         vm.prank(address(d1));
         uint256 got = vault.allocateNewEmissions(id1);
-        assertEq(got, 0);
-        assertEq(vault.allocated(address(d1)), 0);
+        assertEq(got, 1000e18, "blacklisted distributor must still claim past-week emissions");
+        assertEq(vault.allocated(address(d1)), 1000e18);
     }
 
-    function test_allocateNewEmissions_unblacklistRestoresFutureFlow() public {
-        _setPercents(id1, 1e18, id2, 0);
-
-        // week W+1: blacklist active; advance and allocate → 0
-        veLista.setCurrentWeek(NEXT_WEEK);
+    function test_blacklist_blocksFutureWeeksViaInputGate() public {
+        // blacklist d1 — OPERATOR cannot set future percents for it
         vm.prank(manager);
         vault.batchSetDistributorBlacklist(_one(id1), true);
-        vm.prank(address(d1));
-        assertEq(vault.allocateNewEmissions(id1), 0);
 
-        // unblacklist — but distributorUpdatedWeek already moved to NEXT_WEEK, so
-        // already-skipped emissions stay skipped (intended: blacklist at allocate
-        // time wins). Future weeks would flow normally; this test just confirms
-        // the state machine doesn't double-credit retroactively.
-        vm.prank(manager);
-        vault.batchSetDistributorBlacklist(_one(id1), false);
-        vm.prank(address(d1));
-        assertEq(vault.allocateNewEmissions(id1), 0); // same week, nothing new
-
-        // fund + allocate for a later week to confirm flow restored
+        // fund and try to set percent for the *next* future week → reverts at input
         lista.mint(operator, 500e18);
         vm.startPrank(operator);
+        lista.approve(address(vault), type(uint256).max);
+        vault.depositRewards(500e18, NEXT_WEEK + 1);
+
+        uint16[] memory ids = new uint16[](1);
+        uint256[] memory pct = new uint256[](1);
+        ids[0] = id1; pct[0] = 1e18;
+        vm.expectRevert("distributor blacklisted");
+        vault.setWeeklyDistributorPercent(NEXT_WEEK + 1, ids, pct);
+        vm.stopPrank();
+
+        // since percent never got set, future allocate returns 0 for d1
+        veLista.setCurrentWeek(NEXT_WEEK + 1);
+        vm.prank(address(d1));
+        assertEq(vault.allocateNewEmissions(id1), 0);
+    }
+
+    function test_unblacklist_restoresFutureFlow() public {
+        // blacklist then unblacklist — OPERATOR can again set percents
+        vm.startPrank(manager);
+        vault.batchSetDistributorBlacklist(_one(id1), true);
+        vault.batchSetDistributorBlacklist(_one(id1), false);
+        vm.stopPrank();
+
+        lista.mint(operator, 500e18);
+        vm.startPrank(operator);
+        lista.approve(address(vault), type(uint256).max);
         vault.depositRewards(500e18, NEXT_WEEK + 1);
         uint16[] memory ids = new uint16[](1);
         uint256[] memory pct = new uint256[](1);

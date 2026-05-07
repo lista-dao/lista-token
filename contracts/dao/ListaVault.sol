@@ -283,8 +283,6 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
      * @return emissions
      */
     function getDistributorWeeklyEmissions(uint16 id, uint16 week) public view returns (uint256) {
-        // blacklisted ids receive zero emissions regardless of percent or voting weight
-        if (distributorBlacklist[id]) return 0;
         // emission voting contract not set OR override voting result
         if (emissionVoting == IEmissionVoting(address(0)) || weeklyDistributorPercent[week][0] == 1) {
             uint256 pct = weeklyDistributorPercent[week][id];

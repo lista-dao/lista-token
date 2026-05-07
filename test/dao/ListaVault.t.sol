@@ -170,53 +170,51 @@ contract ListaVaultTest is Test {
         assertEq(vault.weeklyDistributorPercent(nextWeek, id1), 5e17);
     }
 
-    // ---------- gate: getDistributorWeeklyEmissions ----------
+    // ---------- preserve historical claim ----------
+    //
+    // Blacklist enforcement is at the input (setWeeklyDistributorPercent) only.
+    // getDistributorWeeklyEmissions does NOT short-circuit, so emissions already
+    // earned in past weeks (before the blacklist was set) remain claimable.
 
-    function test_getDistributorWeeklyEmissions_zeroForBlacklistedInPercentPath() public {
-        // operator sets percents, then admin blacklists d1 — emission must be zero
+    function test_allocateNewEmissions_preservesHistoricalAfterBlacklist() public {
+        // OPERATOR sets percent for nextWeek BEFORE blacklist
         uint16 nextWeek = veLista.getCurrentWeek() + 1;
-        uint16[] memory ids = new uint16[](2);
-        uint256[] memory pct = new uint256[](2);
-        ids[0] = id1; pct[0] = 4e17;
-        ids[1] = id2; pct[1] = 6e17;
+        uint16[] memory ids = new uint16[](1);
+        uint256[] memory pct = new uint256[](1);
+        ids[0] = id1; pct[0] = 1e18; // 100%
 
         vm.prank(operator);
         vault.setWeeklyDistributorPercent(nextWeek, ids, pct);
 
-        // sanity: before blacklist d1 has nonzero allocation
-        assertGt(vault.getDistributorWeeklyEmissions(id1, nextWeek), 0);
+        // advance past nextWeek so the percent matures into a claimable amount
+        vm.warp(block.timestamp + 8 days);
 
+        // NOW blacklist — should not erase the past week's entitlement
         vm.prank(vaultAdmin);
         vault.batchSetDistributorBlacklist(_one(id1), true);
 
-        assertEq(vault.getDistributorWeeklyEmissions(id1, nextWeek), 0);
-        // d2 still gets its share
-        assertGt(vault.getDistributorWeeklyEmissions(id2, nextWeek), 0);
+        uint256 expected = vault.weeklyEmissions(nextWeek);
+        assertGt(expected, 0, "weeklyEmissions sanity");
+
+        vm.prank(address(d1));
+        uint256 got = vault.allocateNewEmissions(id1);
+        assertEq(got, expected, "blacklisted distributor must still claim past-week emissions");
+        assertEq(vault.allocated(address(d1)), expected);
     }
 
-    // ---------- gate: allocateNewEmissions ----------
+    function test_setWeeklyDistributorPercent_blocksFutureWhileBlacklisted() public {
+        // confirm the input gate stops new allocations
+        vm.prank(vaultAdmin);
+        vault.batchSetDistributorBlacklist(_one(id1), true);
 
-    function test_allocateNewEmissions_zeroForBlacklisted() public {
-        // set d1 percent for next week, advance to that week, then blacklist before allocate
         uint16 nextWeek = veLista.getCurrentWeek() + 1;
         uint16[] memory ids = new uint16[](1);
         uint256[] memory pct = new uint256[](1);
         ids[0] = id1; pct[0] = 1e18;
 
         vm.prank(operator);
+        vm.expectRevert("distributor blacklisted");
         vault.setWeeklyDistributorPercent(nextWeek, ids, pct);
-
-        // jump past nextWeek so allocation has something to credit
-        vm.warp(block.timestamp + 8 days);
-
-        vm.prank(vaultAdmin);
-        vault.batchSetDistributorBlacklist(_one(id1), true);
-
-        // d1 calls allocate; should receive 0
-        vm.prank(address(d1));
-        uint256 got = vault.allocateNewEmissions(id1);
-        assertEq(got, 0);
-        assertEq(vault.allocated(address(d1)), 0);
     }
 
     function test_allocateNewEmissions_nonzeroForNonBlacklisted() public {
