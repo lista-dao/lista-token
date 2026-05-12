@@ -20,14 +20,14 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
 
     using SafeERC20 for IERC20;
 
-    event Deposit(address indexed account, uint256 amount);
-    event Withdraw(address indexed account, uint256 amount);
+    event Deposit(address indexed account, uint16 indexed week, uint256 amount);
     event NewDistributorRegistered(address distributor, uint256 id);
     event EmergencyWithdraw(address token, uint256 amount);
     event Paused(address account);
     event Unpaused(address account);
     event EmissionVotingSet(address emissionVoting);
     event DistributorBlacklistUpdated(uint16 indexed distributorId, bool blacklisted);
+    event WeeklyDistributorPercentSet(uint16 indexed week, uint16[] ids, uint256[] percents);
 
     // lista token address
     IERC20 public token;
@@ -123,7 +123,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         weeklyEmissions[week] += amount;
         token.safeTransferFrom(msg.sender, address(this), amount);
 
-        emit Deposit(msg.sender, amount);
+        emit Deposit(msg.sender, week, amount);
     }
 
     /**
@@ -154,6 +154,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         // mark this week set flag
         weeklyDistributorPercent[week][0] = 1;
         require(totalPercent <= 1e18, "Total percent must be less than or equal to 1e18");
+
+        emit WeeklyDistributorPercentSet(week, ids, percent);
     }
 
     /**
