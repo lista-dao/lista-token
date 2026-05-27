@@ -20,13 +20,14 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
 
     using SafeERC20 for IERC20;
 
-    event Deposit(address indexed account, uint256 amount);
-    event Withdraw(address indexed account, uint256 amount);
+    event Deposit(address indexed account, uint16 indexed week, uint256 amount);
     event NewDistributorRegistered(address distributor, uint256 id);
     event EmergencyWithdraw(address token, uint256 amount);
     event Paused(address account);
     event Unpaused(address account);
     event EmissionVotingSet(address emissionVoting);
+    event DistributorBlacklistUpdated(uint16 indexed distributorId, bool blacklisted);
+    event WeeklyDistributorPercentSet(uint16 indexed week, uint16[] ids, uint256[] percents);
 
     // lista token address
     IERC20 public token;
@@ -61,6 +62,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
     bool public paused;
     // emission voting address
     IEmissionVoting public emissionVoting;
+    // blacklisted distributor ids — receive zero new emissions
+    mapping(uint16 => bool) public distributorBlacklist;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -120,7 +123,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         weeklyEmissions[week] += amount;
         token.safeTransferFrom(msg.sender, address(this), amount);
 
-        emit Deposit(msg.sender, amount);
+        emit Deposit(msg.sender, week, amount);
     }
 
     /**
@@ -142,6 +145,7 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         }
         for (uint16 i = 0; i < ids.length; ++i) {
             require(idToDistributor[ids[i]] != address(0), "distributor not registered");
+            require(!distributorBlacklist[ids[i]], "distributor blacklisted");
             require(weeklyDistributorPercent[week][ids[i]] == 0, "distributor percent already set");
             weeklyDistributorPercent[week][ids[i]] = percent[i];
             totalPercent += percent[i];
@@ -150,6 +154,8 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         // mark this week set flag
         weeklyDistributorPercent[week][0] = 1;
         require(totalPercent <= 1e18, "Total percent must be less than or equal to 1e18");
+
+        emit WeeklyDistributorPercentSet(week, ids, percent);
     }
 
     /**
@@ -165,6 +171,25 @@ contract ListaVault is Initializable, AccessControlUpgradeable, ReentrancyGuardU
         require(IDistributor(distributor).notifyRegisteredId(distributorId), "distributor registration failed");
         emit NewDistributorRegistered(distributor, distributorId);
         return distributorId;
+    }
+
+    /**
+     * @dev batch-set blacklist state for distributor ids. Blacklisted ids receive
+     *      zero new emissions and cannot be set in setWeeklyDistributorPercent.
+     *      Already-allocated balances are not affected. Ids already in the target
+     *      state are skipped silently (no event); the whole batch is idempotent.
+     * @param ids distributor ids
+     * @param blacklisted true to blacklist all, false to remove all from blacklist
+     */
+    function batchSetDistributorBlacklist(uint16[] memory ids, bool blacklisted) external onlyRole(MANAGER) {
+        require(ids.length > 0, "ids is empty");
+        for (uint16 i = 0; i < ids.length; ++i) {
+            require(idToDistributor[ids[i]] != address(0), "distributor not registered");
+            if (distributorBlacklist[ids[i]] != blacklisted) {
+                distributorBlacklist[ids[i]] = blacklisted;
+                emit DistributorBlacklistUpdated(ids[i], blacklisted);
+            }
+        }
     }
 
     /**
