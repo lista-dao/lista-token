@@ -1,0 +1,22 @@
+audit_doc_paths:
+  - audits/*.pdf
+
+actor_allowlist:
+  - lawson-ccy
+  - razww
+  - qingyang-lista
+  - ricklista
+
+escalation_reviewers:
+  - "@lista-dao/sc"
+
+telegram:
+  chat_id: -4110669414
+  send_pdf: true
+  caption_prefix: "[Lista-New-Contracts]"
+
+delivery:
+  also_post_to_slack: false
+
+focus_defaults:
+  skip: []
