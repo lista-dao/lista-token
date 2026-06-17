@@ -1,0 +1,67 @@
+[
+  {
+    "network": "bscTestnet",
+    "eid": 40102,
+    "contract": "ListaOFTAdapterV2",
+    "lzEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+    "sendLib": "0x55f16c442907e86D764AFdc2a07C2de3BdAc8BB7",
+    "receiveLib": "0x188d4bbCeD671A7aA2b5055937F79510A32e9683",
+    "executor": "0x31894b190a8bAbd9A067Ce59fde0BfCFD2B18470",
+    "existingTokenAddress": "0x90b94D605E069569Adf33C0e73E26a83637c94B1",
+    "proxy": "PENDING_DEPLOY",
+    "dvns": {
+      "layerzero": "0x0ee552262f7b562efced6dd4a7e2878ab897d405",
+      "google": "0x6f99ea3fc9206e2779249e15512d7248dab0b52e",
+      "nethermind": "0x6334290b7b4a365f3c0e79c85b1b42f078db78e4"
+    },
+    "ulnConfig": {
+      "confirmations": 5,
+      "requiredDVNs": ["layerzero"],
+      "optionalDVNs": ["google", "nethermind"],
+      "optionalDVNThreshold": 1
+    },
+    "transferLimits": [
+      {
+        "dstEid": 40161,
+        "maxDailyTransferAmount": "1000000000000000000000000",
+        "singleTransferUpperLimit": "100000000000000000000000",
+        "singleTransferLowerLimit": "100000000000000000",
+        "dailyTransferAmountPerAddress": "200000000000000000000000",
+        "dailyTransferAttemptPerAddress": 100
+      }
+    ]
+  },
+  {
+    "network": "sepolia",
+    "eid": 40161,
+    "contract": "ListaOFTv2",
+    "lzEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+    "sendLib": "0xcc1ae8Cf5D3904Cef3360A9532B477529b177cCE",
+    "receiveLib": "0xdAf00F5eE2158dD58E0d3857851c432E34A3A851",
+    "executor": "0x718B92b5CB0a5552039B593faF724D182A881eDA",
+    "tokenName": "Lista DAO",
+    "symbol": "LISTA",
+    "proxy": "PENDING_DEPLOY",
+    "dvns": {
+      "layerzero": "0x8eebf8b423b73bfca51a1db4b7354aa0bfca9193",
+      "google": "0x4f675c48fad936cb4c3ca07d7cbf421ceeae0c75",
+      "nethermind": "0x68802e01d6321d5159208478f297d7007a7516ed"
+    },
+    "ulnConfig": {
+      "confirmations": 5,
+      "requiredDVNs": ["layerzero"],
+      "optionalDVNs": ["google", "nethermind"],
+      "optionalDVNThreshold": 1
+    },
+    "transferLimits": [
+      {
+        "dstEid": 40102,
+        "maxDailyTransferAmount": "1000000000000000000000000",
+        "singleTransferUpperLimit": "100000000000000000000000",
+        "singleTransferLowerLimit": "100000000000000000",
+        "dailyTransferAmountPerAddress": "200000000000000000000000",
+        "dailyTransferAttemptPerAddress": 100
+      }
+    ]
+  }
+]
