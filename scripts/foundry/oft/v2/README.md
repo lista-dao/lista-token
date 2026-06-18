@@ -23,7 +23,7 @@ ListaOFTv2 (burn) @ ETH      --> LayerZero --> ListaOFTAdapterV2 (unlock) --> BS
 
 ## Environment
 
-- `DEPLOYER_PRIVATE_KEY` — broadcaster (config scripts require MANAGER_ROLE / delegate).
+- `DEPLOYER_PRIVATE_KEY` — broadcaster (config scripts require MANAGER / delegate).
 - `ADMIN`, `MANAGER`, `PAUSER` — role holders for deploy (default: deployer).
 - `OAPP` — local proxy address (config scripts).
 - `PEER` — remote proxy address (SetPeer).

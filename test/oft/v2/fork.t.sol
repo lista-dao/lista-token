@@ -101,8 +101,8 @@ contract ListaOFTV2ForkTest is Test {
     assertEq(adapter.token(), LISTA_BSC);
     assertEq(lista.decimals(), 18);
     assertEq(adapter.owner(), admin);
-    assertTrue(adapter.hasRole(adapter.MANAGER_ROLE(), manager));
-    assertTrue(adapter.hasRole(adapter.PAUSER_ROLE(), pauser));
+    assertTrue(adapter.hasRole(adapter.MANAGER(), manager));
+    assertTrue(adapter.hasRole(adapter.PAUSER(), pauser));
     assertTrue(adapter.approvalRequired());
     console.log("Real LISTA symbol:", lista.symbol());
   }

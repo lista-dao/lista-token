@@ -9,10 +9,10 @@ import { OFTScriptBase } from "./OFTScriptBase.sol";
 /**
  * @title SetPeer
  * @notice Wires the trusted peer from the local OFT to its remote counterpart.
- *         Must be broadcast by a MANAGER_ROLE holder.
+ *         Must be broadcast by a MANAGER holder.
  *
  * Env:
- *   DEPLOYER_PRIVATE_KEY (required, must hold MANAGER_ROLE)
+ *   DEPLOYER_PRIVATE_KEY (required, must hold MANAGER)
  *   OAPP    (required) local proxy address
  *   PEER    (required) remote proxy address
  *   DST_EID (optional) remote endpoint id; defaults to the config's dstEid

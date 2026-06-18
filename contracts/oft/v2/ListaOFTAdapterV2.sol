@@ -25,10 +25,10 @@ import { TransferLimiterV2 } from "./TransferLimiterV2.sol";
  *
  *      Access control:
  *        - DEFAULT_ADMIN_ROLE : upgrade authority + role administration.
- *        - MANAGER_ROLE       : LayerZero OApp configuration (setPeer, enforced
+ *        - MANAGER       : LayerZero OApp configuration (setPeer, enforced
  *                               options, msg inspector, precrime), transfer
  *                               limiter configuration and unpause().
- *        - PAUSER_ROLE        : pause() the bridge in an emergency.
+ *        - PAUSER        : pause() the bridge in an emergency.
  *
  *      Upgradeability:
  *        - UUPS; only DEFAULT_ADMIN_ROLE may authorize an implementation upgrade.
@@ -44,9 +44,9 @@ contract ListaOFTAdapterV2 is
   TransferLimiterV2
 {
   // @notice can pause the bridge in an emergency
-  bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+  bytes32 public constant PAUSER = keccak256("PAUSER");
   // @notice can configure the OApp + transfer limiter and unpause the bridge
-  bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+  bytes32 public constant MANAGER = keccak256("MANAGER");
 
   /**
    * @param _token The canonical LISTA ERC20 token on BNB Chain.
@@ -64,8 +64,8 @@ contract ListaOFTAdapterV2 is
    * @param _admin The DEFAULT_ADMIN_ROLE holder (upgrade + role admin). Also set
    *               as the Ownable owner to satisfy the few non-virtual LayerZero
    *               owner-gated hooks.
-   * @param _manager The MANAGER_ROLE holder and LayerZero endpoint delegate.
-   * @param _pauser The PAUSER_ROLE holder.
+   * @param _manager The MANAGER holder and LayerZero endpoint delegate.
+   * @param _pauser The PAUSER holder.
    * @param _transferLimitConfigs Initial transfer limit configurations.
    */
   function initialize(
@@ -89,8 +89,8 @@ contract ListaOFTAdapterV2 is
     _transferOwnership(_admin);
 
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-    _grantRole(MANAGER_ROLE, _manager);
-    _grantRole(PAUSER_ROLE, _pauser);
+    _grantRole(MANAGER, _manager);
+    _grantRole(PAUSER, _pauser);
 
     _setTransferLimitConfigs(_transferLimitConfigs);
   }
@@ -105,7 +105,7 @@ contract ListaOFTAdapterV2 is
    */
   function setTransferLimitConfigs(
     TransferLimit[] calldata _transferLimitConfigs
-  ) external onlyRole(MANAGER_ROLE) {
+  ) external onlyRole(MANAGER) {
     _setTransferLimitConfigs(_transferLimitConfigs);
   }
 
@@ -113,13 +113,13 @@ contract ListaOFTAdapterV2 is
   // Pause control
   // --------------------------------------------------------------------------
 
-  /// @notice Pause the bridge. Callable by PAUSER_ROLE.
-  function pause() external onlyRole(PAUSER_ROLE) {
+  /// @notice Pause the bridge. Callable by PAUSER.
+  function pause() external onlyRole(PAUSER) {
     _pause();
   }
 
-  /// @notice Unpause the bridge. Callable by MANAGER_ROLE.
-  function unpause() external onlyRole(MANAGER_ROLE) {
+  /// @notice Unpause the bridge. Callable by MANAGER.
+  function unpause() external onlyRole(MANAGER) {
     _unpause();
   }
 
@@ -156,19 +156,19 @@ contract ListaOFTAdapterV2 is
   }
 
   // --------------------------------------------------------------------------
-  // LayerZero OApp configuration — restricted to MANAGER_ROLE
+  // LayerZero OApp configuration — restricted to MANAGER
   // --------------------------------------------------------------------------
 
-  /// @notice Sets the trusted peer for a destination endpoint. Restricted to MANAGER_ROLE.
-  function setPeer(uint32 _eid, bytes32 _peer) public override onlyRole(MANAGER_ROLE) {
+  /// @notice Sets the trusted peer for a destination endpoint. Restricted to MANAGER.
+  function setPeer(uint32 _eid, bytes32 _peer) public override onlyRole(MANAGER) {
     _getOAppCoreStorage().peers[_eid] = _peer;
     emit PeerSet(_eid, _peer);
   }
 
-  /// @notice Sets enforced LayerZero options. Restricted to MANAGER_ROLE.
+  /// @notice Sets enforced LayerZero options. Restricted to MANAGER.
   function setEnforcedOptions(
     EnforcedOptionParam[] calldata _enforcedOptions
-  ) public override onlyRole(MANAGER_ROLE) {
+  ) public override onlyRole(MANAGER) {
     OAppOptionsType3Storage storage $ = _getOAppOptionsType3Storage();
     for (uint256 i = 0; i < _enforcedOptions.length; i++) {
       _assertOptionsType3(_enforcedOptions[i].options);
@@ -177,14 +177,14 @@ contract ListaOFTAdapterV2 is
     emit EnforcedOptionSet(_enforcedOptions);
   }
 
-  /// @notice Sets the message inspector. Restricted to MANAGER_ROLE.
-  function setMsgInspector(address _msgInspector) public override onlyRole(MANAGER_ROLE) {
+  /// @notice Sets the message inspector. Restricted to MANAGER.
+  function setMsgInspector(address _msgInspector) public override onlyRole(MANAGER) {
     _getOFTCoreStorage().msgInspector = _msgInspector;
     emit MsgInspectorSet(_msgInspector);
   }
 
-  /// @notice Sets the preCrime contract. Restricted to MANAGER_ROLE.
-  function setPreCrime(address _preCrime) public override onlyRole(MANAGER_ROLE) {
+  /// @notice Sets the preCrime contract. Restricted to MANAGER.
+  function setPreCrime(address _preCrime) public override onlyRole(MANAGER) {
     _getOAppPreCrimeSimulatorStorage().preCrime = _preCrime;
     emit PreCrimeSet(_preCrime);
   }

@@ -51,8 +51,8 @@ contract ListaOFTV2LocalTest is TestHelperOz5, TransferLimiterV2 {
   address public userB = address(0x2);
   uint256 public initialBalance = 10000000 ether;
 
-  bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-  bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+  bytes32 public constant PAUSER = keccak256("PAUSER");
+  bytes32 public constant MANAGER = keccak256("MANAGER");
 
   function setUp() public virtual override {
     vm.deal(userA, 1000 ether);
@@ -111,8 +111,8 @@ contract ListaOFTV2LocalTest is TestHelperOz5, TransferLimiterV2 {
     assertEq(bToken.owner(), admin);
     assertEq(oftAdapter.token(), address(aToken));
     assertEq(bToken.token(), address(bToken));
-    assertTrue(oftAdapter.hasRole(MANAGER_ROLE, manager));
-    assertTrue(oftAdapter.hasRole(PAUSER_ROLE, pauser));
+    assertTrue(oftAdapter.hasRole(MANAGER, manager));
+    assertTrue(oftAdapter.hasRole(PAUSER, pauser));
     assertTrue(oftAdapter.approvalRequired());
     assertFalse(bToken.approvalRequired());
     assertEq(aToken.balanceOf(userA), initialBalance);

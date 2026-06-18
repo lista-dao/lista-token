@@ -10,10 +10,10 @@ import { OFTScriptBase } from "./OFTScriptBase.sol";
 /**
  * @title SetTransferLimit
  * @notice Pushes the transfer-limit configuration (from OFTConfig) to the local
- *         OFT. Must be broadcast by a MANAGER_ROLE holder.
+ *         OFT. Must be broadcast by a MANAGER holder.
  *
  * Env:
- *   DEPLOYER_PRIVATE_KEY (required, must hold MANAGER_ROLE)
+ *   DEPLOYER_PRIVATE_KEY (required, must hold MANAGER)
  *   OAPP (required) local proxy address
  *
  * Usage:
