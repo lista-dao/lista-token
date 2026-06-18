@@ -35,8 +35,6 @@ out
 /broadcast/**/dry-run/
 
 oftChains.json
-scripts/oft/v2/oftChainsV2.mainnet.json
-scripts/oft/v2/oftChainsV2.testnet.json
 
 typechain-types
 
