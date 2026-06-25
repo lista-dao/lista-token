@@ -43,6 +43,7 @@ contract SetDVNConfig is OFTScriptBase {
   uint32 internal constant CONFIG_TYPE_EXECUTOR = 1;
   uint32 internal constant CONFIG_TYPE_ULN = 2;
   uint32 internal constant MAX_MESSAGE_SIZE = 10000;
+  uint8 internal constant NIL_DVN_COUNT = type(uint8).max;
 
   // mirror of the LayerZero ULN config layout
   struct UlnConfig {
@@ -70,8 +71,8 @@ contract SetDVNConfig is OFTScriptBase {
     bytes memory ulnBytes = abi.encode(
       UlnConfig({
         confirmations: cfg.confirmations,
-        requiredDVNCount: uint8(required.length),
-        optionalDVNCount: uint8(optional.length),
+        requiredDVNCount: _dvnCount(required),
+        optionalDVNCount: _dvnCount(optional),
         optionalDVNThreshold: cfg.optionalDVNThreshold,
         requiredDVNs: required,
         optionalDVNs: optional
@@ -105,5 +106,9 @@ contract SetDVNConfig is OFTScriptBase {
     endpoint.setConfig(oapp, cfg.receiveLib, recvParams);
     vm.stopBroadcast();
     console.log("DVN / library config set");
+  }
+
+  function _dvnCount(address[] memory dvns) internal pure returns (uint8) {
+    return dvns.length == 0 ? NIL_DVN_COUNT : uint8(dvns.length);
   }
 }

@@ -20,6 +20,7 @@ ListaOFTv2 (burn) @ ETH      --> LayerZero --> ListaOFTAdapterV2 (unlock) --> BS
 | `SetPeer.s.sol` | wire trusted peer (MANAGER) |
 | `SetTransferLimit.s.sol` | push transfer limits (MANAGER) |
 | `SetDVNConfig.s.sol` | set send/receive libraries + ULN (DVN) + executor config (MANAGER/delegate) |
+| `BridgeListaOFTV2.s.sol` | send LISTA through the local OFT adapter/OFT for test transfers |
 
 ## Environment
 
@@ -33,15 +34,16 @@ ListaOFTv2 (burn) @ ETH      --> LayerZero --> ListaOFTAdapterV2 (unlock) --> BS
 
 Selected DVNs: **LayerZero Labs, Nethermind, Google, USDT0**. Mainnet config uses
 `requiredDVNs = [LayerZero Labs, Nethermind, Google]` (3) and `optionalDVNs = [USDT0]`
-(1, threshold 1). Edit `OFTConfig.sol` to change the policy; DVN arrays are sorted +
-deduped before encoding.
+(1, threshold 1). Testnet config uses Google + LayerZero Labs as optional DVNs with
+threshold 1 (1-of-2). Edit `OFTConfig.sol` to change the policy; DVN arrays are
+sorted + deduped before encoding.
 
 ## Commands
 
 ```bash
 # 1. deploy (per chain)
-forge script scripts/foundry/oft/v2/DeployListaOFTAdapterV2.s.sol --rpc-url bsc      --broadcast --verify
-forge script scripts/foundry/oft/v2/DeployListaOFTv2.s.sol         --rpc-url ethereum --broadcast --verify
+forge script scripts/foundry/oft/v2/DeployListaOFTAdapterV2.s.sol --rpc-url bsc      --broadcast --verify --via-ir --skip Buyback.sol --skip ListaAutoBuyback.sol
+forge script scripts/foundry/oft/v2/DeployListaOFTv2.s.sol         --rpc-url ethereum --broadcast --verify --via-ir --skip Buyback.sol --skip ListaAutoBuyback.sol
 
 # 2. wire peers (MANAGER) — OAPP = local proxy, PEER = remote proxy
 OAPP=0x.. PEER=0x.. forge script scripts/foundry/oft/v2/SetPeer.s.sol --rpc-url bsc --broadcast
@@ -51,6 +53,10 @@ OAPP=0x.. forge script scripts/foundry/oft/v2/SetDVNConfig.s.sol --rpc-url bsc -
 
 # 4. (re)push transfer limits (MANAGER)
 OAPP=0x.. forge script scripts/foundry/oft/v2/SetTransferLimit.s.sol --rpc-url bsc --broadcast
+
+# 5. test transfer
+OFT=0x.. DST_EID=40161 AMOUNT=1000000000000000000 forge script scripts/foundry/oft/v2/BridgeListaOFTV2.s.sol --rpc-url bsc-test --broadcast
+OFT=0x.. DST_EID=40102 AMOUNT=1000000000000000000 forge script scripts/foundry/oft/v2/BridgeListaOFTV2.s.sol --rpc-url sepolia --broadcast
 ```
 
 > `ethereum` / `sepolia` need an rpc alias in `foundry.toml` or pass the URL directly
