@@ -14,7 +14,13 @@ struct SetConfigParam {
 interface ILayerZeroEndpointV2Config {
   function setSendLibrary(address oapp, uint32 eid, address newLib) external;
 
+  function getSendLibrary(address sender, uint32 eid) external view returns (address lib);
+
+  function isDefaultSendLibrary(address sender, uint32 eid) external view returns (bool);
+
   function setReceiveLibrary(address oapp, uint32 eid, address newLib, uint256 gracePeriod) external;
+
+  function getReceiveLibrary(address receiver, uint32 eid) external view returns (address lib, bool isDefault);
 
   function setConfig(address oapp, address lib, SetConfigParam[] calldata params) external;
 }
@@ -24,9 +30,9 @@ interface ILayerZeroEndpointV2Config {
  * @notice Configures the LayerZero send/receive libraries and the ULN (DVN) +
  *         executor settings for the local OFT against its remote peer.
  *
- * DVN policy comes from OFTConfig: requiredDVNs must ALL verify; an additional
- * `optionalDVNThreshold` of the optionalDVNs must verify. Mainnet uses
- * LayerZero Labs + Nethermind + Google (required) and USDT0 (optional).
+ * DVN policy comes from OFTConfig: requiredDVNs must ALL verify; an
+ * `optionalDVNThreshold` of the optionalDVNs must verify. Mainnet uses 3-of-4
+ * optional DVNs. Testnet uses 1-of-2 optional DVNs.
  *
  * Must be broadcast by the OApp delegate (MANAGER) — endpoint config setters are
  * delegate-gated.
@@ -99,10 +105,21 @@ contract SetDVNConfig is OFTScriptBase {
 
     vm.startBroadcast(pk);
     // outbound: send library + executor + uln
-    endpoint.setSendLibrary(oapp, cfg.dstEid, cfg.sendLib);
+    address currentSendLib = endpoint.getSendLibrary(oapp, cfg.dstEid);
+    bool isDefaultSendLib = endpoint.isDefaultSendLibrary(oapp, cfg.dstEid);
+    if (currentSendLib != cfg.sendLib || isDefaultSendLib) {
+      endpoint.setSendLibrary(oapp, cfg.dstEid, cfg.sendLib);
+    } else {
+      console.log("send library already set");
+    }
     endpoint.setConfig(oapp, cfg.sendLib, sendParams);
     // inbound: receive library + uln
-    endpoint.setReceiveLibrary(oapp, cfg.dstEid, cfg.receiveLib, 0);
+    (address currentReceiveLib, bool isDefaultReceiveLib) = endpoint.getReceiveLibrary(oapp, cfg.dstEid);
+    if (currentReceiveLib != cfg.receiveLib || isDefaultReceiveLib) {
+      endpoint.setReceiveLibrary(oapp, cfg.dstEid, cfg.receiveLib, 0);
+    } else {
+      console.log("receive library already set");
+    }
     endpoint.setConfig(oapp, cfg.receiveLib, recvParams);
     vm.stopBroadcast();
     console.log("DVN / library config set");

@@ -33,10 +33,10 @@ ListaOFTv2 (burn) @ ETH      --> LayerZero --> ListaOFTAdapterV2 (unlock) --> BS
 ## DVNs
 
 Selected DVNs: **LayerZero Labs, Nethermind, Google, USDT0**. Mainnet config uses
-`requiredDVNs = [LayerZero Labs, Nethermind, Google]` (3) and `optionalDVNs = [USDT0]`
-(1, threshold 1). Testnet config uses Google + LayerZero Labs as optional DVNs with
-threshold 1 (1-of-2). Edit `OFTConfig.sol` to change the policy; DVN arrays are
-sorted + deduped before encoding.
+`requiredDVNs = []` and `optionalDVNs = [LayerZero Labs, Nethermind, Google, USDT0]`
+with threshold 3 (3-of-4). Testnet config uses Google + LayerZero Labs as optional
+DVNs with threshold 1 (1-of-2). Edit `OFTConfig.sol` to change the policy; DVN
+arrays are sorted + deduped before encoding.
 
 ## Commands
 

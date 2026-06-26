@@ -14,9 +14,9 @@ pragma solidity ^0.8.20;
  *   - 11155111    Sepolia testnet        (ListaOFTv2)
  *
  * DVN policy: requiredDVNs must ALL verify; `optionalDVNThreshold` of the
- * optionalDVNs must also verify. Mainnet uses LayerZero Labs + Nethermind +
- * Google as required (3) and USDT0 as optional (1, threshold 1). Testnet uses
- * Google + LayerZero Labs as optional DVNs with threshold 1 (1-of-2).
+ * optionalDVNs must verify. Mainnet uses LayerZero Labs + Nethermind + Google +
+ * USDT0 as optional DVNs with threshold 3 (3-of-4). Testnet uses Google +
+ * LayerZero Labs as optional DVNs with threshold 1 (1-of-2).
  */
 library OFTConfig {
   struct NetworkConfig {
@@ -62,13 +62,13 @@ library OFTConfig {
     cfg.executor = 0x3ebD570ed38B1b3b4BC886999fcF507e9D584859;
     cfg.token = 0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46; // canonical LISTA
     cfg.confirmations = 20;
-    cfg.requiredDVNs = new address[](3);
-    cfg.requiredDVNs[0] = 0xfD6865c841c2d64565562fCc7e05e619A30615f0; // LayerZero Labs
-    cfg.requiredDVNs[1] = 0x31F748a368a893Bdb5aBB67ec95F232507601A73; // Nethermind
-    cfg.requiredDVNs[2] = 0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc; // Google
-    cfg.optionalDVNs = new address[](1);
-    cfg.optionalDVNs[0] = 0x72F697797aC173F09eDa73Dd9C11a141376d2b57; // USDT0
-    cfg.optionalDVNThreshold = 1;
+    cfg.requiredDVNs = new address[](0);
+    cfg.optionalDVNs = new address[](4);
+    cfg.optionalDVNs[0] = 0xfD6865c841c2d64565562fCc7e05e619A30615f0; // LayerZero Labs
+    cfg.optionalDVNs[1] = 0x31F748a368a893Bdb5aBB67ec95F232507601A73; // Nethermind
+    cfg.optionalDVNs[2] = 0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc; // Google
+    cfg.optionalDVNs[3] = 0x72F697797aC173F09eDa73Dd9C11a141376d2b57; // USDT0
+    cfg.optionalDVNThreshold = 3;
     _defaultLimits(cfg);
   }
 
@@ -83,13 +83,13 @@ library OFTConfig {
     cfg.tokenName = "Lista DAO Token";
     cfg.symbol = "LISTA";
     cfg.confirmations = 15;
-    cfg.requiredDVNs = new address[](3);
-    cfg.requiredDVNs[0] = 0x589dEDbD617e0CBcB916A9223F4d1300c294236b; // LayerZero Labs
-    cfg.requiredDVNs[1] = 0xa59BA433ac34D2927232918Ef5B2eaAfcF130BA5; // Nethermind
-    cfg.requiredDVNs[2] = 0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc; // Google
-    cfg.optionalDVNs = new address[](1);
-    cfg.optionalDVNs[0] = 0x3b0531eB02Ab4aD72e7a531180beeF9493a00dD2; // USDT0
-    cfg.optionalDVNThreshold = 1;
+    cfg.requiredDVNs = new address[](0);
+    cfg.optionalDVNs = new address[](4);
+    cfg.optionalDVNs[0] = 0x589dEDbD617e0CBcB916A9223F4d1300c294236b; // LayerZero Labs
+    cfg.optionalDVNs[1] = 0xa59BA433ac34D2927232918Ef5B2eaAfcF130BA5; // Nethermind
+    cfg.optionalDVNs[2] = 0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc; // Google
+    cfg.optionalDVNs[3] = 0x3b0531eB02Ab4aD72e7a531180beeF9493a00dD2; // USDT0
+    cfg.optionalDVNThreshold = 3;
     _defaultLimits(cfg);
   }
 
