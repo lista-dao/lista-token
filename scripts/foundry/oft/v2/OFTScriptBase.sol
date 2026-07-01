@@ -17,6 +17,14 @@ abstract contract OFTScriptBase is Script {
     admin = vm.envOr("ADMIN", deployer);
     manager = vm.envOr("MANAGER", deployer);
     pauser = vm.envOr("PAUSER", deployer);
+    // Loudly flag the unsafe case where a role env var is unset and silently collapses onto the
+    // deployer EOA, concentrating admin/manager/pauser in one hot key. Warn only (no revert) so
+    // single-key test/staging deploys still work; rotate to distinct multisigs post-deploy.
+    if (admin == deployer || manager == deployer || pauser == deployer) {
+      console.log(
+        "WARNING: ADMIN/MANAGER/PAUSER resolved to the deployer EOA. Set these env vars to distinct keys and rotate roles to multisigs after deploy."
+      );
+    }
   }
 
   /// @dev Builds the single-destination TransferLimit array from a config.
