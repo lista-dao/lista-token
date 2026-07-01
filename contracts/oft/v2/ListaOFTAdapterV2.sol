@@ -24,10 +24,11 @@ import { TransferLimiterV2 } from "./TransferLimiterV2.sol";
  *      LayerZero rules ONLY ONE OFT Adapter may exist for a given token mesh.
  *
  *      Access control:
- *        - DEFAULT_ADMIN_ROLE : upgrade authority + role administration.
- *        - MANAGER       : LayerZero OApp configuration (setPeer, enforced
- *                               options, msg inspector, precrime), transfer
- *                               limiter configuration and unpause().
+ *        - DEFAULT_ADMIN_ROLE : upgrade authority, role administration + setPeer
+ *                               (the cross-chain trust anchor).
+ *        - MANAGER       : LayerZero OApp configuration (enforced options, msg
+ *                               inspector, precrime), transfer limiter
+ *                               configuration and unpause().
  *        - PAUSER        : pause() the bridge in an emergency.
  *
  *      Upgradeability:
@@ -156,11 +157,14 @@ contract ListaOFTAdapterV2 is
   }
 
   // --------------------------------------------------------------------------
-  // LayerZero OApp configuration — restricted to MANAGER
+  // LayerZero OApp configuration
+  //   - setPeer (the cross-chain trust anchor) is restricted to DEFAULT_ADMIN_ROLE
+  //   - enforced options / msg inspector / preCrime are restricted to MANAGER
   // --------------------------------------------------------------------------
 
-  /// @notice Sets the trusted peer for a destination endpoint. Restricted to MANAGER.
-  function setPeer(uint32 _eid, bytes32 _peer) public override onlyRole(MANAGER) {
+  /// @notice Sets the trusted peer for a destination endpoint. Restricted to DEFAULT_ADMIN_ROLE
+  ///         (the cross-chain trust anchor; emergency severing uses pause()).
+  function setPeer(uint32 _eid, bytes32 _peer) public override onlyRole(DEFAULT_ADMIN_ROLE) {
     _getOAppCoreStorage().peers[_eid] = _peer;
     emit PeerSet(_eid, _peer);
   }

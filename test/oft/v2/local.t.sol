@@ -252,13 +252,23 @@ contract ListaOFTV2LocalTest is TestHelperOz5, TransferLimiterV2 {
   }
 
   // ----------------------------------------------------------------------
-  // OApp config gated to MANAGER
+  // OApp config: setPeer gated to DEFAULT_ADMIN_ROLE
   // ----------------------------------------------------------------------
-  function test_setPeer_onlyManager() public {
+  function test_setPeer_onlyAdmin() public {
+    // I04: setPeer is the cross-chain trust anchor and is gated by DEFAULT_ADMIN_ROLE, not MANAGER.
+    // A MANAGER-only account must NOT be able to call it.
+    address managerOnly = address(0x7777);
+    oftAdapter.grantRole(MANAGER, managerOnly); // caller (this) holds DEFAULT_ADMIN_ROLE
+    vm.prank(managerOnly);
+    vm.expectRevert();
+    oftAdapter.setPeer(bEid, addressToBytes32(address(0xdead)));
+
+    // a non-privileged account reverts too
     vm.prank(userA);
     vm.expectRevert();
     oftAdapter.setPeer(bEid, addressToBytes32(address(0xdead)));
-    // manager can
+
+    // admin (this) can
     oftAdapter.setPeer(99, addressToBytes32(address(0xbeef)));
     assertEq(oftAdapter.peers(99), addressToBytes32(address(0xbeef)));
   }
