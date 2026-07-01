@@ -178,6 +178,28 @@ contract ListaOFTV2LocalTest is TestHelperOz5, TransferLimiterV2 {
     this.exposed_check(bEid, 0, userA);
   }
 
+  // M01: counters reset on the UTC-day boundary, not on a sliding 24h idle gap. Two transfers
+  // only ~20s apart but on different UTC days must reset — the old sliding logic would not.
+  function test_dailyReset_onUtcDayBoundary_notSlidingWindow() public {
+    TransferLimit[] memory t = new TransferLimit[](1);
+    t[0] = TransferLimit(bEid, 100000 ether, 10000 ether, 0.1 ether, 20000 ether, 10);
+    _setTransferLimitConfigs(t);
+
+    // near the end of UTC day 0
+    vm.warp(1 days - 10);
+    this.exposed_check(bEid, 10000 ether, userA); // user daily -> 10,000
+    this.exposed_check(bEid, 10000 ether, userA); // user daily -> 20,000 (at cap)
+    // a third same-day transfer exceeds the 20,000 per-address cap
+    vm.expectRevert(TransferLimiterV2.TransferLimitExceeded.selector);
+    this.exposed_check(bEid, 10000 ether, userA);
+
+    // cross into UTC day 1 with only ~20s elapsed (< 86400): counters must reset
+    vm.warp(1 days + 10);
+    this.exposed_check(bEid, 10000 ether, userA);
+    assertEq(userDailyTransferAmount[bEid][userA], 10000 ether);
+    assertEq(dailyTransferAmount[bEid], 10000 ether);
+  }
+
   function test_exceeded_daily_user_transfer_limit() public {
     this.send_from_a_to_b(userA, 10000 ether);
     vm.expectRevert(TransferLimiterV2.TransferLimitExceeded.selector);

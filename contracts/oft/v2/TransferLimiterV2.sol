@@ -113,7 +113,7 @@ abstract contract TransferLimiterV2 {
 
   /**
    * @notice check if the transfer amount exceeds the limit
-   * @dev reset limit if the last transfer is made more than a calendar day, and then check the limit
+   * @dev resets the daily counters when the last transfer fell on an earlier UTC day, then checks the limit
    * @param _dstEid destination endpoint id
    * @param _amount transfer amount
    * @param _user user address
@@ -135,12 +135,12 @@ abstract contract TransferLimiterV2 {
       revert TransferLimitExceeded();
     }
 
-    // reset global transfer limit if the last transfer is made more than a calendar day
-    if (isMoreThanACalendarDay(lastUpdatedTime[_dstEid], block.timestamp)) {
+    // reset global transfer limit at the start of each UTC day (fixed window, not a sliding 24h gap)
+    if (_dayIndex(lastUpdatedTime[_dstEid]) != _dayIndex(block.timestamp)) {
       dailyTransferAmount[_dstEid] = 0;
     }
-    // reset user transfer limit and attempt if the last transfer is made more than a calendar day
-    if (isMoreThanACalendarDay(lastUserUpdatedTime[_dstEid][_user], block.timestamp)) {
+    // reset user transfer limit and attempt at the start of each UTC day
+    if (_dayIndex(lastUserUpdatedTime[_dstEid][_user]) != _dayIndex(block.timestamp)) {
       userDailyTransferAmount[_dstEid][_user] = 0;
       userDailyAttempt[_dstEid][_user] = 0;
     }
@@ -169,15 +169,15 @@ abstract contract TransferLimiterV2 {
   }
 
   /**
-   * @notice compare two timestamp and check if the difference is more than a calendar day
-   * @param timestampA timestamp A
-   * @param timestampB timestamp B
-   * @return true if the difference is more than a calendar day
+   * @notice UTC day index for a timestamp (whole days since the unix epoch).
+   * @dev Used to reset the daily counters on a fixed 00:00 UTC boundary rather than on a
+   *      sliding 24h window anchored to the last transfer. Two timestamps within the same
+   *      UTC day share an index; a timestamp in a later day has a strictly greater index.
+   * @param timestamp unix timestamp in seconds
+   * @return the UTC day index (timestamp / 1 days)
    */
-  function isMoreThanACalendarDay(uint256 timestampA, uint256 timestampB) internal pure virtual returns (bool) {
-    uint256 secondsPerDay = 86400; // 60 * 60 * 24
-    uint256 diffInDays = (timestampB - timestampA) / secondsPerDay;
-    return diffInDays >= 1;
+  function _dayIndex(uint256 timestamp) internal pure virtual returns (uint256) {
+    return timestamp / 1 days;
   }
 
   /**
