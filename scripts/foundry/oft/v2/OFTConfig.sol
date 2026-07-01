@@ -81,7 +81,7 @@ library OFTConfig {
     cfg.sendLib = 0xbB2Ea70C9E858123480642Cf96acbcCE1372dCe1;
     cfg.receiveLib = 0xc02Ab410f0734EFa3F14628780e6e695156024C2;
     cfg.executor = 0x173272739Bd7Aa6e4e214714048a9fE699453059;
-    cfg.tokenName = "Lista DAO Token";
+    cfg.tokenName = "Lista DAO";
     cfg.symbol = "LISTA";
     cfg.confirmations = 15;
     cfg.requiredDVNs = new address[](1);
@@ -122,7 +122,7 @@ library OFTConfig {
     cfg.sendLib = 0xcc1ae8Cf5D3904Cef3360A9532B477529b177cCE;
     cfg.receiveLib = 0xdAf00F5eE2158dD58E0d3857851c432E34A3A851;
     cfg.executor = 0x718B92b5CB0a5552039B593faF724D182A881eDA;
-    cfg.tokenName = "Lista DAO Token";
+    cfg.tokenName = "Lista DAO";
     cfg.symbol = "LISTA";
     cfg.confirmations = 5;
     cfg.requiredDVNs = new address[](1);
