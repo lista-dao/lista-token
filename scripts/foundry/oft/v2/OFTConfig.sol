@@ -133,10 +133,13 @@ library OFTConfig {
   }
 
   function _defaultLimits(NetworkConfig memory cfg) private pure {
-    cfg.maxDailyTransferAmount = 1_000_000 ether;
-    cfg.singleTransferUpperLimit = 100_000 ether;
+    // Per-address cap is 2% of the global cap (was 20%), so exhausting the shared daily
+    // bucket now requires ~50 distinct addresses instead of 5 (M02). Limits are applied
+    // post-deploy via SetTransferLimit and remain adjustable without a redeploy.
+    cfg.maxDailyTransferAmount = 2_000_000 ether;
+    cfg.singleTransferUpperLimit = 30_000 ether;
     cfg.singleTransferLowerLimit = 0.1 ether;
-    cfg.dailyTransferAmountPerAddress = 200_000 ether;
-    cfg.dailyTransferAttemptPerAddress = 100;
+    cfg.dailyTransferAmountPerAddress = 40_000 ether;
+    cfg.dailyTransferAttemptPerAddress = 20;
   }
 }
