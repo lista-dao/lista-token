@@ -185,5 +185,5 @@ abstract contract TransferLimiterV2 {
    *      contract in future upgrades without shifting the storage layout of
    *      inheriting contracts.
    */
-  uint256[45] private __gap;
+  uint256[44] private __gap;
 }
