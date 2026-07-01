@@ -20,6 +20,7 @@ ListaOFTv2 (burn) @ ETH      --> LayerZero --> ListaOFTAdapterV2 (unlock) --> BS
 | `SetPeer.s.sol` | wire trusted peer (MANAGER) |
 | `SetTransferLimit.s.sol` | push transfer limits (MANAGER) |
 | `SetDVNConfig.s.sol` | set send/receive libraries + ULN (DVN) + executor config (MANAGER/delegate) |
+| `SetEnforcedOptions.s.sol` | set enforced LayerZero options / destination lzReceive gas floor (MANAGER) |
 | `BridgeListaOFTV2.s.sol` | send LISTA through the local OFT adapter/OFT for test transfers |
 
 ## Environment
@@ -54,7 +55,10 @@ OAPP=0x.. forge script scripts/foundry/oft/v2/SetDVNConfig.s.sol --rpc-url bsc -
 # 4. (re)push transfer limits (MANAGER)
 OAPP=0x.. forge script scripts/foundry/oft/v2/SetTransferLimit.s.sol --rpc-url bsc --broadcast
 
-# 5. test transfer
+# 5. set enforced options / destination lzReceive gas floor (MANAGER)
+OAPP=0x.. forge script scripts/foundry/oft/v2/SetEnforcedOptions.s.sol --rpc-url bsc --broadcast
+
+# 6. test transfer
 OFT=0x.. DST_EID=40161 AMOUNT=1000000000000000000 forge script scripts/foundry/oft/v2/BridgeListaOFTV2.s.sol --rpc-url bsc-test --broadcast
 OFT=0x.. DST_EID=40102 AMOUNT=1000000000000000000 forge script scripts/foundry/oft/v2/BridgeListaOFTV2.s.sol --rpc-url sepolia --broadcast
 ```
