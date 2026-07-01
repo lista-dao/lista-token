@@ -33,35 +33,56 @@ ListaOFTv2 (burn) @ ETH      --> LayerZero --> ListaOFTAdapterV2 (unlock) --> BS
 
 ## DVNs
 
-Selected DVNs: **LayerZero Labs, Nethermind, Google, USDT0**. Mainnet config uses
-`requiredDVNs = []` and `optionalDVNs = [LayerZero Labs, Nethermind, Google, USDT0]`
-with threshold 3 (3-of-4). Testnet config uses Google + LayerZero Labs as optional
-DVNs with threshold 1 (1-of-2). Edit `OFTConfig.sol` to change the policy; DVN
-arrays are sorted + deduped before encoding.
+Mainnet config **requires Google** plus an optional 2-of-3 of **LayerZero Labs,
+Nethermind, USDT0**. Testnet config **requires LayerZero Labs** plus an optional
+1-of-1 **Google**. A mandatory required DVN must sign every message, so no
+optional-only subset can finalize a forged message on its own. Edit `OFTConfig.sol`
+to change the policy; DVN arrays are sorted before encoding, so keep each list free
+of duplicate addresses (the ULN rejects a non-unique array).
 
 ## Commands
 
+Wire `setPeer` LAST, and only after libraries + DVNs are configured — see the
+launch checklist below for why order matters.
+
 ```bash
-# 1. deploy (per chain)
+# 1. deploy (per chain) — deploy PAUSED; unpause only after the launch checklist passes
 forge script scripts/foundry/oft/v2/DeployListaOFTAdapterV2.s.sol --rpc-url bsc      --broadcast --verify --via-ir --skip Buyback.sol --skip ListaAutoBuyback.sol
 forge script scripts/foundry/oft/v2/DeployListaOFTv2.s.sol         --rpc-url ethereum --broadcast --verify --via-ir --skip Buyback.sol --skip ListaAutoBuyback.sol
 
-# 2. wire peers (MANAGER) — OAPP = local proxy, PEER = remote proxy
-OAPP=0x.. PEER=0x.. forge script scripts/foundry/oft/v2/SetPeer.s.sol --rpc-url bsc --broadcast
-
-# 3. DVN / send / receive library config (MANAGER/delegate)
+# 2. DVN / send / receive library config (MANAGER/delegate) — BEFORE wiring peers
 OAPP=0x.. forge script scripts/foundry/oft/v2/SetDVNConfig.s.sol --rpc-url bsc --broadcast
 
-# 4. (re)push transfer limits (MANAGER)
+# 3. (re)push transfer limits (MANAGER)
 OAPP=0x.. forge script scripts/foundry/oft/v2/SetTransferLimit.s.sol --rpc-url bsc --broadcast
 
-# 5. set enforced options / destination lzReceive gas floor (MANAGER)
+# 4. set enforced options / destination lzReceive gas floor (MANAGER)
 OAPP=0x.. forge script scripts/foundry/oft/v2/SetEnforcedOptions.s.sol --rpc-url bsc --broadcast
+
+# 5. wire peers (DEFAULT_ADMIN_ROLE) — LAST config step; this makes the route live.
+#    OAPP = local proxy, PEER = remote proxy
+OAPP=0x.. PEER=0x.. forge script scripts/foundry/oft/v2/SetPeer.s.sol --rpc-url bsc --broadcast
 
 # 6. test transfer
 OFT=0x.. DST_EID=40161 AMOUNT=1000000000000000000 forge script scripts/foundry/oft/v2/BridgeListaOFTV2.s.sol --rpc-url bsc-test --broadcast
 OFT=0x.. DST_EID=40102 AMOUNT=1000000000000000000 forge script scripts/foundry/oft/v2/BridgeListaOFTV2.s.sol --rpc-url sepolia --broadcast
 ```
+
+## Launch checklist
+
+Cross-chain wiring is not atomic and step order matters:
+
+- Run `SetDVNConfig` **before** `SetPeer`. `setPeer` makes a route live; if it runs
+  while the endpoint still resolves to LayerZero's default library/DVN, messages in
+  that window are verified under security settings the protocol did not choose.
+- Deploy the OFT and adapter **paused** and unpause only after confirming, on **both
+  chains and both directions**, that libraries, DVNs, enforced options, transfer
+  limits, and peers are all set as intended.
+- Do not announce or use the bridge until both directions are fully wired on both
+  chains. A send from an unconfigured side reverts locally at `_getPeerOrRevert`
+  before any packet is emitted, so no funds leave the sender. A packet arriving at
+  an unconfigured receiving side reverts inside `lzReceive` and can be retried at
+  the endpoint once the peer is set.
 
 > `ethereum` / `sepolia` need an rpc alias in `foundry.toml` or pass the URL directly
 > (`--rpc-url "$ETHEREUM_RPC"`). `bsc` / `bsc-test` aliases already exist.
