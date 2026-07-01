@@ -129,6 +129,12 @@ abstract contract TransferLimiterV2 {
       revert ZeroAmount();
     }
 
+    // check if the transfer amount exceeds the upper and lower limit
+    // (checked before the daily-reset reads/writes so an out-of-range amount reverts without touching storage)
+    if (_amount > limit.singleTransferUpperLimit || _amount < limit.singleTransferLowerLimit) {
+      revert TransferLimitExceeded();
+    }
+
     // reset global transfer limit if the last transfer is made more than a calendar day
     if (isMoreThanACalendarDay(lastUpdatedTime[_dstEid], block.timestamp)) {
       dailyTransferAmount[_dstEid] = 0;
@@ -137,11 +143,6 @@ abstract contract TransferLimiterV2 {
     if (isMoreThanACalendarDay(lastUserUpdatedTime[_dstEid][_user], block.timestamp)) {
       userDailyTransferAmount[_dstEid][_user] = 0;
       userDailyAttempt[_dstEid][_user] = 0;
-    }
-
-    // check if the transfer amount exceeds the upper and lower limit
-    if (_amount > limit.singleTransferUpperLimit || _amount < limit.singleTransferLowerLimit) {
-      revert TransferLimitExceeded();
     }
 
     // check if the transfer amount exceeds the daily transfer amount limit
