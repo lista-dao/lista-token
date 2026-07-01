@@ -108,9 +108,10 @@ library OFTConfig {
     cfg.confirmations = 5;
     cfg.requiredDVNs = new address[](1);
     cfg.requiredDVNs[0] = 0x0eE552262f7B562eFcED6DD4A7e2878AB897d405; // LayerZero Labs (mandatory)
-    cfg.optionalDVNs = new address[](1);
-    cfg.optionalDVNs[0] = 0x6f99eA3Fc9206E2779249E15512D7248dAb0B52e; // Google
-    cfg.optionalDVNThreshold = 1;
+    // Testnet: the Google DVN is not reliably attesting, so requiring it stalls the route.
+    // Require only the always-on LayerZero Labs DVN (mainnet keeps the fuller policy).
+    cfg.optionalDVNs = new address[](0);
+    cfg.optionalDVNThreshold = 0;
     _defaultLimits(cfg);
   }
 
@@ -127,9 +128,10 @@ library OFTConfig {
     cfg.confirmations = 5;
     cfg.requiredDVNs = new address[](1);
     cfg.requiredDVNs[0] = 0x8eebf8b423B73bFCa51a1Db4B7354AA0bFCA9193; // LayerZero Labs (mandatory)
-    cfg.optionalDVNs = new address[](1);
-    cfg.optionalDVNs[0] = 0x4F675c48FaD936cb4c3cA07d7cBF421CeeAE0C75; // Google
-    cfg.optionalDVNThreshold = 1;
+    // Testnet: the Google DVN is not reliably attesting, so requiring it stalls the route.
+    // Require only the always-on LayerZero Labs DVN (mainnet keeps the fuller policy).
+    cfg.optionalDVNs = new address[](0);
+    cfg.optionalDVNThreshold = 0;
     _defaultLimits(cfg);
   }
 
