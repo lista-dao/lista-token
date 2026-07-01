@@ -31,8 +31,9 @@ interface ILayerZeroEndpointV2Config {
  *         executor settings for the local OFT against its remote peer.
  *
  * DVN policy comes from OFTConfig: requiredDVNs must ALL verify; an
- * `optionalDVNThreshold` of the optionalDVNs must verify. Mainnet uses 3-of-4
- * optional DVNs. Testnet uses 1-of-2 optional DVNs.
+ * `optionalDVNThreshold` of the optionalDVNs must verify. Mainnet requires one
+ * mandatory DVN plus a 2-of-3 optional threshold. Testnet requires one mandatory
+ * DVN plus a 1-of-1 optional.
  *
  * Must be broadcast by the OApp delegate (MANAGER) — endpoint config setters are
  * delegate-gated.
