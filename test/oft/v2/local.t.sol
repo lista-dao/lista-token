@@ -169,6 +169,15 @@ contract ListaOFTV2LocalTest is TestHelperOz5, TransferLimiterV2 {
     this.send_from_a_to_b(userA, 10001 ether);
   }
 
+  function test_zeroAmount_reverts_ZeroAmount() public {
+    // configure the limiter on this test contract's own storage, then hit the zero path directly
+    TransferLimit[] memory t = new TransferLimit[](1);
+    t[0] = TransferLimit(bEid, 100000 ether, 10000 ether, 0.1 ether, 20000 ether, 10);
+    _setTransferLimitConfigs(t);
+    vm.expectRevert(TransferLimiterV2.ZeroAmount.selector);
+    this.exposed_check(bEid, 0, userA);
+  }
+
   function test_exceeded_daily_user_transfer_limit() public {
     this.send_from_a_to_b(userA, 10000 ether);
     vm.expectRevert(TransferLimiterV2.TransferLimitExceeded.selector);
@@ -269,6 +278,11 @@ contract ListaOFTV2LocalTest is TestHelperOz5, TransferLimiterV2 {
   }
 
   // ---- helpers ----
+  // external harness to unit-test the internal limiter directly (this contract is TransferLimiterV2)
+  function exposed_check(uint32 e, uint256 amt, address u) external {
+    _checkAndUpdateTransferLimit(e, amt, u);
+  }
+
   function send_from_a_to_b(address from, uint256 amt) public {
     send_from_a_to_b_to(from, from, amt);
   }

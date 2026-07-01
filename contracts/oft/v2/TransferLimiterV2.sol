@@ -60,6 +60,8 @@ abstract contract TransferLimiterV2 {
   error TransferLimitExceeded();
   // @dev Error that is thrown when the transfer limit is not set.
   error TransferLimitNotSet();
+  // @dev Error that is thrown when the transfer amount is zero (e.g. dust rounded down to 0 by _removeDust).
+  error ZeroAmount();
 
   /**
    * @notice sets the transfer limit configurations
@@ -124,7 +126,7 @@ abstract contract TransferLimiterV2 {
     }
     // check if amount is greater than 0
     if (_amount == 0) {
-      revert TransferLimitExceeded();
+      revert ZeroAmount();
     }
 
     // reset global transfer limit if the last transfer is made more than a calendar day
