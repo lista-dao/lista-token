@@ -311,4 +311,16 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         delete costToWhitelist[_costToAddress];
         emit CostToAddressChanged(_costToAddress, false);
     }
+
+    /**
+     * @dev emergency withdraw tokens from contract
+     * @param _token token address
+     * @param _to receiver address
+     * @param _amount token amount
+     */
+    function emergencyWithdraw(address _token, address _to, uint256 _amount) external onlyRole(MANAGER) {
+        require(_to != address(0), "to is the zero address");
+        require(_amount > 0, "Invalid amount");
+        IERC20(_token).safeTransfer(_to, _amount);
+    }
 }
