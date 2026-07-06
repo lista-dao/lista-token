@@ -83,9 +83,6 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         require(_admin != address(0), "admin is the zero address");
         require(_manager != address(0), "manager is the zero address");
         require(_listaTokenAddress != address(0), "listaTokenAddress is the zero address");
-        require(_autoBuybackAddress != address(0), "autoBuybackAddress is the zero address");
-        require(_revenueWalletAddress != address(0), "revenueWalletAddress is the zero address");
-        require(_listaDistributeToAddress != address(0), "listaDistributeToAddress is the zero address");
         require(_distributeRate <= 1e18, "too big rate number");
 
         __AccessControl_init();
@@ -122,12 +119,16 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
         if (amount0 > 0) {
             if (token == listaTokenAddress) {
                 // lista should skip autoBuyback process
-                IERC20(token).safeTransfer(listaDistributeToAddress, amount0);
+                if (listaDistributeToAddress != address(0)) {
+                    IERC20(token).safeTransfer(listaDistributeToAddress, amount0);
+                }
             } else {
-                IERC20(token).safeTransfer(autoBuybackAddress, amount0);
+                if (autoBuybackAddress != address(0)) {
+                    IERC20(token).safeTransfer(autoBuybackAddress, amount0);
+                }
             }
         }
-        if (amount1 > 0) {
+        if (amount1 > 0 && revenueWalletAddress != address(0)) {
             IERC20(token).safeTransfer(revenueWalletAddress, amount1);
         }
 
@@ -208,13 +209,17 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
             if (amount0 > 0) {
                 if (token == listaTokenAddress) {
                     // lista should skip autoBuyback process
-                    IERC20(token).safeTransfer(listaDistributeToAddress, amount0);
+                    if (listaDistributeToAddress != address(0)) {
+                        IERC20(token).safeTransfer(listaDistributeToAddress, amount0);
+                    }
                 } else {
-                    IERC20(token).safeTransfer(autoBuybackAddress, amount0);
+                    if (autoBuybackAddress != address(0)) {
+                        IERC20(token).safeTransfer(autoBuybackAddress, amount0);
+                    }
                 }
 
             }
-            if (amount1 > 0) {
+            if (amount1 > 0 && revenueWalletAddress != address(0)) {
                 IERC20(token).safeTransfer(revenueWalletAddress, amount1);
             }
             if (cost > 0) {
@@ -226,7 +231,6 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
     }
 
     function changeAutoBuybackAddress(address _autoBuybackAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_autoBuybackAddress != address(0), "autoBuybackAddress is the zero address");
         require(_autoBuybackAddress != autoBuybackAddress, "autoBuybackAddress is the same");
         autoBuybackAddress = _autoBuybackAddress;
 
@@ -234,7 +238,6 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
     }
 
     function changeRevenueWalletAddress(address _revenueWalletAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_revenueWalletAddress != address(0), "revenueWalletAddress is the zero address");
         require(_revenueWalletAddress != revenueWalletAddress, "revenueWalletAddress is the same");
         revenueWalletAddress = _revenueWalletAddress;
 
@@ -242,7 +245,6 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
     }
 
     function changeListaDistributeToAddress(address _listaDistributeToAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_listaDistributeToAddress != address(0), "listaDistributeToAddress is the zero address");
         require(_listaDistributeToAddress != listaDistributeToAddress, "listaDistributeToAddress is the same");
         listaDistributeToAddress = _listaDistributeToAddress;
 
