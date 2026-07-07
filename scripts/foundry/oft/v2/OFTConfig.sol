@@ -136,13 +136,17 @@ library OFTConfig {
   }
 
   function _defaultLimits(NetworkConfig memory cfg) private pure {
-    // Per-address cap is 2% of the global cap (was 20%), so exhausting the shared daily
-    // bucket now requires ~50 distinct addresses instead of 5 (M02). Limits are applied
-    // post-deploy via SetTransferLimit and remain adjustable without a redeploy.
-    cfg.maxDailyTransferAmount = 2_000_000 ether;
-    cfg.singleTransferUpperLimit = 30_000 ether;
+    // Sized against LISTA supply (totalSupply 1B, circulating ~415M, price ~$0.049):
+    // the 8M/day global cap is <2% of circulating (~$392k notional) — a small max-loss
+    // window before pause(), with the DVN set as the primary control and the limiter as a
+    // backstop. Per-address cap is 5% of the global cap, so exhausting the shared daily
+    // bucket requires 20 distinct addresses (M02). The 400k/day per-address cap also lets
+    // operations bridge ~500k/week from a single wallet. Limits are applied post-deploy via
+    // SetTransferLimit and remain adjustable without a redeploy.
+    cfg.maxDailyTransferAmount = 8_000_000 ether;
+    cfg.singleTransferUpperLimit = 200_000 ether;
     cfg.singleTransferLowerLimit = 0.1 ether;
-    cfg.dailyTransferAmountPerAddress = 40_000 ether;
+    cfg.dailyTransferAmountPerAddress = 400_000 ether;
     cfg.dailyTransferAttemptPerAddress = 20;
   }
 }
