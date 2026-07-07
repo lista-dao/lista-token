@@ -75,9 +75,24 @@ contract SetDVNConfig is OFTScriptBase {
     address[] memory required = _sorted(cfg.requiredDVNs);
     address[] memory optional = _sorted(cfg.optionalDVNs);
 
-    bytes memory ulnBytes = abi.encode(
+    // Outbound (send) ULN attests to source-chain confirmations (cfg.confirmations).
+    // Inbound (receive) ULN must require the REMOTE source chain's confirmations
+    // (cfg.inboundConfirmations); LayerZero rejects a message when the outbound
+    // confirmations it carries are < the inbound confirmations the destination requires
+    // ("Config error: Outbound confirmations must be >= inbound confirmations").
+    bytes memory sendUlnBytes = abi.encode(
       UlnConfig({
         confirmations: cfg.confirmations,
+        requiredDVNCount: _dvnCount(required),
+        optionalDVNCount: _dvnCount(optional),
+        optionalDVNThreshold: cfg.optionalDVNThreshold,
+        requiredDVNs: required,
+        optionalDVNs: optional
+      })
+    );
+    bytes memory recvUlnBytes = abi.encode(
+      UlnConfig({
+        confirmations: cfg.inboundConfirmations,
         requiredDVNCount: _dvnCount(required),
         optionalDVNCount: _dvnCount(optional),
         optionalDVNThreshold: cfg.optionalDVNThreshold,
@@ -91,10 +106,10 @@ contract SetDVNConfig is OFTScriptBase {
 
     SetConfigParam[] memory sendParams = new SetConfigParam[](2);
     sendParams[0] = SetConfigParam(cfg.dstEid, CONFIG_TYPE_EXECUTOR, execBytes);
-    sendParams[1] = SetConfigParam(cfg.dstEid, CONFIG_TYPE_ULN, ulnBytes);
+    sendParams[1] = SetConfigParam(cfg.dstEid, CONFIG_TYPE_ULN, sendUlnBytes);
 
     SetConfigParam[] memory recvParams = new SetConfigParam[](1);
-    recvParams[0] = SetConfigParam(cfg.dstEid, CONFIG_TYPE_ULN, ulnBytes);
+    recvParams[0] = SetConfigParam(cfg.dstEid, CONFIG_TYPE_ULN, recvUlnBytes);
 
     console.log("OApp:", oapp);
     console.log("Endpoint:", cfg.lzEndpoint);

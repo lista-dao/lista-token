@@ -31,7 +31,8 @@ library OFTConfig {
     address token; // adapter only: existing canonical token
     string tokenName; // oft only
     string symbol; // oft only
-    uint64 confirmations;
+    uint64 confirmations; // source-side (outbound) block confirmations DVNs wait before signing
+    uint64 inboundConfirmations; // required source confirmations for inbound msgs (= the REMOTE chain's `confirmations`)
     uint8 optionalDVNThreshold;
     address[] requiredDVNs;
     address[] optionalDVNs;
@@ -62,7 +63,8 @@ library OFTConfig {
     cfg.receiveLib = 0xB217266c3A98C8B2709Ee26836C98cf12f6cCEC1;
     cfg.executor = 0x3ebD570ed38B1b3b4BC886999fcF507e9D584859;
     cfg.token = 0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46; // canonical LISTA
-    cfg.confirmations = 20;
+    cfg.confirmations = 20; // BSC as source
+    cfg.inboundConfirmations = 15; // inbound from ETH → must match ETH's send confirmations (15)
     cfg.requiredDVNs = new address[](1);
     cfg.requiredDVNs[0] = 0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc; // Google (mandatory)
     cfg.optionalDVNs = new address[](3);
@@ -83,7 +85,8 @@ library OFTConfig {
     cfg.executor = 0x173272739Bd7Aa6e4e214714048a9fE699453059;
     cfg.tokenName = "Lista DAO";
     cfg.symbol = "LISTA";
-    cfg.confirmations = 15;
+    cfg.confirmations = 15; // ETH as source
+    cfg.inboundConfirmations = 20; // inbound from BSC → must match BSC's send confirmations (20)
     cfg.requiredDVNs = new address[](1);
     cfg.requiredDVNs[0] = 0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc; // Google (mandatory)
     cfg.optionalDVNs = new address[](3);
@@ -106,6 +109,7 @@ library OFTConfig {
     cfg.executor = 0x31894b190a8bAbd9A067Ce59fde0BfCFD2B18470;
     cfg.token = 0x90b94D605E069569Adf33C0e73E26a83637c94B1; // test LISTA
     cfg.confirmations = 5;
+    cfg.inboundConfirmations = 5; // inbound from Sepolia
     cfg.requiredDVNs = new address[](1);
     cfg.requiredDVNs[0] = 0x0eE552262f7B562eFcED6DD4A7e2878AB897d405; // LayerZero Labs (mandatory)
     // Testnet: the Google DVN is not reliably attesting, so requiring it stalls the route.
@@ -126,6 +130,7 @@ library OFTConfig {
     cfg.tokenName = "Lista DAO";
     cfg.symbol = "LISTA";
     cfg.confirmations = 5;
+    cfg.inboundConfirmations = 5; // inbound from BSC testnet
     cfg.requiredDVNs = new address[](1);
     cfg.requiredDVNs[0] = 0x8eebf8b423B73bFCa51a1Db4B7354AA0bFCA9193; // LayerZero Labs (mandatory)
     // Testnet: the Google DVN is not reliably attesting, so requiring it stalls the route.
