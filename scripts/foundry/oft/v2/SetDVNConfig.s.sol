@@ -116,6 +116,8 @@ contract SetDVNConfig is OFTScriptBase {
     console.log("dstEid:", cfg.dstEid);
     console.log("requiredDVNs:", required.length);
     console.log("optionalDVNs:", optional.length);
+    console.log("send (outbound) confirmations:", cfg.confirmations);
+    console.log("inbound (receive) confirmations:", cfg.inboundConfirmations);
 
     ILayerZeroEndpointV2Config endpoint = ILayerZeroEndpointV2Config(cfg.lzEndpoint);
 

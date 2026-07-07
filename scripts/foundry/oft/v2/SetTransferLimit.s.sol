@@ -32,6 +32,11 @@ contract SetTransferLimit is OFTScriptBase {
 
     console.log("OApp:", oapp);
     console.log("dstEid:", limits[0].dstEid);
+    console.log("maxDailyTransferAmount:", limits[0].maxDailyTransferAmount);
+    console.log("singleTransferUpperLimit:", limits[0].singleTransferUpperLimit);
+    console.log("singleTransferLowerLimit:", limits[0].singleTransferLowerLimit);
+    console.log("dailyTransferAmountPerAddress:", limits[0].dailyTransferAmountPerAddress);
+    console.log("dailyTransferAttemptPerAddress:", limits[0].dailyTransferAttemptPerAddress);
 
     vm.startBroadcast(pk);
     ListaOFTAdapterV2(oapp).setTransferLimitConfigs(limits);
