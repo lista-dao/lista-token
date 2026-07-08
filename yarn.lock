@@ -694,6 +694,30 @@
   resolved "https://registry.yarnpkg.com/@layerzerolabs/lz-evm-v1-0.7/-/lz-evm-v1-0.7-2.3.44.tgz#79536a0a18bd92bd31a75c9b8d6b01d5a3566ce9"
   integrity sha512-gxPUv5yk5TLy4Rp4KwFqiPHGpVOPMtnwUi+LvRysnGgkqopOJRCzzvWqEv6M2YMUAsof+Vmr3UYWxKcilvv97g==
 
+"@layerzerolabs/oapp-evm-upgradeable@^0.1.0":
+  version "0.1.3"
+  resolved "https://registry.yarnpkg.com/@layerzerolabs/oapp-evm-upgradeable/-/oapp-evm-upgradeable-0.1.3.tgz#f526f0f5613d8e98e2149683847d729824377adf"
+  integrity sha512-cdMQhB+lSxx3IgydYpYWTVWrntek6LKr2NiYZC8HSWH07Z5og/gfWAmGHKojefwNxpQXhiW/U0LG5S5CWfH9Ig==
+  dependencies:
+    ethers "^5.7.2"
+
+"@layerzerolabs/oapp-evm@^0.3.0":
+  version "0.3.3"
+  resolved "https://registry.yarnpkg.com/@layerzerolabs/oapp-evm/-/oapp-evm-0.3.3.tgz#763a2f7c27ad6f69e6c87538cd96eef67664d0f5"
+  integrity sha512-P8uxe9A0T3G7WIQEw0dNCpUwUo4m3OFu5yQ3RsTrzX1BrSggTCUy8LgiNqxKVm56A3xMJVLsjzaB3zjXShXi8A==
+  dependencies:
+    ethers "^5.7.2"
+
+"@layerzerolabs/oft-evm-upgradeable@^3.1.0":
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/@layerzerolabs/oft-evm-upgradeable/-/oft-evm-upgradeable-3.2.1.tgz#b803c08ace0558911d3e3ce783dc9781d022c073"
+  integrity sha512-s2X7qttIkDLcVCef2w/hDPgegPiCguuT1xcOrI0FpMg9mwl/FdoF8B+oj5r8cbqB8DSWleLt5Miu3IeOzXvayg==
+
+"@layerzerolabs/oft-evm@^3.1.0":
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/@layerzerolabs/oft-evm/-/oft-evm-3.2.1.tgz#ad5724943fea0855cd6f670209849ff6c99da8a4"
+  integrity sha512-Fps4jL9Vg8eBu4A5bvRBYxUYNbycMIRvBqOaIkIbaZSdSx5uMt7C3t1U89cBKQkED1Zh6zyhh1TR2HyCHnvkFg==
+
 "@layerzerolabs/toolbox-foundry@^0.1.5":
   version "0.1.13"
   resolved "https://registry.yarnpkg.com/@layerzerolabs/toolbox-foundry/-/toolbox-foundry-0.1.13.tgz#f06f78e7d509e21894cce38fada86439617ac299"

@@ -3,9 +3,31 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../../contracts/buyback/Buyback.sol";
 import "../interfaces/IPancakeRouter.sol";
+
+contract OneInchRouterMock {
+  address public constant SWAP_NATIVE_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+  function swap(
+    address,
+    IBuyback.SwapDescription calldata swapDesc,
+    bytes calldata
+  ) external payable returns (uint256 amountOut, uint256 spentAmount) {
+    bool isNativeSrcToken = address(swapDesc.srcToken) == SWAP_NATIVE_TOKEN_ADDRESS;
+    if (isNativeSrcToken) {
+      require(msg.value == swapDesc.amount, "invalid native amount");
+    } else {
+      require(swapDesc.srcToken.transferFrom(msg.sender, address(this), swapDesc.amount), "mock src transfer failed");
+    }
+
+    amountOut = swapDesc.minReturnAmount == 0 ? 1 : swapDesc.minReturnAmount;
+    require(swapDesc.dstToken.transfer(swapDesc.dstReceiver, amountOut), "mock dst transfer failed");
+    spentAmount = swapDesc.amount;
+  }
+}
 
 contract BuybackTest is Test {
   /**
@@ -13,7 +35,6 @@ contract BuybackTest is Test {
    * This is the keccak-256 hash of "eip1967.proxy.implementation" subtracted by 1.
    */
   bytes32 private constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-
   address admin = 0x08aE09467ff962aF105c23775B9Bc8EAa175D27F;
   address manager = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
   address pauser = 0xEEfebb1546d88EA0909435DF6f615084DD3c5Bd8;
@@ -31,6 +52,7 @@ contract BuybackTest is Test {
 
   function setUp() public {
     vm.createSelectFork("https://bsc-dataseed.bnbchain.org");
+    oneInchRouter = address(new OneInchRouterMock());
 
     // deploy buyback
     address[] memory tokenIns = new address[](2);
@@ -50,6 +72,7 @@ contract BuybackTest is Test {
     console.log("buyback proxy address: %s", proxyAddress);
     console.log("buyback impl address: %s", buybackImpl);
     deal(tokenIn, proxyAddress, 10000 ether);
+    deal(tokenOut, oneInchRouter, 1000000 ether);
     deal(proxyAddress, 10000 ether);
   }
 
@@ -85,9 +108,6 @@ contract BuybackTest is Test {
   }
 
   function test_buyback() public {
-    if (block.number != 43143645) {
-      return;
-    }
     bytes
       memory data = hex"07ed2379000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd090000000000000000000000000782b6d8c4551b9760e74c0545a9bcd90bdc41e500000000000000000000000055d398326f99059ff775485246999027b3197955000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd0900000000000000000000000009702ea135d9d707dd51f530864f2b9220aad87b0000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000000000000000000000000000d9fdf681582420500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000010e0000000000000000000000000000000000000000000000000000000000f051200520451b19ad0bb00ed35ef391086a692cfc74b20782b6d8c4551b9760e74c0545a9bcd90bdc41e500449908fc8b0000000000000000000000000782b6d8c4551b9760e74c0545a9bcd90bdc41e500000000000000000000000055d398326f99059ff775485246999027b319795500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000111111125421ca6dc452d289314280a0f8842a650000000000000000000000000000000000000000000000000000000067153898000000000000000000000000000000000000b3276493";
 

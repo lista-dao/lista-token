@@ -32,6 +32,7 @@ out
 !/broadcast
 /broadcast/*/31337/
 /broadcast/*/97/
+/broadcast/*/11155111/
 /broadcast/**/dry-run/
 
 oftChains.json
