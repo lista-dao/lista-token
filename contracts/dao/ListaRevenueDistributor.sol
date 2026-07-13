@@ -116,25 +116,30 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
       return;
     }
 
+    // Determine the effective target for amount0
+    address target0 = token == listaTokenAddress ? listaDistributeToAddress : autoBuybackAddress;
+
+    // Early return: no targets configured, nothing to distribute
+    if (target0 == address(0) && revenueWalletAddress == address(0)) {
+      return;
+    }
+
     uint256 amount0 = (balance * distributeRate) / RATE_DENOMINATOR;
     uint256 amount1 = balance - amount0;
-    if (amount0 > 0) {
-      if (token == listaTokenAddress) {
-        // lista should skip autoBuyback process
-        if (listaDistributeToAddress != address(0)) {
-          IERC20(token).safeTransfer(listaDistributeToAddress, amount0);
-        }
-      } else {
-        if (autoBuybackAddress != address(0)) {
-          IERC20(token).safeTransfer(autoBuybackAddress, amount0);
-        }
-      }
+
+    uint256 actualAmount0;
+    uint256 actualAmount1;
+
+    if (amount0 > 0 && target0 != address(0)) {
+      IERC20(token).safeTransfer(target0, amount0);
+      actualAmount0 = amount0;
     }
     if (amount1 > 0 && revenueWalletAddress != address(0)) {
       IERC20(token).safeTransfer(revenueWalletAddress, amount1);
+      actualAmount1 = amount1;
     }
 
-    emit RevenueDistributed(token, amount0, amount1);
+    emit RevenueDistributed(token, actualAmount0, actualAmount1);
   }
 
   /**
@@ -205,26 +210,26 @@ contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
       uint256 available = balance - cost;
       uint256 amount0 = (available * distributeRate) / RATE_DENOMINATOR;
       uint256 amount1 = available - amount0;
-      if (amount0 > 0) {
-        if (token == listaTokenAddress) {
-          // lista should skip autoBuyback process
-          if (listaDistributeToAddress != address(0)) {
-            IERC20(token).safeTransfer(listaDistributeToAddress, amount0);
-          }
-        } else {
-          if (autoBuybackAddress != address(0)) {
-            IERC20(token).safeTransfer(autoBuybackAddress, amount0);
-          }
-        }
+
+      // Determine the effective target for amount0
+      address target0 = token == listaTokenAddress ? listaDistributeToAddress : autoBuybackAddress;
+
+      uint256 actualAmount0;
+      uint256 actualAmount1;
+
+      if (amount0 > 0 && target0 != address(0)) {
+        IERC20(token).safeTransfer(target0, amount0);
+        actualAmount0 = amount0;
       }
       if (amount1 > 0 && revenueWalletAddress != address(0)) {
         IERC20(token).safeTransfer(revenueWalletAddress, amount1);
+        actualAmount1 = amount1;
       }
       if (cost > 0) {
         IERC20(token).safeTransfer(tokenCostToAddress, cost);
       }
 
-      emit RevenueDistributedWithCost(token, amount0, amount1, cost, cost, tokenCostToAddress);
+      emit RevenueDistributedWithCost(token, actualAmount0, actualAmount1, cost, cost, tokenCostToAddress);
     }
   }
 
