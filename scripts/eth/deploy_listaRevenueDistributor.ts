@@ -23,6 +23,16 @@ async function main() {
 
   await deployProxy(hre, "ListaRevenueDistributor", deployer, bot, listaAddress, autoBuybackAddress, revenueWalletAddress, listaDistributeToAddress, distributeRate);
   console.log("deployProxy done");
+
+  // Grant EMERGENCY_WITHDRAWER role to Manager Safe (not to bot)
+  const proxyAddress = ''; // TODO: fill with deployed proxy address after deployProxy
+  if (proxyAddress) {
+    const distributor = await hre.ethers.getContractAt("ListaRevenueDistributor", proxyAddress);
+    const EMERGENCY_WITHDRAWER = await distributor.EMERGENCY_WITHDRAWER();
+    const tx = await distributor.grantRole(EMERGENCY_WITHDRAWER, bot);
+    await tx.wait();
+    console.log("EMERGENCY_WITHDRAWER granted to Manager Safe:", bot);
+  }
 }
 
 main()

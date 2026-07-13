@@ -66,6 +66,11 @@ contract ListaRevenueDistributorDeploy is Script {
     );
     console.log("ListaRevenueDistributor proxy: ", address(proxy));
 
+    // Grant EMERGENCY_WITHDRAWER role to Manager Safe (not to bot)
+    ListaRevenueDistributor distributor = ListaRevenueDistributor(address(proxy));
+    distributor.grantRole(distributor.EMERGENCY_WITHDRAWER(), manager);
+    console.log("EMERGENCY_WITHDRAWER granted to: ", manager);
+
     vm.stopBroadcast();
   }
 }
