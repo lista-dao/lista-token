@@ -20,13 +20,26 @@ task("deploy:ListaToken", "Deploy ListaToken")
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.20",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 1000,
+    compilers: [
+      {
+        version: "0.8.20",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000,
+          },
+          viaIR: true,
+        },
       },
-      viaIR: true,
+    ],
+    overrides: {
+      "contracts/buyback/Buyback.sol": {
+        version: "0.8.20",
+        settings: {
+          optimizer: { enabled: true, runs: 200 },
+          viaIR: false,
+        },
+      },
     },
   },
   networks: {
