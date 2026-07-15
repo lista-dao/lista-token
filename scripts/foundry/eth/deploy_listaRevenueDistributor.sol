@@ -41,7 +41,7 @@ contract ListaRevenueDistributorDeploy is Script {
     } else {
       // ETH mainnet
       manager = 0x8d388136d578dCD791D081c6042284CED6d9B0c6; // Manager Safe
-      listaAddress = 0x11632069f202b06d5ff56aeb4aabd0662dd1933b; // LISTA token on ETH mainnet
+      listaAddress = 0x11632069F202B06d5FF56AEB4aAbD0662dd1933b; // LISTA token on ETH mainnet
     }
 
     vm.startBroadcast(deployerPrivateKey);
