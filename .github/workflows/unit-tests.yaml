@@ -19,6 +19,6 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Run unit tests
-        run: forge test -vvv
+        run: forge clean && forge test -vvv
         env:
           BSC_RPC: ${{ secrets.BSC_RPC }}

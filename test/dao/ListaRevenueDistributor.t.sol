@@ -6,16 +6,18 @@ import "forge-std/console.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "../../contracts/dao/historical/ListaRevenueDistributorOld.sol";
 import "../../contracts/dao/ListaRevenueDistributor.sol";
 
-contract ListaRevenueDistributorTest is Test {
+import {BscUpgradeRevenueDistributor} from "scripts/foundry/dao/bsc_upgrade_revenueDistributor.sol";
+
+contract ListaRevenueDistributorTest is Test, BscUpgradeRevenueDistributor {
     address admin = address(0x1A11AA);
     address manager = address(0x2A11AA);
     address autoBuybackAddress = address(0x3A11AA);
     address revenueWalletAddress = address(0x4A11AA);
     address listaToWalletAddress = address(0x5A11AA);
     address lisUSDCostToAddress = address(0x6A11AA);
-    address proxyAdminOwner = 0x8d388136d578dCD791D081c6042284CED6d9B0c6;
 
     uint256 mainnet;
 
@@ -29,23 +31,36 @@ contract ListaRevenueDistributorTest is Test {
 
     IERC20 lista;
 
-    function setUp() public {
+    function setUp() public override {
+        super.setUp();
+        
         mainnet = vm.createSelectFork("https://bsc-dataseed.binance.org");
         slisBNB = IERC20(0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B);
         lisUSD = IERC20(0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5);
         ETH = IERC20(0x2170Ed0880ac9A755fd29B2688956BD959F933F8);
-        lista = IERC20(0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46);
+        lista = IERC20(0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46);        
 
-        ListaRevenueDistributor listaRevenueDistributorImpl = new ListaRevenueDistributor();
-        TransparentUpgradeableProxy listaRevenueDistributorProxy = new TransparentUpgradeableProxy(
-            address(listaRevenueDistributorImpl),
-            proxyAdminOwner,
+        // Deploy the historical Revenue Distributor
+        vm.startBroadcast(proxyAdminOwner);
+        proxyAdmin = address(new ProxyAdmin());
+
+        address listaRevenueDistributorOldImpl = address(new ListaRevenueDistributorOld());
+        listaRevenueDistributorProxy = address(new TransparentUpgradeableProxy(
+            listaRevenueDistributorOldImpl,
+            proxyAdmin,
             abi.encodeWithSignature(
                 "initialize(address,address,address,address,address,address,uint128)",
                 admin, manager, address(lista), autoBuybackAddress, revenueWalletAddress, listaToWalletAddress, 7e17
             )
-        );
-        listaRevenueDistributor = ListaRevenueDistributor(address(listaRevenueDistributorProxy));
+        ));
+        vm.stopBroadcast();
+
+        // Upgrade to the current version
+        run();
+        // Validate the implementation was updated
+        assertNotEq(listaRevenueDistributorOldImpl, listaRevenueDistributorImpl);
+
+        listaRevenueDistributor = ListaRevenueDistributor(listaRevenueDistributorProxy);
         assertEq(7e17, listaRevenueDistributor.distributeRate());
 
         address[] memory tokens = new address[](4);
