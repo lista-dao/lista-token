@@ -13,6 +13,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
  * @dev all tokens revenue (including Lista Token) from Lista project contracts will be sent to ListaRevenueDistributor
  * @dev in ListaRevenueDistributor, non-ListaToken revenue will be distributed to autoBuybackAddress and revenueWalletAddress according to distributeRate
  * @dev the distributeRate part of ListaToken revenue will be sent to listaDistributeToAddress instead of autoBuybackAddress
+ * @custom:oz-upgrades-from contracts/dao/historical/ListaRevenueDistributorOld.sol:ListaRevenueDistributorOld
  */
 contract ListaRevenueDistributor is Initializable, AccessControlUpgradeable {
   using SafeERC20 for IERC20;
