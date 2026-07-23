@@ -44,6 +44,8 @@ contract PreIPODistributorTest is Test {
             abi.encodeWithSelector(PreIPODistributor.initialize.selector, admin, manager, bot)
         );
         distributor = PreIPODistributor(address(proxy));
+        // settlement/claim state (mirrors the post-upgrade initializeV2 call)
+        distributor.initializeV2();
 
         // build whitelist merkle tree (leaf = keccak256(abi.encode(chainid, account)))
         leafAlice = keccak256(abi.encode(block.chainid, alice));
@@ -108,20 +110,31 @@ contract PreIPODistributorTest is Test {
         assertEq(distributor.getRoleAdmin(distributor.BOT()), distributor.MANAGER());
         assertEq(distributor.TRANCHE_UNLOCKED(), XKLSH);
         assertEq(distributor.TRANCHE_LOCKED(), PKLSH);
+        assertEq(distributor.waitingPeriod(), 6 hours);
+    }
+
+    function test_initializeV2_onlyOnce() public {
+        vm.expectRevert("Initializable: contract is already initialized");
+        distributor.initializeV2();
     }
 
     function test_managerGrantsBot() public {
         address newBot = makeAddr("newBot");
         bytes32 botRole = distributor.BOT();
-        // MANAGER is BOT's role admin, so manager (not the default admin) can grant BOT
+        // MANAGER is BOT's role admin, so manager (not default admin) can grant BOT
         vm.prank(manager);
         distributor.grantRole(botRole, newBot);
         assertTrue(distributor.hasRole(botRole, newBot));
+
+        vm.prank(manager);
+        distributor.revokeRole(botRole, newBot);
+        assertFalse(distributor.hasRole(botRole, newBot));
     }
 
     function test_defaultAdminCannotGrantBot() public {
         address newBot = makeAddr("newBot");
         bytes32 botRole = distributor.BOT();
+        // BOT's admin is MANAGER, so the default admin can no longer grant it
         vm.prank(admin);
         vm.expectRevert();
         distributor.grantRole(botRole, newBot);
@@ -409,6 +422,275 @@ contract PreIPODistributorTest is Test {
         assertEq(distributor.pubDeposits(saleId, alice), 100e18);
         assertEq(distributor.deposits(saleId, alice), 200e18);
         assertEq(distributor.userTranche(saleId, alice), PKLSH);
+    }
+
+    // ---- settlement: set / finalize ----
+
+    // create a sale, deposit in WL round, return saleId (totalDeposits = 200e18)
+    function _saleWithDeposit() internal returns (uint64 saleId) {
+        saleId = _createDefaultSale();
+        vm.warp(block.timestamp + 100);
+        _deposit(alice, saleId, XKLSH, _proofFor(leafBob), 200e18);
+        _closeWindows(saleId); // settlement is only allowed once deposit windows close
+    }
+
+    function test_setSettlementRoot_ok() public {
+        uint64 saleId = _saleWithDeposit();
+        bytes32 root = keccak256("settle");
+
+        vm.prank(bot);
+        distributor.setSettlementRoot(saleId, root, 50e18);
+
+        (bytes32 fRoot, bytes32 pRoot, uint256 pRefund,, uint256 setTime,) = distributor.settlements(saleId);
+        assertEq(fRoot, bytes32(0));
+        assertEq(pRoot, root);
+        assertEq(pRefund, 50e18);
+        assertEq(setTime, block.timestamp);
+    }
+
+    function test_setSettlementRoot_refundExceedsDeposits_reverts() public {
+        uint64 saleId = _saleWithDeposit(); // 200e18 deposited
+        vm.prank(bot);
+        vm.expectRevert("Refund exceeds deposits");
+        distributor.setSettlementRoot(saleId, keccak256("settle"), 200e18 + 1);
+    }
+
+    function test_setSettlementRoot_pendingInFlight_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.startPrank(bot);
+        distributor.setSettlementRoot(saleId, keccak256("a"), 10e18);
+        vm.expectRevert("Pending root in flight");
+        distributor.setSettlementRoot(saleId, keccak256("b"), 10e18);
+        vm.stopPrank();
+    }
+
+    function test_setSettlementRoot_acl() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.prank(outsider);
+        vm.expectRevert();
+        distributor.setSettlementRoot(saleId, keccak256("settle"), 10e18);
+    }
+
+    function test_finalizeSettlement_beforeWindow_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.startPrank(bot);
+        distributor.setSettlementRoot(saleId, keccak256("settle"), 50e18);
+        vm.expectRevert("Review window not passed");
+        distributor.finalizeSettlement(saleId);
+        vm.stopPrank();
+    }
+
+    function test_finalizeSettlement_ok_after6h() public {
+        uint64 saleId = _saleWithDeposit();
+        bytes32 root = keccak256("settle");
+        vm.prank(bot);
+        distributor.setSettlementRoot(saleId, root, 50e18);
+
+        vm.warp(block.timestamp + 6 hours);
+        vm.prank(bot);
+        distributor.finalizeSettlement(saleId);
+
+        (bytes32 fRoot, bytes32 pRoot, uint256 pRefund, uint256 tRefund,,) = distributor.settlements(saleId);
+        assertEq(fRoot, root);
+        assertEq(pRoot, bytes32(0));
+        assertEq(pRefund, 0);
+        assertEq(tRefund, 50e18);
+    }
+
+    function test_finalizeSettlement_noPending_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.prank(bot);
+        vm.expectRevert("No pending root");
+        distributor.finalizeSettlement(saleId);
+    }
+
+    function test_revokeSettlementRoot_ok() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.prank(bot);
+        distributor.setSettlementRoot(saleId, keccak256("settle"), 50e18);
+        vm.prank(manager); // revoke is a MANAGER action
+        distributor.revokeSettlementRoot(saleId);
+        // can set a fresh one again after revoke
+        vm.prank(bot);
+        distributor.setSettlementRoot(saleId, keccak256("settle2"), 60e18);
+
+        (, bytes32 pRoot, uint256 pRefund,,,) = distributor.settlements(saleId);
+        assertEq(pRoot, keccak256("settle2"));
+        assertEq(pRefund, 60e18);
+    }
+
+    function test_setWaitingPeriod_min6h() public {
+        vm.startPrank(manager);
+        vm.expectRevert("Waiting period too short");
+        distributor.setWaitingPeriod(6 hours - 1);
+        distributor.setWaitingPeriod(12 hours);
+        vm.stopPrank();
+        assertEq(distributor.waitingPeriod(), 12 hours);
+    }
+
+    // settlement must wait until deposit windows close
+    function test_setSettlementRoot_beforeWLClose_reverts() public {
+        uint64 saleId = _createDefaultSale();
+        vm.warp(block.timestamp + 100); // WL open
+        _deposit(alice, saleId, XKLSH, _proofFor(leafBob), 200e18);
+        vm.prank(bot);
+        vm.expectRevert("WL round not ended");
+        distributor.setSettlementRoot(saleId, keccak256("r"), 50e18);
+    }
+
+    function test_setSettlementRoot_beforePublicClose_reverts() public {
+        uint64 saleId = _createDefaultSale();
+        _openPublicRound(saleId); // pub [end+10, end+1000]
+        PreIPODistributor.Sale memory s = distributor.getSale(saleId);
+        vm.warp(s.endTime + 1); // WL closed, public not ended
+        vm.prank(bot);
+        vm.expectRevert("Public round not ended");
+        distributor.setSettlementRoot(saleId, keccak256("r"), 0);
+    }
+
+    // an active (finalized) root cannot be replaced
+    function test_setSettlementRoot_afterFinalize_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        _settleAndFinalize(saleId, keccak256("r1"), 50e18);
+        vm.prank(bot);
+        vm.expectRevert("Already finalized");
+        distributor.setSettlementRoot(saleId, keccak256("r2"), 50e18);
+    }
+
+    // ---- claim ----
+
+    // warp past the deposit window(s) so settlement is allowed
+    function _closeWindows(uint64 saleId) internal {
+        PreIPODistributor.Sale memory s = distributor.getSale(saleId);
+        uint256 closeTime = s.pubStartTime == 0 ? s.endTime : s.pubEndTime;
+        if (block.timestamp <= closeTime) vm.warp(closeTime + 1);
+    }
+
+    function _settleAndFinalize(uint64 saleId, bytes32 root, uint256 totalRefund) internal {
+        _closeWindows(saleId);
+        vm.prank(bot);
+        distributor.setSettlementRoot(saleId, root, totalRefund);
+        vm.warp(block.timestamp + 6 hours);
+        vm.prank(bot);
+        distributor.finalizeSettlement(saleId);
+    }
+
+    // single-leaf settlement tree: root == leaf, proof == []
+    function _settleLeaf(uint64 saleId, address account, uint256 refund, address share, uint256 tokenAmount)
+        internal
+        view
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(block.chainid, saleId, account, refund, share, tokenAmount));
+    }
+
+    function test_claim_unlocked_transfersRefundAndShares() public {
+        uint64 saleId = _saleWithDeposit(); // alice: WL 200e18, XKLSH
+        MockERC20 share = new MockERC20(admin, "Share", "xKLSH");
+        deal(address(share), address(distributor), 10e18);
+
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(share), 10e18);
+        _settleAndFinalize(saleId, root, 50e18);
+
+        uint256 beforeUsdt = usdt.balanceOf(alice);
+        distributor.claim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+
+        assertEq(usdt.balanceOf(alice), beforeUsdt + 50e18);
+        assertEq(share.balanceOf(alice), 10e18);
+        assertTrue(distributor.claimed(saleId, alice));
+
+        // refunded accumulates; outstanding = totalRefund - refunded
+        (,,, uint256 tRefund,, uint256 refunded) = distributor.settlements(saleId);
+        assertEq(tRefund, 50e18);
+        assertEq(refunded, 50e18);
+        assertEq(tRefund - refunded, 0);
+    }
+
+    function test_claim_locked_registersOnly() public {
+        uint64 saleId = _createDefaultSale();
+        vm.warp(block.timestamp + 100);
+        _deposit(alice, saleId, PKLSH, _proofFor(leafBob), 200e18); // alice LOCKED
+        MockERC20 share = new MockERC20(admin, "Share", "xKLSH");
+        deal(address(share), address(distributor), 10e18);
+
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(share), 10e18);
+        _settleAndFinalize(saleId, root, 50e18);
+
+        uint256 beforeUsdt = usdt.balanceOf(alice);
+        distributor.claim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+
+        assertEq(usdt.balanceOf(alice), beforeUsdt + 50e18); // refund paid
+        assertEq(share.balanceOf(alice), 0); // shares NOT transferred, only recorded
+        assertEq(share.balanceOf(address(distributor)), 10e18);
+        assertTrue(distributor.claimed(saleId, alice));
+    }
+
+    function test_claim_unlocked_zeroShareToken_reverts() public {
+        uint64 saleId = _saleWithDeposit(); // alice XKLSH (unlocked)
+        // leaf carries a zero share token for an unlocked user -> invalid
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(0), 10e18);
+        _settleAndFinalize(saleId, root, 50e18);
+
+        vm.expectRevert("Share token required");
+        distributor.claim(saleId, alice, 50e18, address(0), 10e18, new bytes32[](0));
+    }
+
+    function test_claim_locked_zeroShareToken_ok() public {
+        uint64 saleId = _createDefaultSale();
+        vm.warp(block.timestamp + 100);
+        _deposit(alice, saleId, PKLSH, _proofFor(leafBob), 200e18); // alice LOCKED
+        // locked tranche: zero share token is fine (no transfer, only recorded)
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(0), 10e18);
+        _settleAndFinalize(saleId, root, 50e18);
+
+        uint256 beforeUsdt = usdt.balanceOf(alice);
+        distributor.claim(saleId, alice, 50e18, address(0), 10e18, new bytes32[](0));
+        assertEq(usdt.balanceOf(alice), beforeUsdt + 50e18);
+        assertTrue(distributor.claimed(saleId, alice));
+    }
+
+    // aggregate refunds cannot exceed the committed total
+    function test_claim_refundOverTotal_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        MockERC20 share = new MockERC20(admin, "Share", "xKLSH");
+        deal(address(share), address(distributor), 10e18);
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(share), 10e18);
+        _settleAndFinalize(saleId, root, 40e18); // totalRefund (40e18) < leaf refund (50e18)
+        vm.expectRevert("Refund over total");
+        distributor.claim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+    }
+
+    function test_claim_alreadyClaimed_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        MockERC20 share = new MockERC20(admin, "Share", "xKLSH");
+        deal(address(share), address(distributor), 10e18);
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(share), 10e18);
+        _settleAndFinalize(saleId, root, 50e18);
+
+        distributor.claim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+        vm.expectRevert("Already claimed");
+        distributor.claim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+    }
+
+    function test_claim_notFinalized_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        MockERC20 share = new MockERC20(admin, "Share", "xKLSH");
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(share), 10e18);
+        vm.prank(bot);
+        distributor.setSettlementRoot(saleId, root, 50e18); // pending, not finalized
+        vm.expectRevert("Not finalized");
+        distributor.claim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+    }
+
+    function test_claim_invalidProof_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        MockERC20 share = new MockERC20(admin, "Share", "xKLSH");
+        deal(address(share), address(distributor), 10e18);
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(share), 10e18);
+        _settleAndFinalize(saleId, root, 50e18);
+        // wrong refund amount -> leaf mismatch
+        vm.expectRevert("Invalid proof");
+        distributor.claim(saleId, alice, 51e18, address(share), 10e18, new bytes32[](0));
     }
 
     // ---- emergency withdraw ----

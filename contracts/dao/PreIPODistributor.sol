@@ -33,8 +33,6 @@ contract PreIPODistributor is
     using SafeERC20 for IERC20;
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
-    // BOT operates the settlement lifecycle in the settlement/claim upgrade; granted here at
-    // deploy so the upgrade needs no extra role setup.
     bytes32 public constant BOT = keccak256("BOT");
 
     // Delivery tranche selected at first deposit; 0 = not selected.
@@ -67,6 +65,24 @@ contract PreIPODistributor is
     mapping(uint64 => mapping(address => uint8)) public userTranche;
 
     uint64 public nextSaleId;
+
+    struct Settlement {
+        bytes32 root;               // finalized settlement root; claims verify against this
+        bytes32 pendingRoot;        // pending root awaiting finalize (0 = none pending)
+        uint256 pendingTotalRefund; // total refund committed by the pending root
+        uint256 totalRefund;        // total refund committed by the finalized root
+        uint256 lastSetTime;        // block time the pending root was set
+        uint256 refunded;           // cumulative refund already paid out via claim
+    }
+
+    // saleId => Settlement
+    mapping(uint64 => Settlement) public settlements;
+
+    // saleId => account => claimed
+    mapping(uint64 => mapping(address => bool)) public claimed;
+
+    // review window between setSettlementRoot (step 1) and finalizeSettlement (step 2); min 6h
+    uint256 public waitingPeriod;
 
     event CreateSale(
         uint64 indexed saleId,
@@ -108,6 +124,23 @@ contract PreIPODistributor is
         uint256 pubTotalDeposits
     );
 
+    event SetSettlementRoot(uint64 indexed saleId, bytes32 pendingRoot, uint256 totalRefund, uint256 setTime);
+
+    event FinalizeSettlement(uint64 indexed saleId, bytes32 root, uint256 finalizeTime);
+
+    event RevokeSettlementRoot(uint64 indexed saleId);
+
+    event WaitingPeriodUpdated(uint256 waitingPeriod);
+
+    event Claimed(
+        uint64 indexed saleId,
+        address indexed account,
+        uint256 refundAmount,
+        address shareToken,
+        uint256 tokenAmount,
+        uint8 tranche
+    );
+
     event EmergencyWithdraw(address indexed token, address indexed to, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -130,6 +163,13 @@ contract PreIPODistributor is
 
         // MANAGER manages the BOT role
         _setRoleAdmin(BOT, MANAGER);
+    }
+
+    /// @dev Initializes settlement/claim state introduced by this version. Runs once, after the
+    ///      upgrade — call it atomically via upgradeToAndCall(newImpl, abi.encodeCall(initializeV2, ())).
+    function initializeV2() external reinitializer(2) {
+        waitingPeriod = 6 hours;
+        emit WaitingPeriodUpdated(waitingPeriod);
     }
 
     /// @dev Create a sale (whitelist round). The public round is opened later via setPublicRound.
@@ -274,6 +314,106 @@ contract PreIPODistributor is
         } else {
             require(_tranche == tranche, "Tranche locked");
         }
+    }
+
+    /// @dev Set the pending settlement root (step 1 of 2); starts the review window.
+    ///      A new pending root cannot be set while one is already in flight.
+    function setSettlementRoot(uint64 _saleId, bytes32 _root, uint256 _totalRefund)
+        external
+        onlyRole(BOT)
+    {
+        Sale storage sale = sales[_saleId];
+        require(sale.whitelistRoot != bytes32(0), "Invalid saleId");
+        // deposit windows must be closed so no deposit can land after the off-chain snapshot
+        require(block.timestamp > sale.endTime, "WL round not ended");
+        require(sale.pubStartTime == 0 || block.timestamp > sale.pubEndTime, "Public round not ended");
+
+        Settlement storage s = settlements[_saleId];
+        // settlement is single-shot: once a root is finalized it cannot be replaced
+        require(s.root == bytes32(0), "Already finalized");
+        require(_root != bytes32(0) && _root != s.pendingRoot, "Invalid root");
+        require(s.pendingRoot == bytes32(0), "Pending root in flight");
+        require(_totalRefund <= sale.totalDeposits + sale.pubTotalDeposits, "Refund exceeds deposits");
+
+        s.pendingRoot = _root;
+        s.pendingTotalRefund = _totalRefund;
+        s.lastSetTime = block.timestamp;
+
+        emit SetSettlementRoot(_saleId, _root, _totalRefund, block.timestamp);
+    }
+
+    /// @dev Finalize the pending settlement root (step 2 of 2); only after the review window.
+    function finalizeSettlement(uint64 _saleId) external onlyRole(BOT) {
+        Settlement storage s = settlements[_saleId];
+        require(s.pendingRoot != bytes32(0), "No pending root");
+        require(block.timestamp >= s.lastSetTime + waitingPeriod, "Review window not passed");
+
+        s.root = s.pendingRoot;
+        s.totalRefund = s.pendingTotalRefund;
+        s.pendingRoot = bytes32(0);
+        s.pendingTotalRefund = 0;
+
+        emit FinalizeSettlement(_saleId, s.root, block.timestamp);
+    }
+
+    /// @dev Revoke the pending settlement root before it is finalized.
+    function revokeSettlementRoot(uint64 _saleId) external onlyRole(MANAGER) {
+        Settlement storage s = settlements[_saleId];
+        require(s.pendingRoot != bytes32(0), "No pending root");
+        s.pendingRoot = bytes32(0);
+        s.pendingTotalRefund = 0;
+        emit RevokeSettlementRoot(_saleId);
+    }
+
+    /// @dev Claim a finalized allocation (whitelist + public rounds combined), once per account.
+    ///      Pays the refund; for the unlocked tranche also transfers the share token, while the
+    ///      locked tranche only records the amount (delivered off-chain at maturity). Permanent.
+    /// @param _shareToken Share token to deliver for the unlocked tranche (part of the leaf)
+    /// @param _tokenAmount Share amount (delivered for unlocked, recorded for locked)
+    function claim(
+        uint64 _saleId,
+        address _account,
+        uint256 _refundAmount,
+        address _shareToken,
+        uint256 _tokenAmount,
+        bytes32[] calldata _proof
+    ) external nonReentrant {
+        Settlement storage s = settlements[_saleId];
+        require(s.root != bytes32(0), "Not finalized");
+        require(!claimed[_saleId][_account], "Already claimed");
+
+        bytes32 leaf =
+            keccak256(abi.encode(block.chainid, _saleId, _account, _refundAmount, _shareToken, _tokenAmount));
+        require(MerkleProof.verifyCalldata(_proof, s.root, leaf), "Invalid proof");
+
+        claimed[_saleId][_account] = true;
+
+        uint8 tranche = userTranche[_saleId][_account];
+
+        if (_refundAmount > 0) {
+            // aggregate refunds can never exceed the committed total
+            require(s.refunded + _refundAmount <= s.totalRefund, "Refund over total");
+            s.refunded += _refundAmount;
+            IERC20(sales[_saleId].depositToken).safeTransfer(_account, _refundAmount);
+        }
+        // Unlocked tranche receives the share token now; locked tranche is only recorded
+        // (delivered off-chain at maturity) via the Claimed event. A zero share token is only
+        // valid for the locked tranche.
+        if (tranche == TRANCHE_UNLOCKED) {
+            require(_shareToken != address(0), "Share token required");
+            if (_tokenAmount > 0) {
+                IERC20(_shareToken).safeTransfer(_account, _tokenAmount);
+            }
+        }
+
+        emit Claimed(_saleId, _account, _refundAmount, _shareToken, _tokenAmount, tranche);
+    }
+
+    /// @dev Update the review window between set and finalize (min 6h).
+    function setWaitingPeriod(uint256 _waitingPeriod) external onlyRole(MANAGER) {
+        require(_waitingPeriod >= 6 hours, "Waiting period too short");
+        waitingPeriod = _waitingPeriod;
+        emit WaitingPeriodUpdated(_waitingPeriod);
     }
 
     /// @dev Manager (multisig) safety valve; there is no normal withdrawal path.
