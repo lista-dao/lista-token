@@ -33,6 +33,9 @@ contract PreIPODistributor is
     using SafeERC20 for IERC20;
 
     bytes32 public constant MANAGER = keccak256("MANAGER");
+    // BOT operates the settlement lifecycle in the settlement/claim upgrade; granted here at
+    // deploy so the upgrade needs no extra role setup.
+    bytes32 public constant BOT = keccak256("BOT");
 
     // Delivery tranche selected at first deposit; 0 = not selected.
     uint8 public constant TRANCHE_UNLOCKED = 1;
@@ -112,9 +115,10 @@ contract PreIPODistributor is
         _disableInitializers();
     }
 
-    function initialize(address _admin, address _manager) external initializer {
+    function initialize(address _admin, address _manager, address _bot) external initializer {
         require(_admin != address(0), "Invalid admin address");
         require(_manager != address(0), "Invalid manager address");
+        require(_bot != address(0), "Invalid bot address");
 
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -122,6 +126,10 @@ contract PreIPODistributor is
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setupRole(MANAGER, _manager);
+        _setupRole(BOT, _bot);
+
+        // MANAGER manages the BOT role
+        _setRoleAdmin(BOT, MANAGER);
     }
 
     /// @dev Create a sale (whitelist round). The public round is opened later via setPublicRound.

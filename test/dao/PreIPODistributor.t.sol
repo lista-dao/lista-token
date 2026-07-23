@@ -11,6 +11,7 @@ import "../../contracts/mock/MockERC20.sol";
 contract PreIPODistributorTest is Test {
     address admin = makeAddr("admin");
     address manager = makeAddr("manager");
+    address bot = makeAddr("bot");
     address treasury = makeAddr("treasury");
     address outsider = makeAddr("outsider");
 
@@ -40,7 +41,7 @@ contract PreIPODistributorTest is Test {
         PreIPODistributor impl = new PreIPODistributor();
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(impl),
-            abi.encodeWithSelector(PreIPODistributor.initialize.selector, admin, manager)
+            abi.encodeWithSelector(PreIPODistributor.initialize.selector, admin, manager, bot)
         );
         distributor = PreIPODistributor(address(proxy));
 
@@ -103,8 +104,27 @@ contract PreIPODistributorTest is Test {
         assertEq(distributor.nextSaleId(), 0);
         assertTrue(distributor.hasRole(distributor.DEFAULT_ADMIN_ROLE(), admin));
         assertTrue(distributor.hasRole(distributor.MANAGER(), manager));
+        assertTrue(distributor.hasRole(distributor.BOT(), bot));
+        assertEq(distributor.getRoleAdmin(distributor.BOT()), distributor.MANAGER());
         assertEq(distributor.TRANCHE_UNLOCKED(), XKLSH);
         assertEq(distributor.TRANCHE_LOCKED(), PKLSH);
+    }
+
+    function test_managerGrantsBot() public {
+        address newBot = makeAddr("newBot");
+        bytes32 botRole = distributor.BOT();
+        // MANAGER is BOT's role admin, so manager (not the default admin) can grant BOT
+        vm.prank(manager);
+        distributor.grantRole(botRole, newBot);
+        assertTrue(distributor.hasRole(botRole, newBot));
+    }
+
+    function test_defaultAdminCannotGrantBot() public {
+        address newBot = makeAddr("newBot");
+        bytes32 botRole = distributor.BOT();
+        vm.prank(admin);
+        vm.expectRevert();
+        distributor.grantRole(botRole, newBot);
     }
 
     function test_createSale_ok() public {
