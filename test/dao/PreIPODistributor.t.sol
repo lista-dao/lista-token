@@ -192,6 +192,24 @@ contract PreIPODistributorTest is Test {
         distributor.updateSale(saleId, address(usdt), rootWL, block.timestamp + 200, block.timestamp + 2000, 50e18);
     }
 
+    function test_updateSale_afterPublicSet_overlap_reverts() public {
+        uint64 saleId = _createDefaultSale(); // WL end = now+1000
+        _openPublicRound(saleId);             // pub start = end+10 = now+1010
+        // extending WL end past the public start must revert
+        vm.prank(manager);
+        vm.expectRevert("WL end must precede public");
+        distributor.updateSale(saleId, address(usdt), rootWL, block.timestamp + 100, block.timestamp + 1500, 50e18);
+    }
+
+    function test_updateSale_afterPublicSet_noOverlap_ok() public {
+        uint64 saleId = _createDefaultSale();
+        _openPublicRound(saleId); // pub start = now+1010
+        // new WL end still before public start -> ok
+        vm.prank(manager);
+        distributor.updateSale(saleId, address(usdt), rootWL, block.timestamp + 100, block.timestamp + 1005, 50e18);
+        assertEq(distributor.getSale(saleId).endTime, block.timestamp + 1005);
+    }
+
     // ---- whitelist deposit ----
 
     function test_deposit_ok() public {

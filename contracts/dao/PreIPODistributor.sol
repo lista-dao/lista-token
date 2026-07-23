@@ -173,6 +173,8 @@ contract PreIPODistributor is
         require(_whitelistRoot != bytes32(0), "Invalid merkle root");
         require(_startTime > block.timestamp, "Invalid start time");
         require(_endTime > _startTime, "Invalid end time");
+        // if a public round is already scheduled, the WL round must still end before it starts
+        require(sale.pubStartTime == 0 || _endTime < sale.pubStartTime, "WL end must precede public");
         require(_minDeposit > 0, "Invalid min deposit");
 
         sale.depositToken = _depositToken;
