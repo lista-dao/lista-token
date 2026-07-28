@@ -21,8 +21,10 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
  * On the first deposit each address selects a delivery tranche, locked for the whole sale
  * (top-ups inherit it). The tranche does not affect accounting; it only records the choice.
  *
- * Allocation is computed off-chain; this contract only holds deposits. Deposits are locked and
- * can only be topped up, never withdrawn. Settlement and delivery are added via UUPS upgrade.
+ * Allocation is computed off-chain; the contract holds deposits and, after the review window,
+ * a finalized settlement merkle root drives claims. Deposits are locked and can only be topped
+ * up, never withdrawn by the user. Claiming pays the refund and, for the unlocked tranche,
+ * delivers the share token; the locked tranche only records the amount for off-chain delivery.
  */
 contract PreIPODistributor is
     Initializable,
@@ -35,7 +37,9 @@ contract PreIPODistributor is
     bytes32 public constant MANAGER = keccak256("MANAGER");
     bytes32 public constant BOT = keccak256("BOT");
 
-    // Delivery tranche selected at first deposit; 0 = not selected.
+    // Delivery tranche, selected at an account's first deposit and locked for the sale; 0 = not selected.
+    // On claim, TRANCHE_UNLOCKED transfers the share token to the account immediately, while
+    // TRANCHE_LOCKED only records the share amount (delivered off-chain at maturity).
     uint8 public constant TRANCHE_UNLOCKED = 1;
     uint8 public constant TRANCHE_LOCKED = 2;
 
@@ -233,6 +237,11 @@ contract PreIPODistributor is
     {
         Sale storage sale = sales[_saleId];
         require(sale.whitelistRoot != bytes32(0), "Invalid saleId");
+        // cannot open/reschedule a public round once settlement is pending or finalized
+        require(
+            settlements[_saleId].pendingRoot == bytes32(0) && settlements[_saleId].root == bytes32(0),
+            "Settlement started"
+        );
         require(sale.pubStartTime == 0 || sale.pubStartTime > block.timestamp, "Public round started");
         require(_pubStartTime > sale.endTime, "Public must follow WL");
         require(_pubStartTime > block.timestamp, "Invalid pub start");
@@ -265,14 +274,15 @@ contract PreIPODistributor is
         require(_amount >= sale.minDeposit, "Below min deposit");
 
         // A non-zero existing WL deposit implies the caller already passed the proof check.
-        if (deposits[_saleId][msg.sender] == 0) {
+        uint256 prior = deposits[_saleId][msg.sender];
+        if (prior == 0) {
             bytes32 leaf = keccak256(abi.encode(block.chainid, msg.sender));
             require(MerkleProof.verifyCalldata(_proof, sale.whitelistRoot, leaf), "Invalid proof");
         }
 
         uint8 tranche = _applyTranche(_saleId, _tranche);
 
-        uint256 userTotal = deposits[_saleId][msg.sender] + _amount;
+        uint256 userTotal = prior + _amount;
         deposits[_saleId][msg.sender] = userTotal;
         sale.totalDeposits += _amount;
 
@@ -324,6 +334,7 @@ contract PreIPODistributor is
     {
         Sale storage sale = sales[_saleId];
         require(sale.whitelistRoot != bytes32(0), "Invalid saleId");
+        require(!sale.paused, "Sale paused");
         // deposit windows must be closed so no deposit can land after the off-chain snapshot
         require(block.timestamp > sale.endTime, "WL round not ended");
         require(sale.pubStartTime == 0 || block.timestamp > sale.pubEndTime, "Public round not ended");
@@ -331,7 +342,7 @@ contract PreIPODistributor is
         Settlement storage s = settlements[_saleId];
         // settlement is single-shot: once a root is finalized it cannot be replaced
         require(s.root == bytes32(0), "Already finalized");
-        require(_root != bytes32(0) && _root != s.pendingRoot, "Invalid root");
+        require(_root != bytes32(0), "Invalid root");
         require(s.pendingRoot == bytes32(0), "Pending root in flight");
         require(_totalRefund <= sale.totalDeposits + sale.pubTotalDeposits, "Refund exceeds deposits");
 
@@ -344,6 +355,7 @@ contract PreIPODistributor is
 
     /// @dev Finalize the pending settlement root (step 2 of 2); only after the review window.
     function finalizeSettlement(uint64 _saleId) external onlyRole(BOT) {
+        require(!sales[_saleId].paused, "Sale paused");
         Settlement storage s = settlements[_saleId];
         require(s.pendingRoot != bytes32(0), "No pending root");
         require(block.timestamp >= s.lastSetTime + waitingPeriod, "Review window not passed");
@@ -368,8 +380,14 @@ contract PreIPODistributor is
     /// @dev Claim a finalized allocation (whitelist + public rounds combined), once per account.
     ///      Pays the refund; for the unlocked tranche also transfers the share token, while the
     ///      locked tranche only records the amount (delivered off-chain at maturity). Permanent.
+    ///      Permissionless: anyone may call it on behalf of any account; the refund and any share
+    ///      delivery always go to `_account` (the address bound in the leaf), never to msg.sender.
+    /// @param _saleId Sale id
+    /// @param _account Account the allocation belongs to and that receives refund/shares
+    /// @param _refundAmount Refund amount in the deposit token (part of the leaf)
     /// @param _shareToken Share token to deliver for the unlocked tranche (part of the leaf)
-    /// @param _tokenAmount Share amount (delivered for unlocked, recorded for locked)
+    /// @param _tokenAmount Share amount (delivered for unlocked, recorded for locked; part of the leaf)
+    /// @param _proof Merkle proof of the leaf against the finalized settlement root
     function claim(
         uint64 _saleId,
         address _account,
@@ -378,6 +396,7 @@ contract PreIPODistributor is
         uint256 _tokenAmount,
         bytes32[] calldata _proof
     ) external nonReentrant {
+        require(!sales[_saleId].paused, "Sale paused");
         Settlement storage s = settlements[_saleId];
         require(s.root != bytes32(0), "Not finalized");
         require(!claimed[_saleId][_account], "Already claimed");
@@ -409,6 +428,31 @@ contract PreIPODistributor is
         emit Claimed(_saleId, _account, _refundAmount, _shareToken, _tokenAmount, tranche);
     }
 
+    /// @dev Read-only preview of what claim() would do for the given leaf inputs, without changing
+    ///      state. Mirrors claim()'s validation and delivery routing.
+    /// @return valid True if the sale is finalized and the proof matches the leaf
+    /// @return alreadyClaimed True if the account has already claimed
+    /// @return tranche The account's locked tranche (0 = never deposited)
+    /// @return sendShares True if a successful claim would transfer the share token now
+    ///         (unlocked tranche, non-zero amount and share token)
+    function previewClaim(
+        uint64 _saleId,
+        address _account,
+        uint256 _refundAmount,
+        address _shareToken,
+        uint256 _tokenAmount,
+        bytes32[] calldata _proof
+    ) external view returns (bool valid, bool alreadyClaimed, uint8 tranche, bool sendShares) {
+        bytes32 leaf =
+            keccak256(abi.encode(block.chainid, _saleId, _account, _refundAmount, _shareToken, _tokenAmount));
+        bytes32 root = settlements[_saleId].root;
+        valid = root != bytes32(0) && MerkleProof.verifyCalldata(_proof, root, leaf);
+        alreadyClaimed = claimed[_saleId][_account];
+        tranche = userTranche[_saleId][_account];
+        sendShares =
+            valid && !alreadyClaimed && tranche == TRANCHE_UNLOCKED && _shareToken != address(0) && _tokenAmount > 0;
+    }
+
     /// @dev Update the review window between set and finalize (min 6h).
     function setWaitingPeriod(uint256 _waitingPeriod) external onlyRole(MANAGER) {
         require(_waitingPeriod >= 6 hours, "Waiting period too short");
@@ -417,6 +461,11 @@ contract PreIPODistributor is
     }
 
     /// @dev Manager (multisig) safety valve; there is no normal withdrawal path.
+    ///      WARNING: this does NOT adjust any internal accounting (totalDeposits, pubTotalDeposits,
+    ///      settlement totals). Withdrawing the deposit token can leave the contract without enough
+    ///      balance to satisfy outstanding refunds, causing finalized claims to revert and stranding
+    ///      those refunds. After using it, the tracked totals must be restaged (or the contract
+    ///      upgraded) before normal claims can resume. Use only in emergencies.
     function emergencyWithdraw(address _token, address _to, uint256 _amount)
         external
         onlyRole(MANAGER)

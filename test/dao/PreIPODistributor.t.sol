@@ -441,6 +441,7 @@ contract PreIPODistributorTest is Test {
         vm.prank(bot);
         distributor.setSettlementRoot(saleId, root, 50e18);
 
+        // tuple: root, pendingRoot, pendingTotalRefund, totalRefund, lastSetTime, refunded
         (bytes32 fRoot, bytes32 pRoot, uint256 pRefund,, uint256 setTime,) = distributor.settlements(saleId);
         assertEq(fRoot, bytes32(0));
         assertEq(pRoot, root);
@@ -557,6 +558,48 @@ contract PreIPODistributorTest is Test {
         distributor.setSettlementRoot(saleId, keccak256("r2"), 50e18);
     }
 
+    // M02: cannot open a public round once settlement is pending or finalized
+    function test_setPublicRound_afterSettlementPending_reverts() public {
+        uint64 saleId = _saleWithDeposit(); // WL-only, windows closed
+        vm.prank(bot);
+        distributor.setSettlementRoot(saleId, keccak256("r"), 50e18);
+        uint256 endTime = distributor.getSale(saleId).endTime;
+        vm.prank(manager);
+        vm.expectRevert("Settlement started");
+        distributor.setPublicRound(saleId, endTime + 100, endTime + 200);
+    }
+
+    function test_setPublicRound_afterFinalize_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        _settleAndFinalize(saleId, keccak256("r"), 50e18);
+        uint256 endTime = distributor.getSale(saleId).endTime;
+        vm.prank(manager);
+        vm.expectRevert("Settlement started");
+        distributor.setPublicRound(saleId, endTime + 100, endTime + 200);
+    }
+
+    // I03: pause is a real circuit breaker over settlement and claim
+    function test_paused_blocksSettlement() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.prank(manager);
+        distributor.setPaused(saleId, true);
+        vm.prank(bot);
+        vm.expectRevert("Sale paused");
+        distributor.setSettlementRoot(saleId, keccak256("r"), 50e18);
+    }
+
+    function test_paused_blocksClaim() public {
+        uint64 saleId = _saleWithDeposit(); // alice unlocked, 200e18
+        MockERC20 share = new MockERC20(admin, "Share", "xKLSH");
+        deal(address(share), address(distributor), 10e18);
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(share), 10e18);
+        _settleAndFinalize(saleId, root, 50e18); // finalize while not paused
+        vm.prank(manager);
+        distributor.setPaused(saleId, true);
+        vm.expectRevert("Sale paused");
+        distributor.claim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+    }
+
     // ---- claim ----
 
     // warp past the deposit window(s) so settlement is allowed
@@ -658,6 +701,37 @@ contract PreIPODistributorTest is Test {
         _settleAndFinalize(saleId, root, 40e18); // totalRefund (40e18) < leaf refund (50e18)
         vm.expectRevert("Refund over total");
         distributor.claim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+    }
+
+    // I13: previewClaim mirrors claim validation/routing without state change
+    function test_previewClaim() public {
+        uint64 saleId = _saleWithDeposit(); // alice unlocked, 200e18
+        MockERC20 share = new MockERC20(admin, "Share", "xKLSH");
+        deal(address(share), address(distributor), 10e18);
+        bytes32 root = _settleLeaf(saleId, alice, 50e18, address(share), 10e18);
+
+        // before finalize: not valid
+        (bool valid0,,,) = distributor.previewClaim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+        assertFalse(valid0);
+
+        _settleAndFinalize(saleId, root, 50e18);
+
+        // valid, not yet claimed, unlocked tranche -> will deliver shares
+        (bool valid, bool claimed_, uint8 tranche, bool willDeliver) =
+            distributor.previewClaim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+        assertTrue(valid);
+        assertFalse(claimed_);
+        assertEq(tranche, XKLSH);
+        assertTrue(willDeliver);
+
+        // wrong amount -> invalid proof
+        (bool validBad,,,) = distributor.previewClaim(saleId, alice, 51e18, address(share), 10e18, new bytes32[](0));
+        assertFalse(validBad);
+
+        // after claiming -> alreadyClaimed true
+        distributor.claim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+        (, bool claimedAfter,,) = distributor.previewClaim(saleId, alice, 50e18, address(share), 10e18, new bytes32[](0));
+        assertTrue(claimedAfter);
     }
 
     function test_claim_alreadyClaimed_reverts() public {
