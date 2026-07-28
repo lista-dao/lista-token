@@ -424,6 +424,80 @@ contract PreIPODistributorTest is Test {
         assertEq(distributor.userTranche(saleId, alice), PKLSH);
     }
 
+    // ---- changeUserTranche (manager correction) ----
+
+    function test_changeUserTranche_ok() public {
+        uint64 saleId = _saleWithDeposit(); // alice deposited XKLSH
+        assertEq(distributor.userTranche(saleId, alice), XKLSH);
+
+        vm.expectEmit(true, true, false, true, address(distributor));
+        emit PreIPODistributor.ChangeUserTranche(saleId, alice, XKLSH, PKLSH);
+        vm.prank(manager);
+        distributor.changeUserTranche(saleId, alice, PKLSH);
+
+        assertEq(distributor.userTranche(saleId, alice), PKLSH);
+        // deposit amounts are untouched
+        assertEq(distributor.deposits(saleId, alice), 200e18);
+    }
+
+    function test_changeUserTranche_acl() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.prank(outsider);
+        vm.expectRevert();
+        distributor.changeUserTranche(saleId, alice, PKLSH);
+    }
+
+    function test_changeUserTranche_invalidSale_reverts() public {
+        vm.prank(manager);
+        vm.expectRevert("Invalid saleId");
+        distributor.changeUserTranche(0, alice, PKLSH);
+    }
+
+    function test_changeUserTranche_invalidTranche_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.prank(manager);
+        vm.expectRevert("Invalid tranche");
+        distributor.changeUserTranche(saleId, alice, 3);
+    }
+
+    function test_changeUserTranche_noDeposit_reverts() public {
+        uint64 saleId = _saleWithDeposit(); // only alice deposited
+        vm.prank(manager);
+        vm.expectRevert("Tranche not set");
+        distributor.changeUserTranche(saleId, carol, PKLSH);
+    }
+
+    function test_changeUserTranche_sameTranche_reverts() public {
+        uint64 saleId = _saleWithDeposit(); // alice is XKLSH
+        vm.prank(manager);
+        vm.expectRevert("Same tranche");
+        distributor.changeUserTranche(saleId, alice, XKLSH);
+    }
+
+    function test_changeUserTranche_whileSettlementPending_ok() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.prank(bot);
+        distributor.setSettlementRoot(saleId, keccak256("settle"), 50e18);
+
+        // a pending (not finalized) root does not block the correction
+        vm.prank(manager);
+        distributor.changeUserTranche(saleId, alice, PKLSH);
+        assertEq(distributor.userTranche(saleId, alice), PKLSH);
+    }
+
+    function test_changeUserTranche_afterFinalize_reverts() public {
+        uint64 saleId = _saleWithDeposit();
+        vm.prank(bot);
+        distributor.setSettlementRoot(saleId, keccak256("settle"), 50e18);
+        vm.warp(block.timestamp + 6 hours);
+        vm.prank(bot);
+        distributor.finalizeSettlement(saleId);
+
+        vm.prank(manager);
+        vm.expectRevert("Settlement finalized");
+        distributor.changeUserTranche(saleId, alice, PKLSH);
+    }
+
     // ---- settlement: set / finalize ----
 
     // create a sale, deposit in WL round, return saleId (totalDeposits = 200e18)
