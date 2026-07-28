@@ -110,6 +110,8 @@ contract PreIPODistributor is
 
     event SetPaused(uint64 indexed saleId, bool paused);
 
+    event ChangeUserTranche(uint64 indexed saleId, address indexed account, uint8 oldTranche, uint8 newTranche);
+
     event DepositWhitelist(
         uint64 indexed saleId,
         address indexed account,
@@ -259,6 +261,26 @@ contract PreIPODistributor is
         require(sale.whitelistRoot != bytes32(0), "Invalid saleId");
         sale.paused = _paused;
         emit SetPaused(_saleId, _paused);
+    }
+
+    /// @dev MANAGER correction of an account's locked tranche. Allowed until the settlement root
+    ///      is finalized; a pending (not-yet-finalized) root does not block it, but the pending
+    ///      root must then be revoked and rebuilt off-chain to reflect the change. Deposit amounts
+    ///      are untouched; the tranche never affects on-chain accounting.
+    function changeUserTranche(uint64 _saleId, address _account, uint8 _tranche)
+        external
+        onlyRole(MANAGER)
+    {
+        Sale storage sale = sales[_saleId];
+        require(sale.whitelistRoot != bytes32(0), "Invalid saleId");
+        require(settlements[_saleId].root == bytes32(0), "Settlement finalized");
+        require(_tranche == TRANCHE_UNLOCKED || _tranche == TRANCHE_LOCKED, "Invalid tranche");
+        uint8 oldTranche = userTranche[_saleId][_account];
+        require(oldTranche != 0, "Tranche not set");
+        require(_tranche != oldTranche, "Same tranche");
+
+        userTranche[_saleId][_account] = _tranche;
+        emit ChangeUserTranche(_saleId, _account, oldTranche, _tranche);
     }
 
     /// @dev Whitelist-round deposit. First deposit needs a valid proof; top-ups skip it.
