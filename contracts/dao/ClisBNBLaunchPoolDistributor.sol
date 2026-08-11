@@ -25,6 +25,8 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
 
     event Claimed(address account, uint64 epochId, address token, uint256 amount);
 
+    event TopUpEpoch(uint64 epochId, address token, uint256 oldTotalAmount, uint256 newTotalAmount, uint256 addedAmount);
+
     struct Epoch {
         // merkle root of an epoch
         bytes32 merkleRoot;
@@ -136,6 +138,37 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
     }
 
     /**
+     * @dev Raise an existing epoch's total to the correct amount (= sum of merkle leaves).
+     *      Fixes epochs whose totalAmount was set below the leaf sum, which otherwise makes
+     *      `claim` underflow `unclaimedAmount` for tail users once the under-set cap is drained.
+     *      The merkle root is unchanged (it already contains every user); only the accounting
+     *      caps are raised. Restricted to DEFAULT_ADMIN_ROLE (like collectUnclaimed /
+     *      adminTransfer). The admin must fund the missing tokens into this contract first;
+     *      the solvency check rejects raising the cap above the contract's actual balance. Only
+     *      allowed while the epoch is still within its claim window, since a topped-up ended
+     *      epoch would still be unclaimable via `claim` and merely strand the added amount.
+     * @param _epochId Id of epoch
+     * @param _newTotalAmount New total amount of the epoch, must exceed the current totalAmount
+     */
+    function topUpEpoch(uint64 _epochId, uint256 _newTotalAmount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        Epoch storage epoch = epochs[_epochId];
+        require(epoch.merkleRoot != bytes32(0), "Invalid epochId");
+        require(block.timestamp <= epoch.endTime, "Epoch ended");
+        require(_newTotalAmount > epoch.totalAmount, "Not an increase");
+
+        uint256 oldTotalAmount = epoch.totalAmount;
+        uint256 added = _newTotalAmount - oldTotalAmount;
+
+        epoch.totalAmount = _newTotalAmount;
+        epoch.unclaimedAmount += added;
+        totalUnclaimedAmount[epoch.token] += added;
+
+        require(_balanceOf(epoch.token) >= totalUnclaimedAmount[epoch.token], "Insufficient funds");
+
+        emit TopUpEpoch(_epochId, epoch.token, oldTotalAmount, _newTotalAmount, added);
+    }
+
+    /**
      * @dev Revoke the reward of the given epoch;
      * @param _epochId Id of epoch
      */
@@ -189,6 +222,10 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
         } else {
             IERC20(_token).safeTransfer(_to, _amount);
         }
+    }
+
+    function _balanceOf(address _token) private view returns (uint256) {
+        return _token == address(0) ? address(this).balance : IERC20(_token).balanceOf(address(this));
     }
 
     function getEpochs(uint64[] memory _epochIds) external view returns (Epoch[] memory) {
