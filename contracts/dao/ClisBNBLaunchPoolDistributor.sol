@@ -19,6 +19,8 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
 
     event UpdateEpoch(uint64 epochId, bytes32 merkleRoot, address token, uint256 startTime, uint256 endTime, uint256 amount);
 
+    event UpdateEpochTotalAmount(uint64 epochId, address token, uint256 oldTotalAmount, uint256 newTotalAmount, uint256 unclaimedAmount);
+
     event RevokeEpoch(uint64 epochId, address token, uint256 totalAmount, uint256 unclaimedAmount);
 
     event CollectUnclaimed(uint64 epochId, address token, uint256 totalAmount, uint256 unclaimedAmount);
@@ -133,6 +135,44 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
         totalUnclaimedAmount[_token] += _totalAmount;
 
         emit UpdateEpoch(currentEpochId, epoch.merkleRoot, epoch.token, epoch.startTime, epoch.endTime, epoch.totalAmount);
+    }
+
+    /**
+     * @dev Update the total amount of an existing epoch.
+     *      Used to fix an epoch whose totalAmount was set lower than the sum of its merkle tree,
+     *      which makes the remaining users unable to claim (unclaimedAmount underflows).
+     *      The difference is applied to unclaimedAmount, so already claimed rewards are kept untouched.
+     * @param _epochId Id of epoch
+     * @param _totalAmount New total amount of the epoch
+     */
+    function updateEpochTotalAmount(uint64 _epochId, uint256 _totalAmount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        Epoch storage epoch = epochs[_epochId];
+        require(epoch.merkleRoot != bytes32(0), "Invalid epochId");
+        require(epoch.endTime >= block.timestamp, "Epoch already ended");
+        require(_totalAmount > 0, "Invalid total amount");
+
+        address token = epoch.token;
+        uint256 oldTotalAmount = epoch.totalAmount;
+        require(_totalAmount != oldTotalAmount, "Same total amount");
+
+        if (_totalAmount > oldTotalAmount) {
+            uint256 delta = _totalAmount - oldTotalAmount;
+            epoch.unclaimedAmount += delta;
+            totalUnclaimedAmount[token] += delta;
+        } else {
+            uint256 delta = oldTotalAmount - _totalAmount;
+            // can only cut the part which is not claimed yet
+            require(delta <= epoch.unclaimedAmount, "Amount already claimed");
+            epoch.unclaimedAmount -= delta;
+            totalUnclaimedAmount[token] -= delta;
+        }
+        epoch.totalAmount = _totalAmount;
+
+        // rewards of all epochs of this token must be fully covered by the balance of this contract
+        uint256 balance = token == address(0) ? address(this).balance : IERC20(token).balanceOf(address(this));
+        require(balance >= totalUnclaimedAmount[token], "Insufficient balance");
+
+        emit UpdateEpochTotalAmount(_epochId, token, oldTotalAmount, _totalAmount, epoch.unclaimedAmount);
     }
 
     /**

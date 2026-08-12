@@ -287,6 +287,270 @@ contract ClisBNBLaunchPoolDistributorTest is Test {
         cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, proof);
     }
 
+    // epoch whose totalAmount(1000e18) is lower than the sum of the merkle tree(1737e18)
+    function _setEpochWithInsufficientTotalAmount() private {
+        vm.startPrank(operator);
+        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1000e18);
+        vm.stopPrank();
+
+        deal(address(lista), address(cliBNBLaunchPoolDistributor), 1737e18);
+        skip(11);
+    }
+
+    function _proof(uint256 _index) private view returns (bytes32[] memory) {
+        bytes32[] memory proof = new bytes32[](2);
+        if (_index == 0) {
+            proof[0] = leafs[1];
+            proof[1] = l2[1];
+        } else if (_index == 1) {
+            proof[0] = leafs[0];
+            proof[1] = l2[1];
+        } else if (_index == 2) {
+            proof[0] = leafs[3];
+            proof[1] = l2[0];
+        } else {
+            proof[0] = leafs[2];
+            proof[1] = l2[0];
+        }
+        return proof;
+    }
+
+    function test_updateEpochTotalAmount_fix_insufficient_total_amount() public {
+        _setEpochWithInsufficientTotalAmount();
+
+        // first two users can claim, 1000 - 123 - 456 = 421 left
+        cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, _proof(0));
+        cliBNBLaunchPoolDistributor.claim(0, 0x2d886570A0dA04885bfD6eb48eD8b8ff01A0eb7e, 456e18, _proof(1));
+
+        // the third user cannot claim 789 out of 421
+        vm.expectRevert();
+        cliBNBLaunchPoolDistributor.claim(0, 0xed857ac80A9cc7ca07a1C213e79683A1883df07B, 789e18, _proof(2));
+
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 1737e18);
+        vm.stopPrank();
+
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(1737e18, actual[0].totalAmount);
+        assertEq(1737e18 - 123e18 - 456e18, actual[0].unclaimedAmount);
+        assertEq(1737e18 - 123e18 - 456e18, cliBNBLaunchPoolDistributor.totalUnclaimedAmount(address(lista)));
+
+        // remaining users can claim now
+        cliBNBLaunchPoolDistributor.claim(0, 0xed857ac80A9cc7ca07a1C213e79683A1883df07B, 789e18, _proof(2));
+        cliBNBLaunchPoolDistributor.claim(0, 0x690B9A9E9aa1C9dB991C7721a92d351Db4FaC990, 369e18, _proof(3));
+
+        actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(0, actual[0].unclaimedAmount);
+        assertEq(0, cliBNBLaunchPoolDistributor.totalUnclaimedAmount(address(lista)));
+        assertEq(0, lista.balanceOf(address(cliBNBLaunchPoolDistributor)));
+    }
+
+    function test_updateEpochTotalAmount_decrease_ok() public {
+        test_setEpochMerkleRoot_ok();
+        deal(address(lista), address(cliBNBLaunchPoolDistributor), 1737e18);
+
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 1000e18);
+        vm.stopPrank();
+
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(1000e18, actual[0].totalAmount);
+        assertEq(1000e18, actual[0].unclaimedAmount);
+        assertEq(1000e18, cliBNBLaunchPoolDistributor.totalUnclaimedAmount(address(lista)));
+    }
+
+    function test_updateEpochTotalAmount_emit_event() public {
+        test_setEpochMerkleRoot_ok();
+        deal(address(lista), address(cliBNBLaunchPoolDistributor), 2000e18);
+
+        vm.expectEmit(true, true, true, true, address(cliBNBLaunchPoolDistributor));
+        emit ClisBNBLaunchPoolDistributor.UpdateEpochTotalAmount(0, address(lista), 1737e18, 2000e18, 2000e18);
+
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 2000e18);
+        vm.stopPrank();
+    }
+
+    // totalUnclaimedAmount is shared by all epochs of the same token
+    function test_updateEpochTotalAmount_multiple_epochs_same_token() public {
+        vm.startPrank(operator);
+        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(0, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1737e18);
+        cliBNBLaunchPoolDistributor.setEpochMerkleRoot(1, root, address(lista), block.timestamp + 10, block.timestamp + 1000, 1000e18);
+        vm.stopPrank();
+        assertEq(2737e18, cliBNBLaunchPoolDistributor.totalUnclaimedAmount(address(lista)));
+
+        // balance only covers the current total of both epochs
+        deal(address(lista), address(cliBNBLaunchPoolDistributor), 2737e18);
+        vm.startPrank(admin);
+        vm.expectRevert("Insufficient balance");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 1800e18);
+        vm.stopPrank();
+
+        deal(address(lista), address(cliBNBLaunchPoolDistributor), 2800e18);
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 1800e18);
+        vm.stopPrank();
+
+        uint64[] memory epochIds = new uint64[](2);
+        epochIds[0] = 0;
+        epochIds[1] = 1;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(1800e18, actual[0].totalAmount);
+        assertEq(1800e18, actual[0].unclaimedAmount);
+        // the other epoch of the same token is untouched
+        assertEq(1000e18, actual[1].totalAmount);
+        assertEq(1000e18, actual[1].unclaimedAmount);
+        assertEq(2800e18, cliBNBLaunchPoolDistributor.totalUnclaimedAmount(address(lista)));
+    }
+
+    function test_updateEpochTotalAmount_collectUnclaimed_after_increase() public {
+        _setEpochWithInsufficientTotalAmount();
+        cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, _proof(0));
+
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 1737e18);
+        vm.stopPrank();
+
+        skip(1000);
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.collectUnclaimed(0);
+        vm.stopPrank();
+
+        assertEq(1737e18 - 123e18, lista.balanceOf(admin));
+        assertEq(0, lista.balanceOf(address(cliBNBLaunchPoolDistributor)));
+        assertEq(0, cliBNBLaunchPoolDistributor.totalUnclaimedAmount(address(lista)));
+    }
+
+    // cut the total amount down to exactly what has been claimed
+    function test_updateEpochTotalAmount_decrease_to_claimed_amount() public {
+        _setEpochWithInsufficientTotalAmount();
+        cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, _proof(0));
+
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 123e18);
+        vm.stopPrank();
+
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(123e18, actual[0].totalAmount);
+        assertEq(0, actual[0].unclaimedAmount);
+        assertEq(0, cliBNBLaunchPoolDistributor.totalUnclaimedAmount(address(lista)));
+    }
+
+    function test_updateEpochTotalAmount_decrease_below_claimed() public {
+        _setEpochWithInsufficientTotalAmount();
+        cliBNBLaunchPoolDistributor.claim(0, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 123e18, _proof(0));
+
+        vm.startPrank(admin);
+        vm.expectRevert("Amount already claimed");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 100e18);
+        vm.stopPrank();
+    }
+
+    function test_updateEpochTotalAmount_bnb_ok() public {
+        test_setEpochMerkleRoot_bnb_ok();
+        deal(address(cliBNBLaunchPoolDistributor), 2000e18);
+
+        vm.startPrank(admin);
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 2000e18);
+        vm.stopPrank();
+
+        uint64[] memory epochIds = new uint64[](1);
+        epochIds[0] = 0;
+        ClisBNBLaunchPoolDistributor.Epoch[] memory actual = cliBNBLaunchPoolDistributor.getEpochs(epochIds);
+        assertEq(2000e18, actual[0].totalAmount);
+        assertEq(2000e18, actual[0].unclaimedAmount);
+        assertEq(2000e18, cliBNBLaunchPoolDistributor.totalUnclaimedAmount(address(0)));
+    }
+
+    function test_updateEpochTotalAmount_insufficient_balance() public {
+        test_setEpochMerkleRoot_ok();
+        deal(address(lista), address(cliBNBLaunchPoolDistributor), 1737e18);
+
+        vm.startPrank(admin);
+        vm.expectRevert("Insufficient balance");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 1737e18 + 1);
+        vm.stopPrank();
+    }
+
+    function test_updateEpochTotalAmount_bnb_insufficient_balance() public {
+        test_setEpochMerkleRoot_bnb_ok();
+        deal(address(cliBNBLaunchPoolDistributor), 1737e18);
+
+        vm.startPrank(admin);
+        vm.expectRevert("Insufficient balance");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 1737e18 + 1);
+        vm.stopPrank();
+    }
+
+    function test_updateEpochTotalAmount_invalid_epochId() public {
+        test_setEpochMerkleRoot_ok();
+
+        vm.startPrank(admin);
+        vm.expectRevert("Invalid epochId");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(1, 1737e18);
+        vm.stopPrank();
+    }
+
+    function test_updateEpochTotalAmount_revoked_epoch() public {
+        test_revokeEpoch_ok();
+
+        vm.startPrank(admin);
+        vm.expectRevert("Invalid epochId");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 1737e18);
+        vm.stopPrank();
+    }
+
+    function test_updateEpochTotalAmount_same_amount() public {
+        test_setEpochMerkleRoot_ok();
+
+        vm.startPrank(admin);
+        vm.expectRevert("Same total amount");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 1737e18);
+        vm.stopPrank();
+    }
+
+    function test_updateEpochTotalAmount_zero_amount() public {
+        test_setEpochMerkleRoot_ok();
+
+        vm.startPrank(admin);
+        vm.expectRevert("Invalid total amount");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 0);
+        vm.stopPrank();
+    }
+
+    function test_updateEpochTotalAmount_epoch_ended() public {
+        test_setEpochMerkleRoot_ok();
+        deal(address(lista), address(cliBNBLaunchPoolDistributor), 2000e18);
+        skip(1001);
+
+        vm.startPrank(admin);
+        vm.expectRevert("Epoch already ended");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 2000e18);
+        vm.stopPrank();
+    }
+
+    function test_updateEpochTotalAmount_acl() public {
+        test_setEpochMerkleRoot_ok();
+        deal(address(lista), address(cliBNBLaunchPoolDistributor), 2000e18);
+
+        vm.startPrank(bot);
+        vm.expectRevert("AccessControl: account 0x00000000000000000000000000000000003a11aa is missing role 0x0000000000000000000000000000000000000000000000000000000000000000");
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 2000e18);
+        vm.stopPrank();
+
+        // OPERATOR is not enough, only DEFAULT_ADMIN_ROLE can update
+        vm.startPrank(operator);
+        vm.expectRevert();
+        cliBNBLaunchPoolDistributor.updateEpochTotalAmount(0, 2000e18);
+        vm.stopPrank();
+    }
+
     function test_batch_setEpochMerkleRoot_ok() public {
         uint64[] memory epochIds = new uint64[](1);
         epochIds[0] = 0;
