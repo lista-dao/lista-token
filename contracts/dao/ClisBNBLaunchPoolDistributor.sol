@@ -138,21 +138,15 @@ contract ClisBNBLaunchPoolDistributor is Initializable, AccessControlUpgradeable
     }
 
     /**
-     * @dev Raise an existing epoch's total to the correct amount (= sum of merkle leaves).
-     *      Fixes epochs whose totalAmount was set below the leaf sum, which otherwise makes
-     *      `claim` underflow `unclaimedAmount` for tail users once the under-set cap is drained.
-     *      The merkle root is unchanged (it already contains every user); only the accounting
-     *      caps are raised. Restricted to DEFAULT_ADMIN_ROLE (like collectUnclaimed /
-     *      adminTransfer). The admin must fund the missing tokens into this contract first;
-     *      the solvency check rejects raising the cap above the contract's actual balance. Only
-     *      allowed while the epoch is still within its claim window, since a topped-up ended
-     *      epoch would still be unclaimable via `claim` and merely strand the added amount.
+     * @dev Raise an active epoch's total to the correct amount (= sum of merkle leaves), fixing
+     *      an under-set totalAmount that blocks tail users from claiming. Fund the delta first.
      * @param _epochId Id of epoch
      * @param _newTotalAmount New total amount of the epoch, must exceed the current totalAmount
      */
     function topUpEpoch(uint64 _epochId, uint256 _newTotalAmount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Epoch storage epoch = epochs[_epochId];
         require(epoch.merkleRoot != bytes32(0), "Invalid epochId");
+        require(block.timestamp >= epoch.startTime, "Epoch not started");
         require(block.timestamp <= epoch.endTime, "Epoch ended");
         require(_newTotalAmount > epoch.totalAmount, "Not an increase");
 
